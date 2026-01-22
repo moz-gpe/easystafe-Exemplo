@@ -1,0 +1,144 @@
+---
+title: "Exemplo de processamento de ficheiro eSISTAFE"
+format: html
+---
+
+# Configuração
+
+Primeiro, vamos começar carregando o código de programação necessário para processar o nosso ficheiro e-SISTAFE. No R, isso é feito através das funções ‘library()’ e ‘source()’.
+
+```{r attach-packages}
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(readxl)
+library(janitor)
+source("Scripts/functions.R")
+
+```
+
+# Detecção dos ficheiros e metadados
+
+Agora vamos pedir ao R para identificar os nomes dos ficheiros que foram armazenados numa pasta para processamento.  
+
+```{r list-files}
+
+  paths <- list.files(
+    path = "Data/",
+    pattern = "\\.xls$",
+    full.names = TRUE,
+    ignore.case = TRUE
+  )
+
+  paths
+
+```
+A seguir, vamos chamar uma função que foi concebida para descodificar os nomes dos ficheiros eSISTAFE!  Esta função é chamada `extrair_meta_extracto`.
+
+```{r extract-metadata}
+
+resultados_df <- map(paths, extrair_meta_extracto) |> 
+                 list_rbind(names_to = "arquivo_fonte")
+
+glimpse(resultados_df)
+
+```
+
+# Carregar e limpar ficheiros
+
+## Carregamento
+Vamos carregar todos os nossos ficheiros eSISTAFE e combiná-los num único conjunto de dados! Podemos fazer isso numa única ação, apontando o nosso código para o conjunto de caminhos de ficheiros que já definimos.
+
+```{r load-files}
+
+df <- map(paths, ~read_excel(.x, col_types = "text")) |> 
+  set_names(basename(paths)) |> 
+  list_rbind(names_to = "file_name")
+
+glimpse(df)
+
+```
+
+## Limpeza
+
+Agora começa o verdadeiro trabalho: limpar os ficheiros eSISTAFE! A primeira coisa que vamos fazer é converter os nomes das colunas em algo mais legível pela máquina.
+
+
+### Renomear colunas
+```{r rename-files}
+
+df_limpeza_1 <- clean_names(df)
+
+glimpse(df_limpeza_1)
+
+```
+
+### Remover colunas desnecessarias
+```{r remove-cols}
+
+df_limpeza_2 <- df_limpeza_1 |> 
+  select(!dplyr::ends_with("percent"))
+
+glimpse(df_limpeza_2)
+
+```
+
+### Isolar codigo ugb
+```{r create-ugb-code}
+
+df_limpeza_3 <- df_limpeza_2 |> 
+  mutate(
+      dplyr::across(dotacao_inicial:liq_ad_fundos_via_directa_lafvd, as.numeric),
+      ugb_id = substr(ugb, 1, 9)
+  ) |> 
+    relocate(ugb_id, .after = ugb)
+
+  glimpse(df_limpeza_3)
+```
+
+### Carregar ugb's de educação
+```{r carregar-ugb-valido}
+
+  # Load lookup table for education UGB and other metadata
+  vec_ugb <- read_excel("Documents/xxx_Orcamento_DB_ficheiro branco.xlsm",
+                        sheet = "Organica da Educação") |>  
+    clean_names() |>  
+    distinct(codigo_ugb) |> 
+    pull()
+
+  glimpse(vec_ugb)
+
+```
+
+### Filtrar ugb's de educação
+```{r filtrar-ugb-valido}
+
+df_limpeza_4 <- df_limpeza_3 |> 
+      mutate(mec_ugb_class  = ifelse(ugb_id %in% vec_ugb, "Keep", "Remove")
+      ) |> 
+      filter(mec_ugb_class == "Keep")
+
+glimpse(df_limpeza_4)
+
+```
+
+### Codificar ced parametros
+```{r codificar-ced-param}
+
+df_limpeza_5 <- df_limpeza_4 |> 
+    dplyr::mutate(
+      ced_blank_class = ifelse(!is.na(ced), "Keep", "Remove"),
+      ced_group = dplyr::case_when(
+        !stringr::str_ends(ced, "00")                                           ~ "A",
+        stringr::str_ends(ced, "00") & !stringr::str_ends(ced, "000") & !stringr::str_ends(ced, "0000") ~ "B",
+        stringr::str_ends(ced, "000") & !stringr::str_ends(ced, "0000")        ~ "C",
+        stringr::str_ends(ced, "0000")                                         ~ "D",
+        TRUE                                                                   ~ NA_character_
+      )
+    )
+    
+
+glimpse(df_limpeza_5)
+
+```
