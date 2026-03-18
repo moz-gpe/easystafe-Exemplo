@@ -20,41 +20,6 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
-/* CSS for syntax highlighting */
-html { -webkit-text-size-adjust: 100%; }
-pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
-pre > code.sourceCode > span:empty { height: 1.2em; }
-.sourceCode { overflow: visible; }
-code.sourceCode > span { color: inherit; text-decoration: inherit; }
-div.sourceCode { margin: 1em 0; }
-pre.sourceCode { margin: 0; }
-@media screen {
-div.sourceCode { overflow: auto; }
-}
-@media print {
-pre > code.sourceCode { white-space: pre-wrap; }
-pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
-}
-pre.numberSource code
-  { counter-reset: source-line 0; }
-pre.numberSource code > span
-  { position: relative; left: -4em; counter-increment: source-line; }
-pre.numberSource code > span > a:first-child::before
-  { content: counter(source-line);
-    position: relative; left: -1em; text-align: right; vertical-align: baseline;
-    border: none; display: inline-block;
-    -webkit-touch-callout: none; -webkit-user-select: none;
-    -khtml-user-select: none; -moz-user-select: none;
-    -ms-user-select: none; user-select: none;
-    padding: 0 4px; width: 4em;
-  }
-pre.numberSource { margin-left: 3em;  padding-left: 4px; }
-div.sourceCode
-  {   }
-@media screen {
-pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
-}
 </style>
 
 
@@ -99,58 +64,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<section id="introdução" class="level1">
-<h1>Introdução</h1>
-<section id="carregar-pacotes-requiridos" class="level2">
-<h2 class="anchored" data-anchor-id="carregar-pacotes-requiridos">Carregar pacotes requiridos</h2>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readxl)</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(janitor)</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(glue)</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="st">"Scripts/functions.R"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-</section>
-<section id="definir-caminhos-aos-dados-e-sistafe-e-ugbs" class="level2">
-<h2 class="anchored" data-anchor-id="definir-caminhos-aos-dados-e-sistafe-e-ugbs">Definir caminhos aos dados e-SISTAFE e UGB’s</h2>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>path_ugb <span class="ot">&lt;-</span> <span class="st">"../../Data/ugb/Codigos de UGBs.xlsx"</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>path_data <span class="ot">&lt;-</span> <span class="st">"Data/debugging/"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-</section>
-</section>
-<section id="detectar-ficheiros-e-metadados" class="level1">
-<h1>Detectar ficheiros e metadados</h1>
-<section id="detectar-ficheiros" class="level2">
-<h2 class="anchored" data-anchor-id="detectar-ficheiros">Detectar ficheiros</h2>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>  paths <span class="ot">&lt;-</span> <span class="fu">list.files</span>(</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">path =</span> path_data,</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">pattern =</span> <span class="st">"</span><span class="sc">\\</span><span class="st">.xlsx$"</span>,</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">full.names =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">ignore.case =</span> <span class="cn">TRUE</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  paths</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] "Data/debugging/DemonstrativoConsolidadoOrcamentoFuncionamentoPorUGBFuncionalProgramaFRCED_A_Central_20251231_20251231-2026-02-05_11-43-45.294.xlsx"</code></pre>
-</div>
-</div>
-</section>
-</section>
 <section id="carregar-e-limpar-ficheiros-no-r" class="level1">
 <h1>Carregar e limpar ficheiros no R</h1>
 <section id="carregar-ficheiros" class="level2">
 <h2 class="anchored" data-anchor-id="carregar-ficheiros">Carregar ficheiros</h2>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">map</span>(paths, <span class="sc">~</span><span class="fu">read_excel</span>(.x, <span class="at">col_types =</span> <span class="st">"text"</span>)) <span class="sc">|&gt;</span> </span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_names</span>(<span class="fu">basename</span>(paths)) <span class="sc">|&gt;</span> </span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list_rbind</span>(<span class="at">names_to =</span> <span class="st">"file_name"</span>)</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="fu">glue</span>(</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Ficheiros carregados: {n_distinct(df$file_name)}</span></span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="st">   Linhas carregadas: {nrow(df)}"</span></span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Ficheiros carregados: 1
 Linhas carregadas: 274</code></pre>
@@ -162,9 +80,6 @@ Linhas carregadas: 274</code></pre>
 <section id="renomear-colunas" class="level3">
 <h3 class="anchored" data-anchor-id="renomear-colunas">Renomear colunas</h3>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>df_limpeza_1 <span class="ot">&lt;-</span> <span class="fu">clean_names</span>(df)</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(df_limpeza_1)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code> [1] "file_name"                         "ugb"                              
  [3] "funcao"                            "programa"                         
@@ -182,197 +97,4062 @@ Linhas carregadas: 274</code></pre>
 <section id="remover-colunas-desnecessarias" class="level3">
 <h3 class="anchored" data-anchor-id="remover-colunas-desnecessarias">Remover colunas desnecessarias</h3>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>df_limpeza_2 <span class="ot">&lt;-</span> df_limpeza_1 <span class="sc">|&gt;</span> </span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">!</span>dplyr<span class="sc">::</span><span class="fu">ends_with</span>(<span class="st">"percent"</span>))</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(df_limpeza_2)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code> [1] "file_name"                         "ugb"                              
- [3] "funcao"                            "programa"                         
- [5] "fr"                                "ced"                              
- [7] "dotacao_inicial"                   "dotacao_revista"                  
- [9] "dotacao_actualizada_da"            "dotacao_disponivel"               
-[11] "dotacao_cabimentada_dc"            "ad_fundos_concedidos_af"          
-[13] "despesa_paga_via_directa_dp"       "ad_fundos_desp_paga_vd_afdp"      
-[15] "ad_fundos_liquidados_laf"          "despesa_liquidada_via_directa_lvd"
-[17] "liq_ad_fundos_via_directa_lafvd"  </code></pre>
+<pre><code>Colunas removidas: dc_da_percent, afdp_da_percent, laf_af_percent</code></pre>
 </div>
 </div>
 </section>
 <section id="extrair-código-ugb" class="level3">
 <h3 class="anchored" data-anchor-id="extrair-código-ugb">Extrair código UGB</h3>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>df_limpeza_3 <span class="ot">&lt;-</span> df_limpeza_2 <span class="sc">|&gt;</span> </span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>      dplyr<span class="sc">::</span><span class="fu">across</span>(dotacao_inicial<span class="sc">:</span>liq_ad_fundos_via_directa_lafvd, as.numeric),</span>
-<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>      <span class="at">ugb_id =</span> <span class="fu">substr</span>(ugb, <span class="dv">1</span>, <span class="dv">9</span>)</span>
-<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span> </span>
-<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">relocate</span>(ugb_id, <span class="at">.after =</span> ugb)</span>
-<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">glimpse</span>(df_limpeza_3)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>Rows: 274
-Columns: 18
-$ file_name                         &lt;chr&gt; "DemonstrativoConsolidadoOrcamentoFu…
-$ ugb                               &lt;chr&gt; "35A005041 - INSTITUTO NACIONAL DE I…
-$ ugb_id                            &lt;chr&gt; "35A005041", "35A005041", "35A005041…
-$ funcao                            &lt;chr&gt; NA, "04251 - IRRIGACAO", "04251 - IR…
-$ programa                          &lt;chr&gt; NA, NA, "101MAE01060000000OF00  - De…
-$ fr                                &lt;chr&gt; NA, NA, NA, "101000000000", "1010000…
-$ ced                               &lt;chr&gt; NA, NA, NA, NA, "111000", "111100", …
-$ dotacao_inicial                   &lt;dbl&gt; 35244310, 35244310, 35244310, 352443…
-$ dotacao_revista                   &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
-$ dotacao_actualizada_da            &lt;dbl&gt; 41234983.17, 41234983.17, 21895009.7…
-$ dotacao_disponivel                &lt;dbl&gt; 4110857.12, 4110857.12, 1968075.10, …
-$ dotacao_cabimentada_dc            &lt;dbl&gt; 37124126, 37124126, 19926935, 199269…
-$ ad_fundos_concedidos_af           &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
-$ despesa_paga_via_directa_dp       &lt;dbl&gt; 30601688.9, 30601688.9, 15075544.7, …
-$ ad_fundos_desp_paga_vd_afdp       &lt;dbl&gt; 30601688.9, 30601688.9, 15075544.7, …
-$ ad_fundos_liquidados_laf          &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
-$ despesa_liquidada_via_directa_lvd &lt;dbl&gt; 36076349, 36076349, 19110133, 191101…
-$ liq_ad_fundos_via_directa_lafvd   &lt;dbl&gt; 36076349.2, 36076349.2, 19110132.6, …</code></pre>
+<div class="cell-output-display">
+<div id="rnjabwudor" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#rnjabwudor table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#rnjabwudor thead, #rnjabwudor tbody, #rnjabwudor tfoot, #rnjabwudor tr, #rnjabwudor td, #rnjabwudor th {
+  border-style: none;
+}
+
+#rnjabwudor p {
+  margin: 0;
+  padding: 0;
+}
+
+#rnjabwudor .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#rnjabwudor .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#rnjabwudor .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#rnjabwudor .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#rnjabwudor .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#rnjabwudor .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#rnjabwudor .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#rnjabwudor .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#rnjabwudor .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#rnjabwudor .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#rnjabwudor .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#rnjabwudor .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#rnjabwudor .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#rnjabwudor .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#rnjabwudor .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#rnjabwudor .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#rnjabwudor .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#rnjabwudor .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#rnjabwudor .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#rnjabwudor .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#rnjabwudor .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#rnjabwudor .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#rnjabwudor .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#rnjabwudor .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#rnjabwudor .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#rnjabwudor .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#rnjabwudor .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#rnjabwudor .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#rnjabwudor .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+
+#rnjabwudor .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#rnjabwudor .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#rnjabwudor .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#rnjabwudor .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#rnjabwudor .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#rnjabwudor .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#rnjabwudor .gt_left {
+  text-align: left;
+}
+
+#rnjabwudor .gt_center {
+  text-align: center;
+}
+
+#rnjabwudor .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#rnjabwudor .gt_font_normal {
+  font-weight: normal;
+}
+
+#rnjabwudor .gt_font_bold {
+  font-weight: bold;
+}
+
+#rnjabwudor .gt_font_italic {
+  font-style: italic;
+}
+
+#rnjabwudor .gt_super {
+  font-size: 65%;
+}
+
+#rnjabwudor .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#rnjabwudor .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#rnjabwudor .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#rnjabwudor .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#rnjabwudor .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#rnjabwudor .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#rnjabwudor .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#rnjabwudor .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#rnjabwudor div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+
+<table class="gt_table caption-top table table-sm table-striped small" data-quarto-bootstrap="false">
+<thead>
+<tr class="gt_col_headings header">
+<th id="ugb_id" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">ugb_id</th>
+<th id="ugb" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">ugb</th>
+</tr>
+</thead>
+<tbody class="gt_table_body">
+<tr class="odd">
+<td class="gt_row gt_left" headers="ugb_id">35A005041</td>
+<td class="gt_row gt_left" headers="ugb">35A005041 - INSTITUTO NACIONAL DE IRRIGAÇÃO (INIR, IP)</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="ugb_id">50A000141</td>
+<td class="gt_row gt_left" headers="ugb">50A000141 - MINISTÉRIO DA EDUCAÇÃO E CULTURA</td>
+</tr>
+</tbody>
+</table>
+
+</div>
 </div>
 </div>
 </section>
-<section id="carregar-ugbs-de-educação" class="level3">
-<h3 class="anchored" data-anchor-id="carregar-ugbs-de-educação">Carregar UGB’s de educação</h3>
+<section id="carregar-ugbs-de-educação-e-filtar" class="level3">
+<h3 class="anchored" data-anchor-id="carregar-ugbs-de-educação-e-filtar">Carregar UGB’s de educação e filtar</h3>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Load lookup table for education UGB and other metadata</span></span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>vec_ugb <span class="ot">&lt;-</span> <span class="fu">read_excel</span>(path_ugb, <span class="at">sheet =</span> <span class="st">"UGBS"</span>) <span class="sc">|&gt;</span> </span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">clean_names</span>() <span class="sc">|&gt;</span> </span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(</span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">ugb_cod =</span> ugb_1,</span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">ugb_nome =</span> ugb_3</span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span> </span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">distinct</span>(ugb_nome) <span class="sc">|&gt;</span> </span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pull</span>()</span>
-<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(vec_ugb)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] "04B100441 - SERVICO DISTRITAL DE EDUCACAO, JUVENTUDE E TECNOLOGIA DE MECANHELAS"
-[2] "04B110441 - SERVIÇO DISTRITAL DE EDUCAÇÃO JUVENTUDE E TECNOLOGIA - MECULA"      
-[3] "04B120441 - SERVICO DISTRITAL DE EDUCACAO, JUVENTUDE E TECNOLOGIA DE METARICA"  
-[4] "04B130441 - SERVIÇOS DISTRITAL DE EDUCAÇÃO JUVENTUDE E TECNOLOGIA DE MUEMBE"    
-[5] "04B150441 - SERVICO DISTRITAL DE EDUCACAO, JUVENTUDE E TECNOLOGIA DE NIPEPE"    
-[6] "04B160441 - SERVICO DISTRITAL DE EDUCACAO, JUVENTUDE E TECNOLOGIA DE SANGA"     </code></pre>
+<div class="cell-output-display">
+<div id="inlrxuujjm" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#inlrxuujjm table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#inlrxuujjm thead, #inlrxuujjm tbody, #inlrxuujjm tfoot, #inlrxuujjm tr, #inlrxuujjm td, #inlrxuujjm th {
+  border-style: none;
+}
+
+#inlrxuujjm p {
+  margin: 0;
+  padding: 0;
+}
+
+#inlrxuujjm .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#inlrxuujjm .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#inlrxuujjm .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#inlrxuujjm .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#inlrxuujjm .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#inlrxuujjm .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#inlrxuujjm .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#inlrxuujjm .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#inlrxuujjm .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#inlrxuujjm .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#inlrxuujjm .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#inlrxuujjm .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#inlrxuujjm .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#inlrxuujjm .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#inlrxuujjm .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#inlrxuujjm .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#inlrxuujjm .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#inlrxuujjm .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#inlrxuujjm .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#inlrxuujjm .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#inlrxuujjm .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#inlrxuujjm .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#inlrxuujjm .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#inlrxuujjm .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#inlrxuujjm .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#inlrxuujjm .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#inlrxuujjm .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#inlrxuujjm .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#inlrxuujjm .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+
+#inlrxuujjm .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#inlrxuujjm .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#inlrxuujjm .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#inlrxuujjm .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#inlrxuujjm .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#inlrxuujjm .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#inlrxuujjm .gt_left {
+  text-align: left;
+}
+
+#inlrxuujjm .gt_center {
+  text-align: center;
+}
+
+#inlrxuujjm .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#inlrxuujjm .gt_font_normal {
+  font-weight: normal;
+}
+
+#inlrxuujjm .gt_font_bold {
+  font-weight: bold;
+}
+
+#inlrxuujjm .gt_font_italic {
+  font-style: italic;
+}
+
+#inlrxuujjm .gt_super {
+  font-size: 65%;
+}
+
+#inlrxuujjm .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#inlrxuujjm .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#inlrxuujjm .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#inlrxuujjm .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#inlrxuujjm .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#inlrxuujjm .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#inlrxuujjm .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#inlrxuujjm .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#inlrxuujjm div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+
+<table class="gt_table caption-top table table-sm table-striped small" data-quarto-bootstrap="false">
+<thead>
+<tr class="gt_col_headings header">
+<th id="mec_ugb_class" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Classificação</th>
+<th id="n" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Linhas</th>
+</tr>
+</thead>
+<tbody class="gt_table_body">
+<tr class="odd">
+<td class="gt_row gt_left" headers="mec_ugb_class">MEC</td>
+<td class="gt_row gt_right" headers="n">220</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="mec_ugb_class">Other</td>
+<td class="gt_row gt_right" headers="n">54</td>
+</tr>
+</tbody>
+</table>
+
+</div>
 </div>
 </div>
 </section>
-<section id="classificar-filtro-ugb-de-educação" class="level3">
-<h3 class="anchored" data-anchor-id="classificar-filtro-ugb-de-educação">Classificar filtro UGB de educação</h3>
+<section id="remover-linhas-com-ced-em-branco-e-funcao-programa-e-fr-também-em-branco" class="level3">
+<h3 class="anchored" data-anchor-id="remover-linhas-com-ced-em-branco-e-funcao-programa-e-fr-também-em-branco">Remover linhas com CED em branco e funcao, programa e FR também em branco</h3>
+<p>Nesta etapa, eliminamos todas as linhas em que o código CED está em branco e em que os campos de função, programa e fonte de recurso (FR) também estão em branco. Após esta filtragem, criamos uma nova variável chamada <code>data_tipo</code> que classifica cada linha restante em uma de duas categorias: “Valor” para as linhas que serão utilizadas nos cálculos financeiros, e “Métrica” para as linhas que serão utilizadas posteriormente para fins de validação. Esta distinção é fundamental para garantir que os passos de processamento seguintes sejam aplicados apenas às linhas correctas.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>df_limpeza_4 <span class="ot">&lt;-</span> df_limpeza_3 <span class="sc">|&gt;</span> </span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>      <span class="fu">mutate</span>(<span class="at">mec_ugb_class  =</span> <span class="fu">ifelse</span>(ugb <span class="sc">%in%</span> vec_ugb, <span class="st">"Keep"</span>, <span class="st">"Remove"</span>)) <span class="sc">%&gt;%</span> </span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>      <span class="fu">filter</span>(mec_ugb_class <span class="sc">==</span> <span class="st">"Keep"</span>) <span class="sc">|&gt;</span></span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>      <span class="fu">select</span>(<span class="sc">-</span>mec_ugb_class)</span>
-<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(df_limpeza_4)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>Rows: 220
-Columns: 18
-$ file_name                         &lt;chr&gt; "DemonstrativoConsolidadoOrcamentoFu…
-$ ugb                               &lt;chr&gt; "50A000141 - MINISTÉRIO DA EDUCAÇÃO …
-$ ugb_id                            &lt;chr&gt; "50A000141", "50A000141", "50A000141…
-$ funcao                            &lt;chr&gt; NA, "01331 - OUTROS SERVICOS GERAIS"…
-$ programa                          &lt;chr&gt; NA, NA, "101MAE0106EGE2018OF02  - GR…
-$ fr                                &lt;chr&gt; NA, NA, NA, "101000000000", "1010000…
-$ ced                               &lt;chr&gt; NA, NA, NA, NA, "112000", "112100", …
-$ dotacao_inicial                   &lt;dbl&gt; 655481940, 0, 0, 0, 0, 0, 0, 0, 0, 0…
-$ dotacao_revista                   &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
-$ dotacao_actualizada_da            &lt;dbl&gt; 1.007812e+09, 6.506072e+06, 4.955284…
-$ dotacao_disponivel                &lt;dbl&gt; 99305413.89, 2982596.95, 2596760.86,…
-$ dotacao_cabimentada_dc            &lt;dbl&gt; 908506354.7, 3523475.4, 2358523.1, 2…
-$ ad_fundos_concedidos_af           &lt;dbl&gt; 1131659, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
-$ despesa_paga_via_directa_dp       &lt;dbl&gt; 811852772, 179400, 0, 0, 0, 0, 0, 0,…
-$ ad_fundos_desp_paga_vd_afdp       &lt;dbl&gt; 812984431, 179400, 0, 0, 0, 0, 0, 0,…
-$ ad_fundos_liquidados_laf          &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
-$ despesa_liquidada_via_directa_lvd &lt;dbl&gt; 894644910.5, 3523475.4, 2358523.1, 2…
-$ liq_ad_fundos_via_directa_lafvd   &lt;dbl&gt; 894644910.5, 3523475.4, 2358523.1, 2…</code></pre>
+<div class="cell-output-display">
+<div id="pybzczjwif" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#pybzczjwif table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#pybzczjwif thead, #pybzczjwif tbody, #pybzczjwif tfoot, #pybzczjwif tr, #pybzczjwif td, #pybzczjwif th {
+  border-style: none;
+}
+
+#pybzczjwif p {
+  margin: 0;
+  padding: 0;
+}
+
+#pybzczjwif .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#pybzczjwif .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#pybzczjwif .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#pybzczjwif .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#pybzczjwif .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#pybzczjwif .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#pybzczjwif .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#pybzczjwif .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#pybzczjwif .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#pybzczjwif .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#pybzczjwif .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#pybzczjwif .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#pybzczjwif .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#pybzczjwif .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#pybzczjwif .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#pybzczjwif .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#pybzczjwif .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#pybzczjwif .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#pybzczjwif .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#pybzczjwif .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#pybzczjwif .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#pybzczjwif .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#pybzczjwif .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#pybzczjwif .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#pybzczjwif .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#pybzczjwif .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#pybzczjwif .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#pybzczjwif .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#pybzczjwif .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+
+#pybzczjwif .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#pybzczjwif .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#pybzczjwif .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#pybzczjwif .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#pybzczjwif .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#pybzczjwif .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#pybzczjwif .gt_left {
+  text-align: left;
+}
+
+#pybzczjwif .gt_center {
+  text-align: center;
+}
+
+#pybzczjwif .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#pybzczjwif .gt_font_normal {
+  font-weight: normal;
+}
+
+#pybzczjwif .gt_font_bold {
+  font-weight: bold;
+}
+
+#pybzczjwif .gt_font_italic {
+  font-style: italic;
+}
+
+#pybzczjwif .gt_super {
+  font-size: 65%;
+}
+
+#pybzczjwif .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#pybzczjwif .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#pybzczjwif .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#pybzczjwif .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#pybzczjwif .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#pybzczjwif .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#pybzczjwif .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#pybzczjwif .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#pybzczjwif div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+
+<table class="gt_table caption-top table table-sm table-striped small" data-quarto-bootstrap="false">
+<thead>
+<tr class="gt_col_headings header">
+<th id="row_class" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Classificação</th>
+<th id="n" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Linhas</th>
+</tr>
+</thead>
+<tbody class="gt_table_body">
+<tr class="odd">
+<td class="gt_row gt_left" headers="row_class">Mantida: CED preenchido (Valor)</td>
+<td class="gt_row gt_right" headers="n">182</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="row_class">Mantida: CED em branco mas funcao/programa/FR preenchidos (Métrica)</td>
+<td class="gt_row gt_right" headers="n">17</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="row_class">Removida: CED e funcao/programa/FR em branco</td>
+<td class="gt_row gt_right" headers="n">21</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="row_class" style="font-weight: bold">Total linhas mantidas</td>
+<td class="gt_row gt_right" headers="n" style="font-weight: bold">199</td>
+</tr>
+</tbody>
+</table>
+
+</div>
 </div>
 </div>
 </section>
-<section id="categorizar-ced-por-nível" class="level3">
-<h3 class="anchored" data-anchor-id="categorizar-ced-por-nível">Categorizar CED por nível</h3>
+<section id="classificar-linhas-por-grupo-ced-e-remover-grupo-d" class="level3">
+<h3 class="anchored" data-anchor-id="classificar-linhas-por-grupo-ced-e-remover-grupo-d">Classificar linhas por grupo CED e remover grupo D</h3>
+<p>Nesta etapa, classificamos cada linha do extracto de acordo com o seu nível hierárquico no código CED. As linhas são classificadas em quatro grupos — A, B, C e D — com base no padrão de zeros no final do código CED, onde o grupo A representa o nível mais granular e o grupo D o nível de agregação mais elevado. De seguida, removemos todas as linhas do grupo D, uma vez que representam totais de topo que não são necessários para a análise e que, se mantidos, causariam dupla contagem nos cálculos posteriores.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>df_limpeza_5 <span class="ot">&lt;-</span> df_limpeza_4 <span class="sc">|&gt;</span> </span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">mutate</span>(</span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>      <span class="at">ced_blank_class =</span> <span class="fu">ifelse</span>(<span class="sc">!</span><span class="fu">is.na</span>(ced), <span class="st">"Keep"</span>, <span class="st">"Remove"</span>),</span>
-<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>      <span class="at">ced_group =</span> dplyr<span class="sc">::</span><span class="fu">case_when</span>(</span>
-<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>        <span class="sc">!</span>stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"00"</span>)                                           <span class="sc">~</span> <span class="st">"A"</span>,</span>
-<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>        stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"00"</span>) <span class="sc">&amp;</span> <span class="sc">!</span>stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"000"</span>) <span class="sc">&amp;</span> <span class="sc">!</span>stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"0000"</span>) <span class="sc">~</span> <span class="st">"B"</span>,</span>
-<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>        stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"000"</span>) <span class="sc">&amp;</span> <span class="sc">!</span>stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"0000"</span>)        <span class="sc">~</span> <span class="st">"C"</span>,</span>
-<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>        stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"0000"</span>)                                         <span class="sc">~</span> <span class="st">"D"</span>,</span>
-<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>        <span class="cn">TRUE</span>                                                                   <span class="sc">~</span> <span class="cn">NA_character_</span></span>
-<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>      )</span>
-<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(df_limpeza_5)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>Rows: 220
-Columns: 20
-$ file_name                         &lt;chr&gt; "DemonstrativoConsolidadoOrcamentoFu…
-$ ugb                               &lt;chr&gt; "50A000141 - MINISTÉRIO DA EDUCAÇÃO …
-$ ugb_id                            &lt;chr&gt; "50A000141", "50A000141", "50A000141…
-$ funcao                            &lt;chr&gt; NA, "01331 - OUTROS SERVICOS GERAIS"…
-$ programa                          &lt;chr&gt; NA, NA, "101MAE0106EGE2018OF02  - GR…
-$ fr                                &lt;chr&gt; NA, NA, NA, "101000000000", "1010000…
-$ ced                               &lt;chr&gt; NA, NA, NA, NA, "112000", "112100", …
-$ dotacao_inicial                   &lt;dbl&gt; 655481940, 0, 0, 0, 0, 0, 0, 0, 0, 0…
-$ dotacao_revista                   &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
-$ dotacao_actualizada_da            &lt;dbl&gt; 1.007812e+09, 6.506072e+06, 4.955284…
-$ dotacao_disponivel                &lt;dbl&gt; 99305413.89, 2982596.95, 2596760.86,…
-$ dotacao_cabimentada_dc            &lt;dbl&gt; 908506354.7, 3523475.4, 2358523.1, 2…
-$ ad_fundos_concedidos_af           &lt;dbl&gt; 1131659, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
-$ despesa_paga_via_directa_dp       &lt;dbl&gt; 811852772, 179400, 0, 0, 0, 0, 0, 0,…
-$ ad_fundos_desp_paga_vd_afdp       &lt;dbl&gt; 812984431, 179400, 0, 0, 0, 0, 0, 0,…
-$ ad_fundos_liquidados_laf          &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
-$ despesa_liquidada_via_directa_lvd &lt;dbl&gt; 894644910.5, 3523475.4, 2358523.1, 2…
-$ liq_ad_fundos_via_directa_lafvd   &lt;dbl&gt; 894644910.5, 3523475.4, 2358523.1, 2…
-$ ced_blank_class                   &lt;chr&gt; "Remove", "Remove", "Remove", "Remov…
-$ ced_group                         &lt;chr&gt; NA, NA, NA, NA, "C", "B", "D", "C", …</code></pre>
+<div class="cell-output-display">
+<div id="oidirstsgt" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#oidirstsgt table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#oidirstsgt thead, #oidirstsgt tbody, #oidirstsgt tfoot, #oidirstsgt tr, #oidirstsgt td, #oidirstsgt th {
+  border-style: none;
+}
+
+#oidirstsgt p {
+  margin: 0;
+  padding: 0;
+}
+
+#oidirstsgt .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#oidirstsgt .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#oidirstsgt .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#oidirstsgt .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#oidirstsgt .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#oidirstsgt .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#oidirstsgt .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#oidirstsgt .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#oidirstsgt .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#oidirstsgt .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#oidirstsgt .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#oidirstsgt .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#oidirstsgt .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#oidirstsgt .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#oidirstsgt .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#oidirstsgt .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#oidirstsgt .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#oidirstsgt .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#oidirstsgt .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#oidirstsgt .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#oidirstsgt .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#oidirstsgt .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#oidirstsgt .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#oidirstsgt .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#oidirstsgt .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#oidirstsgt .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#oidirstsgt .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#oidirstsgt .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#oidirstsgt .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+
+#oidirstsgt .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#oidirstsgt .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#oidirstsgt .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#oidirstsgt .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#oidirstsgt .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#oidirstsgt .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#oidirstsgt .gt_left {
+  text-align: left;
+}
+
+#oidirstsgt .gt_center {
+  text-align: center;
+}
+
+#oidirstsgt .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#oidirstsgt .gt_font_normal {
+  font-weight: normal;
+}
+
+#oidirstsgt .gt_font_bold {
+  font-weight: bold;
+}
+
+#oidirstsgt .gt_font_italic {
+  font-style: italic;
+}
+
+#oidirstsgt .gt_super {
+  font-size: 65%;
+}
+
+#oidirstsgt .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#oidirstsgt .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#oidirstsgt .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#oidirstsgt .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#oidirstsgt .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#oidirstsgt .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#oidirstsgt .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#oidirstsgt .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#oidirstsgt div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+
+<table class="gt_table caption-top table table-sm table-striped small" data-quarto-bootstrap="false">
+<thead>
+<tr class="gt_col_headings header">
+<th id="ced_group" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Grupo CED</th>
+<th id="data_tipo" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Tipo de Dado</th>
+<th id="n" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Linhas</th>
+</tr>
+</thead>
+<tbody class="gt_table_body">
+<tr class="odd">
+<td class="gt_row gt_left" headers="ced_group">A</td>
+<td class="gt_row gt_left" headers="data_tipo">Valor</td>
+<td class="gt_row gt_right" headers="n">120</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="ced_group">B</td>
+<td class="gt_row gt_left" headers="data_tipo">Valor</td>
+<td class="gt_row gt_right" headers="n">14</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="ced_group">C</td>
+<td class="gt_row gt_left" headers="data_tipo">Valor</td>
+<td class="gt_row gt_right" headers="n">37</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="ced_group">D (removido)</td>
+<td class="gt_row gt_left" headers="data_tipo">-</td>
+<td class="gt_row gt_right" headers="n">11</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="ced_group">Sem CED</td>
+<td class="gt_row gt_left" headers="data_tipo">Métrica</td>
+<td class="gt_row gt_right" headers="n">17</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="ced_group" style="font-weight: bold">Total linhas mantidas</td>
+<td class="gt_row gt_left" headers="data_tipo" style="font-weight: bold"></td>
+<td class="gt_row gt_right" headers="n" style="font-weight: bold">188</td>
+</tr>
+</tbody>
+</table>
+
 </div>
 </div>
+</div>
+</section>
+<section id="criar-variáveis-de-agrupamento-hierárquico-do-ced" class="level3">
+<h3 class="anchored" data-anchor-id="criar-variáveis-de-agrupamento-hierárquico-do-ced">Criar variáveis de agrupamento hierárquico do CED</h3>
+<p>Nesta etapa, criamos variáveis auxiliares que serão essenciais para o processamento hierárquico nas etapas seguintes. A partir do código CED, extraímos dois prefixos — ced_b4 (primeiros 4 caracteres) e ced_b3 (primeiros 3 caracteres) que representam os diferentes níveis de agregação da hierarquia. Com base nestes prefixos, construímos os identificadores únicos id_ced_b4 e id_ced_b3, que combinam UGB, função, programa e FR com o respectivo prefixo CED, garantindo que os agrupamentos sejam sempre feitos dentro do contexto correcto. Por fim, criamos a variável ugb_funcao_prog_fr.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>df_limpeza_6 <span class="ot">&lt;-</span> df_limpeza_5 <span class="sc">|&gt;</span> </span>
-<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">is.na</span>(ced_group) <span class="sc">|</span> ced_group <span class="sc">!=</span> <span class="st">"D"</span>)</span>
-<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="fu">unique</span>(df_limpeza_6<span class="sc">$</span>ced_group)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] NA  "C" "B" "A"</code></pre>
+<div class="cell-output-display">
+<div id="dkxbmdurla" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#dkxbmdurla table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#dkxbmdurla thead, #dkxbmdurla tbody, #dkxbmdurla tfoot, #dkxbmdurla tr, #dkxbmdurla td, #dkxbmdurla th {
+  border-style: none;
+}
+
+#dkxbmdurla p {
+  margin: 0;
+  padding: 0;
+}
+
+#dkxbmdurla .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#dkxbmdurla .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#dkxbmdurla .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#dkxbmdurla .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#dkxbmdurla .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#dkxbmdurla .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#dkxbmdurla .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#dkxbmdurla .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#dkxbmdurla .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#dkxbmdurla .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#dkxbmdurla .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#dkxbmdurla .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#dkxbmdurla .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#dkxbmdurla .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#dkxbmdurla .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#dkxbmdurla .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#dkxbmdurla .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#dkxbmdurla .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#dkxbmdurla .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#dkxbmdurla .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#dkxbmdurla .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#dkxbmdurla .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#dkxbmdurla .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#dkxbmdurla .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#dkxbmdurla .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#dkxbmdurla .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#dkxbmdurla .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#dkxbmdurla .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#dkxbmdurla .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+
+#dkxbmdurla .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#dkxbmdurla .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#dkxbmdurla .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#dkxbmdurla .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#dkxbmdurla .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#dkxbmdurla .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#dkxbmdurla .gt_left {
+  text-align: left;
+}
+
+#dkxbmdurla .gt_center {
+  text-align: center;
+}
+
+#dkxbmdurla .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#dkxbmdurla .gt_font_normal {
+  font-weight: normal;
+}
+
+#dkxbmdurla .gt_font_bold {
+  font-weight: bold;
+}
+
+#dkxbmdurla .gt_font_italic {
+  font-style: italic;
+}
+
+#dkxbmdurla .gt_super {
+  font-size: 65%;
+}
+
+#dkxbmdurla .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#dkxbmdurla .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#dkxbmdurla .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#dkxbmdurla .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#dkxbmdurla .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#dkxbmdurla .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#dkxbmdurla .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#dkxbmdurla .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#dkxbmdurla div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+
+<table class="gt_table caption-top table table-sm table-striped small" data-quarto-bootstrap="false">
+<thead>
+<tr class="gt_col_headings header">
+<th id="Variável" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Variável</th>
+<th id="Valor" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Valor</th>
+</tr>
+</thead>
+<tbody class="gt_table_body">
+<tr class="odd">
+<td class="gt_row gt_left" headers="Variável">ced</td>
+<td class="gt_row gt_left" headers="Valor">112000</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Variável">ced_b4</td>
+<td class="gt_row gt_left" headers="Valor">1120</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Variável">ced_b3</td>
+<td class="gt_row gt_left" headers="Valor">112</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Variável">id_ced_b4</td>
+<td class="gt_row gt_left" headers="Valor">50A000141 | 01331 - OUTROS SERVICOS GERAIS | 101MAE0106EGE2018OF02 - GRANDES EVENTOS NACIONAIS | 101000000000 | 1120</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Variável">id_ced_b3</td>
+<td class="gt_row gt_left" headers="Valor">50A000141 | 01331 - OUTROS SERVICOS GERAIS | 101MAE0106EGE2018OF02 - GRANDES EVENTOS NACIONAIS | 101000000000 | 112</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Variável">ugb_funcao_prog_fr</td>
+<td class="gt_row gt_left" headers="Valor">50A000141 | 01331 - OUTROS SERVICOS GERAIS | 101MAE0106EGE2018OF02 - GRANDES EVENTOS NACIONAIS | 101000000000</td>
+</tr>
+</tbody>
+</table>
+
 </div>
 </div>
+</div>
+</section>
+</section>
+<section id="subtração-hierárquica" class="level2">
+<h2 class="anchored" data-anchor-id="subtração-hierárquica">Subtração Hierárquica</h2>
+<section id="passo-1-subtrair-grupo-a-do-grupo-b-dentro-de-ced_b4" class="level3">
+<h3 class="anchored" data-anchor-id="passo-1-subtrair-grupo-a-do-grupo-b-dentro-de-ced_b4">Passo 1: Subtrair grupo A do grupo B (dentro de ced_b4)</h3>
+<p>Para cada grupo ced_b4, subtraímos a soma de todas as linhas do grupo A da linha correspondente do grupo B, fazendo com que o grupo B passe a representar apenas o valor residual não coberto pelas linhas mais granulares. As linhas do grupo A permanecem inalteradas.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>df_limpeza_7 <span class="ot">&lt;-</span> df_limpeza_6 <span class="sc">|&gt;</span></span>
-<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(ced) <span class="sc">|</span> (<span class="sc">!</span><span class="fu">is.na</span>(funcao) <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(programa) <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(fr))) <span class="sc">%&gt;%</span> </span>
-<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">data_tipo =</span> <span class="fu">if_else</span>(<span class="fu">is.na</span>(ced), <span class="st">"Metrica"</span>, <span class="st">"Valor"</span>)) <span class="sc">%&gt;%</span> </span>
-<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">relocate</span>(data_tipo, <span class="at">.after =</span> ced_group)</span>
-<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>df_limpeza_7 <span class="sc">|&gt;</span> <span class="fu">count</span>(ced_group, data_tipo)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 4 × 3
-  ced_group data_tipo     n
-  &lt;chr&gt;     &lt;chr&gt;     &lt;int&gt;
-1 A         Valor       120
-2 B         Valor        14
-3 C         Valor        37
-4 &lt;NA&gt;      Metrica      17</code></pre>
+<div class="cell-output-display">
+<div id="gwwmfrkbde" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#gwwmfrkbde table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#gwwmfrkbde thead, #gwwmfrkbde tbody, #gwwmfrkbde tfoot, #gwwmfrkbde tr, #gwwmfrkbde td, #gwwmfrkbde th {
+  border-style: none;
+}
+
+#gwwmfrkbde p {
+  margin: 0;
+  padding: 0;
+}
+
+#gwwmfrkbde .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#gwwmfrkbde .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#gwwmfrkbde .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#gwwmfrkbde .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#gwwmfrkbde .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#gwwmfrkbde .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#gwwmfrkbde .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#gwwmfrkbde .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#gwwmfrkbde .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#gwwmfrkbde .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#gwwmfrkbde .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#gwwmfrkbde .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#gwwmfrkbde .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#gwwmfrkbde .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#gwwmfrkbde .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#gwwmfrkbde .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#gwwmfrkbde .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#gwwmfrkbde .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#gwwmfrkbde .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#gwwmfrkbde .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#gwwmfrkbde .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#gwwmfrkbde .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#gwwmfrkbde .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#gwwmfrkbde .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#gwwmfrkbde .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#gwwmfrkbde .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#gwwmfrkbde .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#gwwmfrkbde .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#gwwmfrkbde .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+
+#gwwmfrkbde .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#gwwmfrkbde .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#gwwmfrkbde .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#gwwmfrkbde .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#gwwmfrkbde .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#gwwmfrkbde .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#gwwmfrkbde .gt_left {
+  text-align: left;
+}
+
+#gwwmfrkbde .gt_center {
+  text-align: center;
+}
+
+#gwwmfrkbde .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#gwwmfrkbde .gt_font_normal {
+  font-weight: normal;
+}
+
+#gwwmfrkbde .gt_font_bold {
+  font-weight: bold;
+}
+
+#gwwmfrkbde .gt_font_italic {
+  font-style: italic;
+}
+
+#gwwmfrkbde .gt_super {
+  font-size: 65%;
+}
+
+#gwwmfrkbde .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#gwwmfrkbde .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#gwwmfrkbde .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#gwwmfrkbde .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#gwwmfrkbde .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#gwwmfrkbde .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#gwwmfrkbde .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#gwwmfrkbde .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#gwwmfrkbde div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+
+<table class="gt_table caption-top table table-sm table-striped small" data-quarto-bootstrap="false">
+<thead>
+<tr class="gt_col_headings header">
+<th id="caso" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Caso</th>
+<th id="ced_group" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Grupo</th>
+<th id="ced" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">CED</th>
+<th id="before" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Antes</th>
+<th id="after" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Depois</th>
+<th id="difference" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Diferença</th>
+</tr>
+</thead>
+<tbody class="gt_table_body">
+<tr class="gt_group_heading_row odd">
+<th colspan="6" id="Caso 1: Grupo B sem filhos A" class="gt_group_heading" data-quarto-table-cell-role="th" style="font-weight: bold" scope="colgroup">Caso 1: Grupo B sem filhos A</th>
+</tr>
+<tr class="gt_row_group_first even">
+<td class="gt_row gt_left" headers="Caso 1: Grupo B sem filhos A  caso">Caso 1: Grupo B sem filhos A (diferença = 0)</td>
+<td class="gt_row gt_left" headers="Caso 1: Grupo B sem filhos A  ced_group">B</td>
+<td class="gt_row gt_left" headers="Caso 1: Grupo B sem filhos A  ced">112100</td>
+<td class="gt_row gt_right" headers="Caso 1: Grupo B sem filhos A  before">1,140,000.0</td>
+<td class="gt_row gt_right" headers="Caso 1: Grupo B sem filhos A  after">1,140,000.0</td>
+<td class="gt_row gt_right" headers="Caso 1: Grupo B sem filhos A  difference">0.0</td>
+</tr>
+<tr class="gt_group_heading_row odd">
+<th colspan="6" id="Caso 2: Grupo B totalmente consumido por um filho A" class="gt_group_heading" data-quarto-table-cell-role="th" style="font-weight: bold" scope="colgroup">Caso 2: Grupo B totalmente consumido por um filho A</th>
+</tr>
+<tr class="gt_row_group_first even">
+<td class="gt_row gt_left" headers="Caso 2: Grupo B totalmente consumido por um filho A  caso">Caso 2: Grupo B totalmente consumido por um filho A</td>
+<td class="gt_row gt_left" headers="Caso 2: Grupo B totalmente consumido por um filho A  ced_group">B</td>
+<td class="gt_row gt_left" headers="Caso 2: Grupo B totalmente consumido por um filho A  ced">112100</td>
+<td class="gt_row gt_right" headers="Caso 2: Grupo B totalmente consumido por um filho A  before">427,523.3</td>
+<td class="gt_row gt_right" headers="Caso 2: Grupo B totalmente consumido por um filho A  after">0.0</td>
+<td class="gt_row gt_right" headers="Caso 2: Grupo B totalmente consumido por um filho A  difference">−427,523.3</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Caso 2: Grupo B totalmente consumido por um filho A  caso">Caso 2: Grupo B totalmente consumido por um filho A</td>
+<td class="gt_row gt_left" headers="Caso 2: Grupo B totalmente consumido por um filho A  ced_group">A</td>
+<td class="gt_row gt_left" headers="Caso 2: Grupo B totalmente consumido por um filho A  ced">112101</td>
+<td class="gt_row gt_right" headers="Caso 2: Grupo B totalmente consumido por um filho A  before">427,523.3</td>
+<td class="gt_row gt_right" headers="Caso 2: Grupo B totalmente consumido por um filho A  after">427,523.3</td>
+<td class="gt_row gt_right" headers="Caso 2: Grupo B totalmente consumido por um filho A  difference">0.0</td>
+</tr>
+<tr class="gt_group_heading_row even">
+<th colspan="6" id="Caso 3: Grupo B com valor residual após múltiplos filhos A" class="gt_group_heading" data-quarto-table-cell-role="th" style="font-weight: bold" scope="colgroup">Caso 3: Grupo B com valor residual após múltiplos filhos A</th>
+</tr>
+<tr class="gt_row_group_first odd">
+<td class="gt_row gt_left" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  caso">Caso 3: Grupo B com valor residual após múltiplos filhos A</td>
+<td class="gt_row gt_left" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  ced_group">B</td>
+<td class="gt_row gt_left" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  ced">112100</td>
+<td class="gt_row gt_right" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  before">28,758,931.2</td>
+<td class="gt_row gt_right" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  after">4,560,598.5</td>
+<td class="gt_row gt_right" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  difference">−24,198,332.7</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  caso">Caso 3: Grupo B com valor residual após múltiplos filhos A</td>
+<td class="gt_row gt_left" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  ced_group">A</td>
+<td class="gt_row gt_left" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  ced">112101</td>
+<td class="gt_row gt_right" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  before">21,406,704.8</td>
+<td class="gt_row gt_right" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  after">21,406,704.8</td>
+<td class="gt_row gt_right" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  difference">0.0</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  caso">Caso 3: Grupo B com valor residual após múltiplos filhos A</td>
+<td class="gt_row gt_left" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  ced_group">A</td>
+<td class="gt_row gt_left" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  ced">112102</td>
+<td class="gt_row gt_right" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  before">2,500,000.0</td>
+<td class="gt_row gt_right" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  after">2,500,000.0</td>
+<td class="gt_row gt_right" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  difference">0.0</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  caso">Caso 3: Grupo B com valor residual após múltiplos filhos A</td>
+<td class="gt_row gt_left" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  ced_group">A</td>
+<td class="gt_row gt_left" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  ced">112105</td>
+<td class="gt_row gt_right" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  before">291,627.8</td>
+<td class="gt_row gt_right" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  after">291,627.8</td>
+<td class="gt_row gt_right" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  difference">0.0</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  caso">Caso 3: Grupo B com valor residual após múltiplos filhos A</td>
+<td class="gt_row gt_left" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  ced_group">A</td>
+<td class="gt_row gt_left" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  ced">112199</td>
+<td class="gt_row gt_right" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  before">0.0</td>
+<td class="gt_row gt_right" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  after">0.0</td>
+<td class="gt_row gt_right" headers="Caso 3: Grupo B com valor residual após múltiplos filhos A  difference">0.0</td>
+</tr>
+</tbody>
+</table>
+
 </div>
 </div>
+</div>
+</section>
+<section id="passo-2-subtrair-grupo-b-ajustado-do-grupo-c-dentro-de-ced_b3" class="level3">
+<h3 class="anchored" data-anchor-id="passo-2-subtrair-grupo-b-ajustado-do-grupo-c-dentro-de-ced_b3">Passo 2: Subtrair grupo B ajustado do grupo C (dentro de ced_b3)</h3>
+<p>Subtraímos os valores do grupo B (já ajustados no Passo 1) da linha correspondente do grupo C, dentro de cada grupo ced_b3. Desta forma, o grupo C passa a representar apenas o valor residual não coberto pelas linhas do grupo B.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>df_limpeza_7 <span class="ot">&lt;-</span> df_limpeza_6 <span class="sc">|&gt;</span></span>
-<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(ced) <span class="sc">|</span> (<span class="sc">!</span><span class="fu">is.na</span>(funcao) <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(programa) <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(fr))) <span class="sc">%&gt;%</span> </span>
-<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">data_tipo =</span> <span class="fu">if_else</span>(<span class="fu">is.na</span>(ced), <span class="st">"Metrica"</span>, <span class="st">"Valor"</span>)) <span class="sc">%&gt;%</span> </span>
-<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">relocate</span>(data_tipo, <span class="at">.after =</span> ced_group)</span>
-<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>df_limpeza_7 <span class="sc">|&gt;</span> <span class="fu">count</span>(ced_group, data_tipo)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 4 × 3
-  ced_group data_tipo     n
-  &lt;chr&gt;     &lt;chr&gt;     &lt;int&gt;
-1 A         Valor       120
-2 B         Valor        14
-3 C         Valor        37
-4 &lt;NA&gt;      Metrica      17</code></pre>
+<div class="cell-output-display">
+<div id="yhsfejkigb" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#yhsfejkigb table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#yhsfejkigb thead, #yhsfejkigb tbody, #yhsfejkigb tfoot, #yhsfejkigb tr, #yhsfejkigb td, #yhsfejkigb th {
+  border-style: none;
+}
+
+#yhsfejkigb p {
+  margin: 0;
+  padding: 0;
+}
+
+#yhsfejkigb .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#yhsfejkigb .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#yhsfejkigb .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#yhsfejkigb .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#yhsfejkigb .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#yhsfejkigb .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#yhsfejkigb .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#yhsfejkigb .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#yhsfejkigb .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#yhsfejkigb .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#yhsfejkigb .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#yhsfejkigb .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#yhsfejkigb .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#yhsfejkigb .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#yhsfejkigb .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#yhsfejkigb .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#yhsfejkigb .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#yhsfejkigb .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#yhsfejkigb .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#yhsfejkigb .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#yhsfejkigb .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#yhsfejkigb .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#yhsfejkigb .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#yhsfejkigb .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#yhsfejkigb .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#yhsfejkigb .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#yhsfejkigb .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#yhsfejkigb .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#yhsfejkigb .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+
+#yhsfejkigb .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#yhsfejkigb .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#yhsfejkigb .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#yhsfejkigb .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#yhsfejkigb .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#yhsfejkigb .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#yhsfejkigb .gt_left {
+  text-align: left;
+}
+
+#yhsfejkigb .gt_center {
+  text-align: center;
+}
+
+#yhsfejkigb .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#yhsfejkigb .gt_font_normal {
+  font-weight: normal;
+}
+
+#yhsfejkigb .gt_font_bold {
+  font-weight: bold;
+}
+
+#yhsfejkigb .gt_font_italic {
+  font-style: italic;
+}
+
+#yhsfejkigb .gt_super {
+  font-size: 65%;
+}
+
+#yhsfejkigb .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#yhsfejkigb .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#yhsfejkigb .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#yhsfejkigb .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#yhsfejkigb .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#yhsfejkigb .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#yhsfejkigb .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#yhsfejkigb .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#yhsfejkigb div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+
+<table class="gt_table caption-top table table-sm table-striped small" data-quarto-bootstrap="false">
+<thead>
+<tr class="gt_col_headings header">
+<th id="caso" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Caso</th>
+<th id="ced_group" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Grupo</th>
+<th id="ced" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">CED</th>
+<th id="before" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Antes</th>
+<th id="after" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Depois</th>
+<th id="difference" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Diferença</th>
+</tr>
+</thead>
+<tbody class="gt_table_body">
+<tr class="gt_group_heading_row odd">
+<th colspan="6" id="Caso 1: Grupo C totalmente consumido por B" class="gt_group_heading" data-quarto-table-cell-role="th" style="font-weight: bold" scope="colgroup">Caso 1: Grupo C totalmente consumido por B</th>
+</tr>
+<tr class="gt_row_group_first even">
+<td class="gt_row gt_left" headers="Caso 1: Grupo C totalmente consumido por B  caso">Caso 1: Grupo C totalmente consumido por B</td>
+<td class="gt_row gt_left" headers="Caso 1: Grupo C totalmente consumido por B  ced_group">C</td>
+<td class="gt_row gt_left" headers="Caso 1: Grupo C totalmente consumido por B  ced">112000</td>
+<td class="gt_row gt_right" headers="Caso 1: Grupo C totalmente consumido por B  before">1,140,000.0</td>
+<td class="gt_row gt_right" headers="Caso 1: Grupo C totalmente consumido por B  after">0.0</td>
+<td class="gt_row gt_right" headers="Caso 1: Grupo C totalmente consumido por B  difference">−1,140,000.0</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Caso 1: Grupo C totalmente consumido por B  caso">Caso 1: Grupo C totalmente consumido por B</td>
+<td class="gt_row gt_left" headers="Caso 1: Grupo C totalmente consumido por B  ced_group">B</td>
+<td class="gt_row gt_left" headers="Caso 1: Grupo C totalmente consumido por B  ced">112100</td>
+<td class="gt_row gt_right" headers="Caso 1: Grupo C totalmente consumido por B  before">1,140,000.0</td>
+<td class="gt_row gt_right" headers="Caso 1: Grupo C totalmente consumido por B  after">1,140,000.0</td>
+<td class="gt_row gt_right" headers="Caso 1: Grupo C totalmente consumido por B  difference">0.0</td>
+</tr>
+<tr class="gt_group_heading_row even">
+<th colspan="6" id="Caso 2: Grupo C com valor residual após subtração de B ajustado" class="gt_group_heading" data-quarto-table-cell-role="th" style="font-weight: bold" scope="colgroup">Caso 2: Grupo C com valor residual após subtração de B ajustado</th>
+</tr>
+<tr class="gt_row_group_first odd">
+<td class="gt_row gt_left" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  caso">Caso 2: Grupo C com valor residual após subtração de B ajustado</td>
+<td class="gt_row gt_left" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  ced_group">C</td>
+<td class="gt_row gt_left" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  ced">112000</td>
+<td class="gt_row gt_right" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  before">28,758,931.2</td>
+<td class="gt_row gt_right" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  after">24,198,332.7</td>
+<td class="gt_row gt_right" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  difference">−4,560,598.5</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  caso">Caso 2: Grupo C com valor residual após subtração de B ajustado</td>
+<td class="gt_row gt_left" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  ced_group">B</td>
+<td class="gt_row gt_left" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  ced">112100</td>
+<td class="gt_row gt_right" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  before">4,560,598.5</td>
+<td class="gt_row gt_right" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  after">4,560,598.5</td>
+<td class="gt_row gt_right" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  difference">0.0</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  caso">Caso 2: Grupo C com valor residual após subtração de B ajustado</td>
+<td class="gt_row gt_left" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  ced_group">A</td>
+<td class="gt_row gt_left" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  ced">112101</td>
+<td class="gt_row gt_right" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  before">21,406,704.8</td>
+<td class="gt_row gt_right" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  after">21,406,704.8</td>
+<td class="gt_row gt_right" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  difference">0.0</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  caso">Caso 2: Grupo C com valor residual após subtração de B ajustado</td>
+<td class="gt_row gt_left" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  ced_group">A</td>
+<td class="gt_row gt_left" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  ced">112102</td>
+<td class="gt_row gt_right" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  before">2,500,000.0</td>
+<td class="gt_row gt_right" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  after">2,500,000.0</td>
+<td class="gt_row gt_right" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  difference">0.0</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  caso">Caso 2: Grupo C com valor residual após subtração de B ajustado</td>
+<td class="gt_row gt_left" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  ced_group">A</td>
+<td class="gt_row gt_left" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  ced">112105</td>
+<td class="gt_row gt_right" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  before">291,627.8</td>
+<td class="gt_row gt_right" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  after">291,627.8</td>
+<td class="gt_row gt_right" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  difference">0.0</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  caso">Caso 2: Grupo C com valor residual após subtração de B ajustado</td>
+<td class="gt_row gt_left" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  ced_group">A</td>
+<td class="gt_row gt_left" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  ced">112199</td>
+<td class="gt_row gt_right" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  before">0.0</td>
+<td class="gt_row gt_right" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  after">0.0</td>
+<td class="gt_row gt_right" headers="Caso 2: Grupo C com valor residual após subtração de B ajustado  difference">0.0</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+<section id="passo-3-subtrair-todos-os-valores-do-grupo-a-do-grupo-c-dentro-de-ced_b3" class="level3">
+<h3 class="anchored" data-anchor-id="passo-3-subtrair-todos-os-valores-do-grupo-a-do-grupo-c-dentro-de-ced_b3">Passo 3: Subtrair todos os valores do grupo A do grupo C (dentro de ced_b3)</h3>
+<p>Subtraímos do grupo C a soma de todos os valores do grupo A dentro de cada grupo ced_b3, independentemente de existir ou não um grupo B intermédio. Este passo é necessário porque, após os Passos 1 e 2, o grupo C ainda retém o valor correspondente às linhas A — seja porque essas linhas A têm um pai B (que já foi subtraído do C no Passo 2), ou porque são filhos directos do C sem nível intermédio. Em ambos os casos, o resultado esperado é que o grupo C fique com valor zero ou com um residual que representa apenas o que não está coberto por nenhuma linha mais granular.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div id="udiygkypdz" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#udiygkypdz table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#udiygkypdz thead, #udiygkypdz tbody, #udiygkypdz tfoot, #udiygkypdz tr, #udiygkypdz td, #udiygkypdz th {
+  border-style: none;
+}
+
+#udiygkypdz p {
+  margin: 0;
+  padding: 0;
+}
+
+#udiygkypdz .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#udiygkypdz .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#udiygkypdz .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#udiygkypdz .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#udiygkypdz .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#udiygkypdz .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#udiygkypdz .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#udiygkypdz .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#udiygkypdz .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#udiygkypdz .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#udiygkypdz .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#udiygkypdz .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#udiygkypdz .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#udiygkypdz .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#udiygkypdz .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#udiygkypdz .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#udiygkypdz .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#udiygkypdz .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#udiygkypdz .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#udiygkypdz .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#udiygkypdz .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#udiygkypdz .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#udiygkypdz .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#udiygkypdz .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#udiygkypdz .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#udiygkypdz .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#udiygkypdz .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#udiygkypdz .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#udiygkypdz .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+
+#udiygkypdz .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#udiygkypdz .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#udiygkypdz .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#udiygkypdz .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#udiygkypdz .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#udiygkypdz .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#udiygkypdz .gt_left {
+  text-align: left;
+}
+
+#udiygkypdz .gt_center {
+  text-align: center;
+}
+
+#udiygkypdz .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#udiygkypdz .gt_font_normal {
+  font-weight: normal;
+}
+
+#udiygkypdz .gt_font_bold {
+  font-weight: bold;
+}
+
+#udiygkypdz .gt_font_italic {
+  font-style: italic;
+}
+
+#udiygkypdz .gt_super {
+  font-size: 65%;
+}
+
+#udiygkypdz .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#udiygkypdz .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#udiygkypdz .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#udiygkypdz .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#udiygkypdz .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#udiygkypdz .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#udiygkypdz .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#udiygkypdz .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#udiygkypdz div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+
+<table class="gt_table caption-top table table-sm table-striped small" data-quarto-bootstrap="false">
+<thead>
+<tr class="gt_col_headings header">
+<th id="caso" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Caso</th>
+<th id="ced_group" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Grupo</th>
+<th id="ced" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">CED</th>
+<th id="before" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Antes</th>
+<th id="after" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Depois</th>
+<th id="difference" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Diferença</th>
+</tr>
+</thead>
+<tbody class="gt_table_body">
+<tr class="gt_group_heading_row odd">
+<th colspan="6" id="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente" class="gt_group_heading" data-quarto-table-cell-role="th" style="font-weight: bold" scope="colgroup">Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente</th>
+</tr>
+<tr class="gt_row_group_first even">
+<td class="gt_row gt_left" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  caso">Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente</td>
+<td class="gt_row gt_left" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  ced_group">C</td>
+<td class="gt_row gt_left" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  ced">112000</td>
+<td class="gt_row gt_right" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  before">24,198,332.7</td>
+<td class="gt_row gt_right" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  after">0.0</td>
+<td class="gt_row gt_right" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  difference">−24,198,332.7</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  caso">Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente</td>
+<td class="gt_row gt_left" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  ced_group">B</td>
+<td class="gt_row gt_left" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  ced">112100</td>
+<td class="gt_row gt_right" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  before">4,560,598.5</td>
+<td class="gt_row gt_right" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  after">4,560,598.5</td>
+<td class="gt_row gt_right" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  difference">0.0</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  caso">Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente</td>
+<td class="gt_row gt_left" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  ced_group">A</td>
+<td class="gt_row gt_left" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  ced">112101</td>
+<td class="gt_row gt_right" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  before">21,406,704.8</td>
+<td class="gt_row gt_right" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  after">21,406,704.8</td>
+<td class="gt_row gt_right" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  difference">0.0</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  caso">Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente</td>
+<td class="gt_row gt_left" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  ced_group">A</td>
+<td class="gt_row gt_left" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  ced">112102</td>
+<td class="gt_row gt_right" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  before">2,500,000.0</td>
+<td class="gt_row gt_right" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  after">2,500,000.0</td>
+<td class="gt_row gt_right" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  difference">0.0</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  caso">Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente</td>
+<td class="gt_row gt_left" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  ced_group">A</td>
+<td class="gt_row gt_left" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  ced">112105</td>
+<td class="gt_row gt_right" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  before">291,627.8</td>
+<td class="gt_row gt_right" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  after">291,627.8</td>
+<td class="gt_row gt_right" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  difference">0.0</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  caso">Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente</td>
+<td class="gt_row gt_left" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  ced_group">A</td>
+<td class="gt_row gt_left" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  ced">112199</td>
+<td class="gt_row gt_right" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  before">0.0</td>
+<td class="gt_row gt_right" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  after">0.0</td>
+<td class="gt_row gt_right" headers="Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente  difference">0.0</td>
+</tr>
+</tbody>
+</table>
+
+</div>
 </div>
 </div>
 </section>

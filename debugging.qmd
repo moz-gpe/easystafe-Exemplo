@@ -4,40 +4,37 @@ format: html
 logo: Images/emblem_giz_large.png
 ---
 
-# Introdução
-
-## Carregar pacotes requiridos
 
 ```{r attach-packages}
 #| message: false
 #| warning: false
+#| echo: false
 
 library(tidyverse)
 library(readxl)
 library(janitor)
 library(glue)
+library(gt)
 source("Scripts/functions.R")
 
 ```
 
-## Definir caminhos aos dados e-SISTAFE e UGB's
 
 ```{r set-globals}
 #| message: false
 #| warning: false
+#| echo: false
 
 path_ugb <- "../../Data/ugb/Codigos de UGBs.xlsx"
 path_data <- "Data/debugging/"
 
 ```
 
-# Detectar ficheiros e metadados
-
-## Detectar ficheiros
 
 ```{r set-paths}
 #| message: false
 #| warning: false
+#| echo: false
 
   paths <- list.files(
     path = path_data,
@@ -45,8 +42,6 @@ path_data <- "Data/debugging/"
     full.names = TRUE,
     ignore.case = TRUE
   )
-
-  paths
 
 ```
 
@@ -57,6 +52,7 @@ path_data <- "Data/debugging/"
 ```{r load-files}
 #| message: false
 #| warning: false
+#| echo: false
 
 df <- map(paths, ~read_excel(.x, col_types = "text")) |> 
   set_names(basename(paths)) |> 
@@ -75,6 +71,7 @@ glue(
 ```{r rename-files}
 #| message: false
 #| warning: false
+#| echo: false
 
 df_limpeza_1 <- clean_names(df)
 
@@ -87,11 +84,16 @@ names(df_limpeza_1)
 ```{r remove-cols}
 #| message: false
 #| warning: false
+#| echo: false
+
+removed_cols <- df_limpeza_1 |> 
+  select(ends_with("percent")) |> 
+  names()
 
 df_limpeza_2 <- df_limpeza_1 |> 
-  select(!dplyr::ends_with("percent"))
+  select(!ends_with("percent"))
 
-names(df_limpeza_2)
+glue::glue("Colunas removidas: {paste(removed_cols, collapse = ', ')}")
 
 ```
 ### Extrair código UGB
@@ -99,6 +101,7 @@ names(df_limpeza_2)
 ```{r create-ugb-code}
 #| message: false
 #| warning: false
+#| echo: false
 
 df_limpeza_3 <- df_limpeza_2 |> 
   mutate(
@@ -107,14 +110,20 @@ df_limpeza_3 <- df_limpeza_2 |>
   ) |> 
     relocate(ugb_id, .after = ugb)
 
-  glimpse(df_limpeza_3)
+df_limpeza_3 |> 
+  distinct(ugb_id, ugb) |>
+  slice_head(n = 2) |>
+  gt::gt() |> 
+  gt::cols_label(ugb_id = "ugb_id", ugb = "ugb") |> 
+  gt::tab_options(table.font.size = "small")
 
 ```
-### Carregar UGB's de educação
+### Carregar UGB's de educação e filtar
 
 ```{r carregar-ugb-valido}
 #| message: false
 #| warning: false
+#| echo: false
 
   # Load lookup table for education UGB and other metadata
 vec_ugb <- read_excel(path_ugb, sheet = "UGBS") |> 
@@ -126,85 +135,364 @@ vec_ugb <- read_excel(path_ugb, sheet = "UGBS") |>
   distinct(ugb_nome) |> 
   pull()
 
-head(vec_ugb)
-```
-
-### Classificar filtro UGB de educação
-
-```{r filtrar-ugb-valido}
-#| message: false
-#| warning: false
-
 df_limpeza_4 <- df_limpeza_3 |> 
       mutate(mec_ugb_class  = ifelse(ugb %in% vec_ugb, "Keep", "Remove")) %>% 
       filter(mec_ugb_class == "Keep") |>
       select(-mec_ugb_class)
 
-glimpse(df_limpeza_4)
-
-
-```
-
-### Categorizar CED por nível
-
-```{r codificar-ced-param}
-#| message: false
-#| warning: false
-
-df_limpeza_5 <- df_limpeza_4 |> 
-    dplyr::mutate(
-      ced_blank_class = ifelse(!is.na(ced), "Keep", "Remove"),
-      ced_group = dplyr::case_when(
-        !stringr::str_ends(ced, "00")                                           ~ "A",
-        stringr::str_ends(ced, "00") & !stringr::str_ends(ced, "000") & !stringr::str_ends(ced, "0000") ~ "B",
-        stringr::str_ends(ced, "000") & !stringr::str_ends(ced, "0000")        ~ "C",
-        stringr::str_ends(ced, "0000")                                         ~ "D",
-        TRUE                                                                   ~ NA_character_
-      )
-    )
-
-glimpse(df_limpeza_5)
+df_limpeza_3 |> 
+  mutate(mec_ugb_class = ifelse(ugb %in% vec_ugb, "MEC", "Other")) |>
+  count(mec_ugb_class) |>
+  gt::gt() |>
+  gt::cols_label(mec_ugb_class = "Classificação", n = "Linhas") |>
+  gt::tab_options(table.font.size = "small")
 
 ```
-```{r filter-d-cedgroup}
 
-df_limpeza_6 <- df_limpeza_5 |> 
-  filter(is.na(ced_group) | ced_group != "D")
 
-unique(df_limpeza_6$ced_group)
+### Remover linhas com CED em branco e funcao, programa e FR também em branco
 
-```
+Nesta etapa, eliminamos todas as linhas em que o código CED está em branco e em que os campos de função, programa e fonte de recurso (FR) também estão em branco. Após esta filtragem, criamos uma nova variável chamada `data_tipo` que classifica cada linha restante em uma de duas categorias: "Valor" para as linhas que serão utilizadas nos cálculos financeiros, e "Métrica" para as linhas que serão utilizadas posteriormente para fins de validação. Esta distinção é fundamental para garantir que os passos de processamento seguintes sejam aplicados apenas às linhas correctas.
 
 ```{r remove-ced-blank}
 #| message: false
 #| warning: false
+#| echo: false
 
-df_limpeza_7 <- df_limpeza_6 |>
+df_limpeza_5 <- df_limpeza_4 |>
   filter(!is.na(ced) | (!is.na(funcao) & !is.na(programa) & !is.na(fr))) |> 
   mutate(data_tipo = if_else(is.na(ced), "Metrica", "Valor")) |> 
-  relocate(data_tipo, .after = ced_group)
+  relocate(data_tipo, .before = ced)
 
-df_limpeza_7 |> count(ced_group, data_tipo)
+df_counts <- df_limpeza_4 |>
+  mutate(
+    row_class = case_when(
+      !is.na(ced) ~ "Mantida: CED preenchido (Valor)",
+      is.na(ced) & !is.na(funcao) & !is.na(programa) & !is.na(fr) ~ "Mantida: CED em branco mas funcao/programa/FR preenchidos (Métrica)",
+      TRUE ~ "Removida: CED e funcao/programa/FR em branco"
+    )
+  ) |>
+  count(row_class) |>
+  mutate(row_class = factor(row_class, levels = c(
+    "Mantida: CED preenchido (Valor)",
+    "Mantida: CED em branco mas funcao/programa/FR preenchidos (Métrica)",
+    "Removida: CED e funcao/programa/FR em branco"
+  ))) |>
+  arrange(row_class)
+
+total_mantidas <- df_counts |>
+  filter(!str_detect(row_class, "Removida")) |>
+  summarise(row_class = factor("Total linhas mantidas"), n = sum(n))
+
+bind_rows(df_counts, total_mantidas) |>
+  gt::gt() |>
+  gt::cols_label(row_class = "Classificação", n = "Linhas") |>
+  gt::cols_align(align = "left", columns = row_class) |>
+  gt::tab_style(
+    style = gt::cell_text(weight = "bold"),
+    locations = gt::cells_body(rows = str_detect(as.character(row_class), "Total"))
+  ) |>
+  gt::tab_options(table.font.size = "small")
 
 ```
+
+### Classificar linhas por grupo CED e remover grupo D
+
+Nesta etapa, classificamos cada linha do extracto de acordo com o seu nível hierárquico no código CED. As linhas são classificadas em quatro grupos — A, B, C e D — com base no padrão de zeros no final do código CED, onde o grupo A representa o nível mais granular e o grupo D o nível de agregação mais elevado. De seguida, removemos todas as linhas do grupo D, uma vez que representam totais de topo que não são necessários para a análise e que, se mantidos, causariam dupla contagem nos cálculos posteriores.
+
+```{r codificar-ced-param}
+#| message: false
+#| warning: false
+#| echo: false
+
+df_limpeza_6 <- df_limpeza_5 |> 
+  dplyr::mutate(
+    ced_blank_class = ifelse(!is.na(ced), "Keep", "Remove"),
+    ced_group = dplyr::case_when(
+      !stringr::str_ends(ced, "00")                                           ~ "A",
+      stringr::str_ends(ced, "00") & !stringr::str_ends(ced, "000") & !stringr::str_ends(ced, "0000") ~ "B",
+      stringr::str_ends(ced, "000") & !stringr::str_ends(ced, "0000")        ~ "C",
+      stringr::str_ends(ced, "0000")                                         ~ "D",
+      TRUE                                                                   ~ NA_character_
+    )
+  ) %>% 
+  filter(is.na(ced_group) | ced_group != "D")
+
+df_ced_counts <- df_limpeza_5 |>
+  dplyr::mutate(
+    ced_group = dplyr::case_when(
+      !stringr::str_ends(ced, "00")                                           ~ "A",
+      stringr::str_ends(ced, "00") & !stringr::str_ends(ced, "000") & !stringr::str_ends(ced, "0000") ~ "B",
+      stringr::str_ends(ced, "000") & !stringr::str_ends(ced, "0000")        ~ "C",
+      stringr::str_ends(ced, "0000")                                         ~ "D",
+      TRUE                                                                   ~ NA_character_
+    )
+  ) |>
+  mutate(
+    ced_group = replace_na(ced_group, "Sem CED"),
+    ced_group = if_else(ced_group == "D", "D (removido)", ced_group),
+    ced_group = factor(ced_group, levels = c("A", "B", "C", "D (removido)", "Sem CED")),
+    data_tipo = case_when(
+      ced_group %in% c("A", "B", "C") ~ "Valor",
+      ced_group == "D (removido)"     ~ "-",
+      ced_group == "Sem CED"          ~ "Métrica"
+    )
+  ) |>
+  count(ced_group, data_tipo) |>
+  arrange(ced_group)
+
+total_mantidos <- df_ced_counts |>
+  filter(ced_group != "D (removido)") |>
+  summarise(ced_group = factor("Total linhas mantidas"), data_tipo = "", n = sum(n))
+
+bind_rows(df_ced_counts, total_mantidos) |>
+  gt::gt() |>
+  gt::cols_label(ced_group = "Grupo CED", data_tipo = "Tipo de Dado", n = "Linhas") |>
+  gt::cols_align(align = "left", columns = c(ced_group, data_tipo)) |>
+  gt::tab_style(
+    style = gt::cell_text(weight = "bold"),
+    locations = gt::cells_body(rows = str_detect(as.character(ced_group), "Total"))
+  ) |>
+  gt::tab_options(table.font.size = "small")
+
+```
+
+### Criar variáveis de agrupamento hierárquico do CED
+
+Nesta etapa, criamos variáveis auxiliares que serão essenciais para o processamento hierárquico nas etapas seguintes. A partir do código CED, extraímos dois prefixos — ced_b4 (primeiros 4 caracteres) e ced_b3 (primeiros 3 caracteres) que representam os diferentes níveis de agregação da hierarquia. Com base nestes prefixos, construímos os identificadores únicos id_ced_b4 e id_ced_b3, que combinam UGB, função, programa e FR com o respectivo prefixo CED, garantindo que os agrupamentos sejam sempre feitos dentro do contexto correcto. Por fim, criamos a variável ugb_funcao_prog_fr.
 
 ```{r create-new-vars}
 #| message: false
 #| warning: false
+#| echo: false
 
-df_limpeza_8 <- df_limpeza_7 |>
+df_limpeza_7 <- df_limpeza_6 |>
   mutate(
     ced_b4 = stringr::str_sub(ced, 1, 4),
     ced_b3 = stringr::str_sub(ced, 1, 3),
-    id_ced_b4 = stringr::str_c(ugb, funcao, programa, fr, ced_b4, sep = "_"),
-    id_ced_b3 = stringr::str_c(ugb, funcao, programa, fr, ced_b3, sep = "_")) |>
+    id_ced_b4 = stringr::str_c(ugb_id, funcao, programa, fr, ced_b4, sep = " | "),
+    id_ced_b3 = stringr::str_c(ugb_id, funcao, programa, fr, ced_b3, sep = " | ")) |>
   unite(ugb_funcao_prog_fr, ugb_id, funcao, programa, fr, sep = " | ", remove = FALSE, na.rm = FALSE) |>
   relocate(c(ced_b4, ced_b3), .after = ced) |>
   relocate(ced_group, .before = ced) |> 
   relocate(data_tipo, .after = ced_b3) %>% 
   relocate(ugb_funcao_prog_fr, .before = everything())
 
-glimpse(df_limpeza_8)
+df_limpeza_7 |>
+  filter(data_tipo == "Valor") |>
+  slice(1) |>
+  select(ced, ced_b4, ced_b3, id_ced_b4, id_ced_b3, ugb_funcao_prog_fr) |>
+  pivot_longer(everything(), names_to = "Variável", values_to = "Valor") |>
+  gt::gt() |>
+  gt::cols_align(align = "left", columns = everything()) |>
+  gt::tab_options(table.font.size = "small")
 
 ```
 
+## Subtração Hierárquica
+
+### Passo 1: Subtrair grupo A do grupo B (dentro de ced_b4)
+
+Para cada grupo ced_b4, subtraímos a soma de todas as linhas do grupo A da linha correspondente do grupo B, fazendo com que o grupo B passe a representar apenas o valor residual não coberto pelas linhas mais granulares. As linhas do grupo A permanecem inalteradas. 
+
+```{r step1-subtraction}
+#| message: false
+#| warning: false
+#| echo: false
+
+num_cols <- df_limpeza_7 %>% 
+  select(dotacao_inicial:liq_ad_fundos_via_directa_lafvd) %>% 
+  names()
+
+df_step1_before <- df_limpeza_7 %>%
+  filter(data_tipo == "Valor") %>%
+  mutate(step = "before")
+
+df_step1_after <- df_step1_before %>%
+  group_by(ugb_funcao_prog_fr, ced_b4) %>%
+  mutate(
+    across(
+      all_of(num_cols),
+      ~ if_else(ced_group == "B", .x - sum(.x[ced_group == "A"], na.rm = TRUE), .x)
+    )
+  ) %>%
+  ungroup() %>%
+  mutate(step = "after")
+
+df_step1_comparison <- bind_rows(df_step1_before, df_step1_after) %>%
+  arrange(ugb_funcao_prog_fr, ced_b4, ced, step)
+
+df_step1_comparison %>%
+  filter(
+    ced_b4 == "1121" & (
+      str_detect(programa, "101MAE0106EGE2018OF02") |
+        str_detect(programa, "201MDF0102EGE2018OF02") |
+        (str_detect(ugb_funcao_prog_fr, "09611") & str_detect(programa, "101MAE01060000000OF00"))
+    )
+  ) %>%
+  pivot_wider(
+    id_cols = c(ugb_funcao_prog_fr, ced_group, ced, ced_b4, programa),
+    names_from = step,
+    values_from = dotacao_actualizada_da
+  ) %>%
+  mutate(
+    difference = after - before,
+    caso = case_when(
+      str_detect(programa, "101MAE0106EGE2018OF02") ~ "Caso 1: Grupo B sem filhos A (diferença = 0)",
+      str_detect(programa, "201MDF0102EGE2018OF02") ~ "Caso 2: Grupo B totalmente consumido por um filho A",
+      str_detect(programa, "101MAE01060000000OF00") ~ "Caso 3: Grupo B com valor residual após múltiplos filhos A"
+    )
+  ) %>%
+  arrange(caso, ced) %>%
+  select(caso, ced_group, ced, before, after, difference) %>%
+  gt::gt() %>%
+  gt::cols_label(
+    caso = "Caso",
+    ced_group = "Grupo",
+    ced = "CED",
+    before = "Antes",
+    after = "Depois",
+    difference = "Diferença"
+  ) %>%
+  gt::fmt_number(columns = c(before, after, difference), decimals = 1) %>%
+  gt::cols_align(align = "left", columns = c(caso, ced_group, ced)) %>%
+  gt::tab_row_group(label = "Caso 3: Grupo B com valor residual após múltiplos filhos A", rows = str_detect(caso, "Caso 3")) %>%
+  gt::tab_row_group(label = "Caso 2: Grupo B totalmente consumido por um filho A", rows = str_detect(caso, "Caso 2")) %>%
+  gt::tab_row_group(label = "Caso 1: Grupo B sem filhos A", rows = str_detect(caso, "Caso 1")) %>%
+  gt::tab_style(
+    style = gt::cell_text(weight = "bold"),
+    locations = gt::cells_row_groups()
+  ) %>%
+  gt::tab_options(table.font.size = "small")
+
+```
+
+### Passo 2: Subtrair grupo B ajustado do grupo C (dentro de ced_b3)
+
+Subtraímos os valores do grupo B (já ajustados no Passo 1) da linha correspondente do grupo C, dentro de cada grupo ced_b3. Desta forma, o grupo C passa a representar apenas o valor residual não coberto pelas linhas do grupo B.
+
+```{r step2-subtraction}
+#| message: false
+#| warning: false
+#| echo: false
+
+df_step2_before <- df_step1_after %>%
+  mutate(step = "before")
+
+df_step2_after <- df_step1_after %>%
+  group_by(ugb_funcao_prog_fr, ced_b3) %>%
+  mutate(
+    across(
+      all_of(num_cols),
+      ~ if_else(ced_group == "C", .x - sum(.x[ced_group == "B"], na.rm = TRUE), .x)
+    )
+  ) %>%
+  ungroup() %>%
+  mutate(step = "after")
+
+df_step2_comparison <- bind_rows(df_step2_before, df_step2_after) %>%
+  arrange(ugb_funcao_prog_fr, ced_b3, ced, step)
+
+df_step2_comparison %>%
+  filter(
+    ced_b3 == "112" & (
+      str_detect(programa, "101MAE0106EGE2018OF02") |
+      (str_detect(ugb_funcao_prog_fr, "09611") & str_detect(programa, "101MAE01060000000OF00"))
+    )
+  ) %>%
+  pivot_wider(
+    id_cols = c(ugb_funcao_prog_fr, ced_group, ced, ced_b3, programa),
+    names_from = step,
+    values_from = dotacao_actualizada_da
+  ) %>%
+  mutate(
+    difference = after - before,
+    caso = case_when(
+      str_detect(programa, "101MAE0106EGE2018OF02") ~ "Caso 1: Grupo C totalmente consumido por B",
+      str_detect(programa, "101MAE01060000000OF00") ~ "Caso 2: Grupo C com valor residual após subtração de B ajustado"
+    )
+  ) %>%
+  arrange(caso, ced) %>%
+  select(caso, ced_group, ced, before, after, difference) %>%
+  gt::gt() %>%
+  gt::cols_label(
+    caso = "Caso",
+    ced_group = "Grupo",
+    ced = "CED",
+    before = "Antes",
+    after = "Depois",
+    difference = "Diferença"
+  ) %>%
+  gt::fmt_number(columns = c(before, after, difference), decimals = 1) %>%
+  gt::cols_align(align = "left", columns = c(caso, ced_group, ced)) %>%
+  gt::tab_row_group(label = "Caso 2: Grupo C com valor residual após subtração de B ajustado", rows = str_detect(caso, "Caso 2")) %>%
+  gt::tab_row_group(label = "Caso 1: Grupo C totalmente consumido por B", rows = str_detect(caso, "Caso 1")) %>%
+  gt::tab_style(
+    style = gt::cell_text(weight = "bold"),
+    locations = gt::cells_row_groups()
+  ) %>%
+  gt::tab_options(table.font.size = "small")
+```
+
+### Passo 3: Subtrair todos os valores do grupo A do grupo C (dentro de ced_b3)
+
+Subtraímos do grupo C a soma de todos os valores do grupo A dentro de cada grupo ced_b3, independentemente de existir ou não um grupo B intermédio. Este passo é necessário porque, após os Passos 1 e 2, o grupo C ainda retém o valor correspondente às linhas A — seja porque essas linhas A têm um pai B (que já foi subtraído do C no Passo 2), ou porque são filhos directos do C sem nível intermédio. Em ambos os casos, o resultado esperado é que o grupo C fique com valor zero ou com um residual que representa apenas o que não está coberto por nenhuma linha mais granular.
+
+```{r step3-subtraction}
+#| message: false
+#| warning: false
+#| echo: false
+
+df_step3_before <- df_step2_after %>%
+  mutate(step = "before")
+
+df_limpeza_9 <- df_step2_after %>%
+  group_by(ugb_funcao_prog_fr, ced_b3) %>%
+  mutate(
+    across(
+      all_of(num_cols),
+      ~ if_else(ced_group == "C", .x - sum(.x[ced_group == "A"], na.rm = TRUE), .x)
+    )
+  ) %>%
+  ungroup() %>%
+  mutate(step = "after")
+
+df_step3_comparison <- bind_rows(df_step3_before, df_limpeza_9) %>%
+  arrange(ugb_funcao_prog_fr, ced_b3, ced, step)
+
+df_step3_comparison %>%
+  filter(
+    ced_b3 == "112" & (
+      str_detect(ugb_funcao_prog_fr, "09611") & str_detect(programa, "101MAE01060000000OF00")
+    )
+  ) %>%
+  pivot_wider(
+    id_cols = c(ugb_funcao_prog_fr, ced_group, ced, ced_b3, programa),
+    names_from = step,
+    values_from = dotacao_actualizada_da
+  ) %>%
+  mutate(
+    difference = after - before,
+    caso = "Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente"
+  ) %>%
+  arrange(ced) %>%
+  select(caso, ced_group, ced, before, after, difference) %>%
+  gt::gt() %>%
+  gt::cols_label(
+    caso = "Caso",
+    ced_group = "Grupo",
+    ced = "CED",
+    before = "Antes",
+    after = "Depois",
+    difference = "Diferença"
+  ) %>%
+  gt::fmt_number(columns = c(before, after, difference), decimals = 1) %>%
+  gt::cols_align(align = "left", columns = c(caso, ced_group, ced)) %>%
+  gt::tab_row_group(label = "Caso extra: Grupo C totalmente eliminado — todos os filhos A subtraídos diretamente", rows = str_detect(caso, "Caso extra")) %>%
+  gt::tab_style(
+    style = gt::cell_text(weight = "bold"),
+    locations = gt::cells_row_groups()
+  ) %>%
+  gt::tab_options(table.font.size = "small")
+
+```
