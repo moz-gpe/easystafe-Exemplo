@@ -1,0 +1,174 @@
+---
+project:
+  type: website
+
+website:
+  title: "Analysis of Daily Balances"
+  subtitle: "Using routine data to visualize daily balances and 15-day rolling balances"
+  navbar:
+    logo: Images/emblem_giz_large.png
+
+format: 
+  html:
+    include-before-body:
+      text: |
+        <div style="text-align: center; margin-bottom: 1rem;">
+          <img src="Images/emblem_giz_large.png" width="400">
+        </div>
+    theme: cosmo
+  
+author:
+  - name: "Joseph Lara"
+    affiliation: "GIZ-GPE"
+  
+date: today
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+
+```{r load-dependencies}
+library(tidyverse)
+library(readxl)
+library(janitor)
+library(slider)
+library(scales)
+library(plotly)
+library(htmlwidgets)
+```
+
+```{r}
+path_source <- "~/Data/esistafe/relatoriofase2025/251215-FluxoFundosReconciliação FASE.xlsx"
+```
+
+
+```{r}
+df <- read_excel(path_source,
+sheet = "cut MTS 2025",
+range = "b4:k2075"
+) |> 
+    clean_names()
+```
+
+
+```{r}
+df1 <- df %>%
+  mutate(
+    origem = case_when(
+      !is.na(debito_mt) & debito_mt != 0 ~ "Debito",
+      !is.na(credito) & credito != 0 ~ "Credito",
+      TRUE ~ NA_character_
+    ),
+    debito_credito = case_when(
+      origem == "Debito"  ~ debito_mt,
+      origem == "Credito" ~ credito * -1,
+      TRUE ~ NA_real_
+    )
+  )
+    
+
+```
+
+
+
+```{r}
+# 1) Daily values on days that exist in the source
+daily_base <- df1 %>%
+  mutate(data = as.Date(data)) %>%
+  arrange(data) %>%
+  group_by(data) %>%
+  summarise(
+    saldo_mt  = dplyr::last(saldo_mt[!is.na(saldo_mt)]),
+    saldo_usd = dplyr::last(saldo_usd[!is.na(saldo_usd)]),
+    cambio3   = dplyr::last(cambio3[!is.na(cambio3)]),
+    .groups = "drop"
+  ) %>%
+  as_tibble()
+
+# 2) Skeleton of all days in 2025
+calendar_2025 <- tibble(
+  data = seq.Date(as.Date("2025-01-01"), as.Date("2025-12-31"), by = "day")
+)
+
+# 3) Join + carry forward
+daily_2025 <- calendar_2025 %>%
+  left_join(daily_base, by = "data") %>%
+  arrange(data) %>%
+  fill(saldo_mt, saldo_usd, cambio3, .direction = "down") |> 
+    arrange(data) %>%
+  mutate(
+    saldo_mt_roll15 = slide_dbl(
+      saldo_mt,
+      mean,
+      .before = 14,   # previous 14 days + today = 15 days
+      .complete = TRUE
+    )
+  )
+```
+
+
+```{r}
+p <- daily_2025 %>%
+  arrange(data) %>%
+  mutate(
+    saldo_m = saldo_mt / 1e6,
+    mm15_m  = saldo_mt_roll15 / 1e6
+  ) %>%
+  plot_ly(x = ~data) %>%
+  add_lines(
+    y = ~saldo_m,
+    name = "Saldo Diário",
+    line = list(color = "#F8766D"),
+    hovertemplate = paste(
+      "Saldo Diário: %{y:,.2f} milhões MT",
+      "<extra></extra>"
+    )
+  ) %>%
+  add_lines(
+    y = ~mm15_m,
+    name = "Média Móvel 15 Dias",
+    line = list(color = "#00BFC4"),
+    hovertemplate = paste(
+      "Média Móvel: %{y:,.2f} milhões MT",
+      "<extra></extra>"
+    )
+  ) %>%
+  layout(
+    title = list(text = "Saldo MT e Média Móvel (15 dias) - 2025"),
+    xaxis = list(
+      title = "Mês",
+      tickformat = "%b",        # show months on axis
+      dtick = "M1",
+      tickangle = -45,
+      hoverformat = "%Y-%m-%d"  # show full date in unified hover header
+    ),
+    yaxis = list(
+      title = "Saldo (milhões MT)",
+      zeroline = FALSE
+    ),
+    hovermode = "x unified",
+    legend = list(
+      orientation = "v",
+      x = 1.02,
+      y = 0.5,
+      xanchor = "left",
+      yanchor = "middle"
+    ),
+    margin = list(r = 150)
+  )
+
+
+p
+```
+
+
+```{r}
+# Save plot
+htmlwidgets::saveWidget(
+  p,
+  file = "Graphics/saldo_mt_2025_interactive.html",
+  selfcontained = TRUE
+)
+```

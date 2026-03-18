@@ -1,0 +1,203 @@
+---
+title: "*Debugging of e-SISTAFE export cleaning*"
+format: html
+logo: Images/emblem_giz_large.png
+---
+
+# Introdução
+
+## Carregar pacotes requiridos
+
+```{r attach-packages}
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(readxl)
+library(janitor)
+library(glue)
+source("Scripts/functions.R")
+
+```
+
+## Definir caminhos aos dados e-SISTAFE e UGB's
+
+```{r set-globals}
+#| message: false
+#| warning: false
+
+path_ugb <- "../../Data/ugb/Codigos de UGBs.xlsx"
+path_data <- "Data/debugging/"
+
+```
+
+# Detectar ficheiros e metadados
+
+## Detectar ficheiros
+
+```{r set-paths}
+#| message: false
+#| warning: false
+
+  paths <- list.files(
+    path = path_data,
+    pattern = "\\.xlsx$",
+    full.names = TRUE,
+    ignore.case = TRUE
+  )
+
+  paths
+
+```
+
+# Carregar e limpar ficheiros no R
+
+## Carregar ficheiros
+
+```{r load-files}
+#| message: false
+#| warning: false
+
+df <- map(paths, ~read_excel(.x, col_types = "text")) |> 
+  set_names(basename(paths)) |> 
+  list_rbind(names_to = "file_name")
+
+glue(
+  "Ficheiros carregados: {n_distinct(df$file_name)}
+   Linhas carregadas: {nrow(df)}"
+)
+```
+
+## Limpar ficheiros
+
+### Renomear colunas
+
+```{r rename-files}
+#| message: false
+#| warning: false
+
+df_limpeza_1 <- clean_names(df)
+
+names(df_limpeza_1)
+
+```
+
+### Remover colunas desnecessarias
+
+```{r remove-cols}
+#| message: false
+#| warning: false
+
+df_limpeza_2 <- df_limpeza_1 |> 
+  select(!dplyr::ends_with("percent"))
+
+names(df_limpeza_2)
+
+```
+### Extrair código UGB
+
+```{r create-ugb-code}
+#| message: false
+#| warning: false
+
+df_limpeza_3 <- df_limpeza_2 |> 
+  mutate(
+      dplyr::across(dotacao_inicial:liq_ad_fundos_via_directa_lafvd, as.numeric),
+      ugb_id = substr(ugb, 1, 9)
+  ) |> 
+    relocate(ugb_id, .after = ugb)
+
+  glimpse(df_limpeza_3)
+
+```
+### Carregar UGB's de educação
+
+```{r carregar-ugb-valido}
+#| message: false
+#| warning: false
+
+  # Load lookup table for education UGB and other metadata
+vec_ugb <- read_excel(path_ugb, sheet = "UGBS") |> 
+  clean_names() |> 
+  select(
+    ugb_cod = ugb_1,
+    ugb_nome = ugb_3
+  ) |> 
+  distinct(ugb_nome) |> 
+  pull()
+
+head(vec_ugb)
+```
+
+### Classificar filtro UGB de educação
+
+```{r filtrar-ugb-valido}
+#| message: false
+#| warning: false
+
+df_limpeza_4 <- df_limpeza_3 |> 
+      mutate(mec_ugb_class  = ifelse(ugb %in% vec_ugb, "Keep", "Remove")) %>% 
+      filter(mec_ugb_class == "Keep") |>
+      select(-mec_ugb_class)
+
+glimpse(df_limpeza_4)
+
+
+```
+
+### Categorizar CED por nível
+
+```{r codificar-ced-param}
+#| message: false
+#| warning: false
+
+df_limpeza_5 <- df_limpeza_4 |> 
+    dplyr::mutate(
+      ced_blank_class = ifelse(!is.na(ced), "Keep", "Remove"),
+      ced_group = dplyr::case_when(
+        !stringr::str_ends(ced, "00")                                           ~ "A",
+        stringr::str_ends(ced, "00") & !stringr::str_ends(ced, "000") & !stringr::str_ends(ced, "0000") ~ "B",
+        stringr::str_ends(ced, "000") & !stringr::str_ends(ced, "0000")        ~ "C",
+        stringr::str_ends(ced, "0000")                                         ~ "D",
+        TRUE                                                                   ~ NA_character_
+      )
+    )
+
+glimpse(df_limpeza_5)
+
+```
+```{r filter-d-cedgroup}
+
+df_limpeza_6 <- df_limpeza_5 |> 
+  filter(is.na(ced_group) | ced_group != "D")
+
+unique(df_limpeza_6$ced_group)
+
+```
+
+```{r remove-ced-blank}
+#| message: false
+#| warning: false
+
+df_limpeza_7 <- df_limpeza_6 |>
+  filter(!is.na(ced) | (!is.na(funcao) & !is.na(programa) & !is.na(fr))) %>% 
+  mutate(data_tipo = if_else(is.na(ced), "Metrica", "Valor")) %>% 
+  relocate(data_tipo, .after = ced_group)
+
+df_limpeza_7 |> count(ced_group, data_tipo)
+
+```
+
+```{r create-new-vars}
+#| message: false
+#| warning: false
+
+df_limpeza_7 <- df_limpeza_6 |>
+  filter(!is.na(ced) | (!is.na(funcao) & !is.na(programa) & !is.na(fr))) %>% 
+  mutate(data_tipo = if_else(is.na(ced), "Metrica", "Valor")) %>% 
+  relocate(data_tipo, .after = ced_group)
+
+df_limpeza_7 |> count(ced_group, data_tipo)
+
+```
+

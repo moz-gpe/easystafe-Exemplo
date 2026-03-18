@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.26">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Debugging of e-SISTAFE export cleaning</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="debugging_files/libs/clipboard/clipboard.min.js"></script>
+<script src="debugging_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="debugging_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="debugging_files/libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="debugging_files/libs/quarto-html/popper.min.js"></script>
+<script src="debugging_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="debugging_files/libs/quarto-html/anchor.min.js"></script>
+<link href="debugging_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="debugging_files/libs/quarto-html/quarto-syntax-highlighting-587c61ba64f3a5504c4d52d930310e48.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="debugging_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="debugging_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="debugging_files/libs/bootstrap/bootstrap-9e3ffae467580fdb927a41352e75a2e0.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body class="fullcontent quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><em>Debugging of e-SISTAFE export cleaning</em></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="introdução" class="level1">
+<h1>Introdução</h1>
+<section id="carregar-pacotes-requiridos" class="level2">
+<h2 class="anchored" data-anchor-id="carregar-pacotes-requiridos">Carregar pacotes requiridos</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readxl)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(janitor)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(glue)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="st">"Scripts/functions.R"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="definir-caminhos-aos-dados-e-sistafe-e-ugbs" class="level2">
+<h2 class="anchored" data-anchor-id="definir-caminhos-aos-dados-e-sistafe-e-ugbs">Definir caminhos aos dados e-SISTAFE e UGB’s</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>path_ugb <span class="ot">&lt;-</span> <span class="st">"../../Data/ugb/Codigos de UGBs.xlsx"</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>path_data <span class="ot">&lt;-</span> <span class="st">"Data/debugging/"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+</section>
+<section id="detectar-ficheiros-e-metadados" class="level1">
+<h1>Detectar ficheiros e metadados</h1>
+<section id="detectar-ficheiros" class="level2">
+<h2 class="anchored" data-anchor-id="detectar-ficheiros">Detectar ficheiros</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>  paths <span class="ot">&lt;-</span> <span class="fu">list.files</span>(</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">path =</span> path_data,</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">pattern =</span> <span class="st">"</span><span class="sc">\\</span><span class="st">.xlsx$"</span>,</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">full.names =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">ignore.case =</span> <span class="cn">TRUE</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  paths</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "Data/debugging/DemonstrativoConsolidadoOrcamentoFuncionamentoPorUGBFuncionalProgramaFRCED_A_Central_20251231_20251231-2026-02-05_11-43-45.294.xlsx"</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="carregar-e-limpar-ficheiros-no-r" class="level1">
+<h1>Carregar e limpar ficheiros no R</h1>
+<section id="carregar-ficheiros" class="level2">
+<h2 class="anchored" data-anchor-id="carregar-ficheiros">Carregar ficheiros</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">map</span>(paths, <span class="sc">~</span><span class="fu">read_excel</span>(.x, <span class="at">col_types =</span> <span class="st">"text"</span>)) <span class="sc">|&gt;</span> </span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_names</span>(<span class="fu">basename</span>(paths)) <span class="sc">|&gt;</span> </span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list_rbind</span>(<span class="at">names_to =</span> <span class="st">"file_name"</span>)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="fu">glue</span>(</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Ficheiros carregados: {n_distinct(df$file_name)}</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="st">   Linhas carregadas: {nrow(df)}"</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Ficheiros carregados: 1
+Linhas carregadas: 274</code></pre>
+</div>
+</div>
+</section>
+<section id="limpar-ficheiros" class="level2">
+<h2 class="anchored" data-anchor-id="limpar-ficheiros">Limpar ficheiros</h2>
+<section id="renomear-colunas" class="level3">
+<h3 class="anchored" data-anchor-id="renomear-colunas">Renomear colunas</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>df_limpeza_1 <span class="ot">&lt;-</span> <span class="fu">clean_names</span>(df)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(df_limpeza_1)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] "file_name"                         "ugb"                              
+ [3] "funcao"                            "programa"                         
+ [5] "fr"                                "ced"                              
+ [7] "dotacao_inicial"                   "dotacao_revista"                  
+ [9] "dotacao_actualizada_da"            "dotacao_disponivel"               
+[11] "dotacao_cabimentada_dc"            "ad_fundos_concedidos_af"          
+[13] "despesa_paga_via_directa_dp"       "ad_fundos_desp_paga_vd_afdp"      
+[15] "ad_fundos_liquidados_laf"          "despesa_liquidada_via_directa_lvd"
+[17] "liq_ad_fundos_via_directa_lafvd"   "dc_da_percent"                    
+[19] "afdp_da_percent"                   "laf_af_percent"                   </code></pre>
+</div>
+</div>
+</section>
+<section id="remover-colunas-desnecessarias" class="level3">
+<h3 class="anchored" data-anchor-id="remover-colunas-desnecessarias">Remover colunas desnecessarias</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>df_limpeza_2 <span class="ot">&lt;-</span> df_limpeza_1 <span class="sc">|&gt;</span> </span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">!</span>dplyr<span class="sc">::</span><span class="fu">ends_with</span>(<span class="st">"percent"</span>))</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(df_limpeza_2)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] "file_name"                         "ugb"                              
+ [3] "funcao"                            "programa"                         
+ [5] "fr"                                "ced"                              
+ [7] "dotacao_inicial"                   "dotacao_revista"                  
+ [9] "dotacao_actualizada_da"            "dotacao_disponivel"               
+[11] "dotacao_cabimentada_dc"            "ad_fundos_concedidos_af"          
+[13] "despesa_paga_via_directa_dp"       "ad_fundos_desp_paga_vd_afdp"      
+[15] "ad_fundos_liquidados_laf"          "despesa_liquidada_via_directa_lvd"
+[17] "liq_ad_fundos_via_directa_lafvd"  </code></pre>
+</div>
+</div>
+</section>
+<section id="extrair-código-ugb" class="level3">
+<h3 class="anchored" data-anchor-id="extrair-código-ugb">Extrair código UGB</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>df_limpeza_3 <span class="ot">&lt;-</span> df_limpeza_2 <span class="sc">|&gt;</span> </span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>      dplyr<span class="sc">::</span><span class="fu">across</span>(dotacao_inicial<span class="sc">:</span>liq_ad_fundos_via_directa_lafvd, as.numeric),</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>      <span class="at">ugb_id =</span> <span class="fu">substr</span>(ugb, <span class="dv">1</span>, <span class="dv">9</span>)</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span> </span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">relocate</span>(ugb_id, <span class="at">.after =</span> ugb)</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">glimpse</span>(df_limpeza_3)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Rows: 274
+Columns: 18
+$ file_name                         &lt;chr&gt; "DemonstrativoConsolidadoOrcamentoFu…
+$ ugb                               &lt;chr&gt; "35A005041 - INSTITUTO NACIONAL DE I…
+$ ugb_id                            &lt;chr&gt; "35A005041", "35A005041", "35A005041…
+$ funcao                            &lt;chr&gt; NA, "04251 - IRRIGACAO", "04251 - IR…
+$ programa                          &lt;chr&gt; NA, NA, "101MAE01060000000OF00  - De…
+$ fr                                &lt;chr&gt; NA, NA, NA, "101000000000", "1010000…
+$ ced                               &lt;chr&gt; NA, NA, NA, NA, "111000", "111100", …
+$ dotacao_inicial                   &lt;dbl&gt; 35244310, 35244310, 35244310, 352443…
+$ dotacao_revista                   &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
+$ dotacao_actualizada_da            &lt;dbl&gt; 41234983.17, 41234983.17, 21895009.7…
+$ dotacao_disponivel                &lt;dbl&gt; 4110857.12, 4110857.12, 1968075.10, …
+$ dotacao_cabimentada_dc            &lt;dbl&gt; 37124126, 37124126, 19926935, 199269…
+$ ad_fundos_concedidos_af           &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
+$ despesa_paga_via_directa_dp       &lt;dbl&gt; 30601688.9, 30601688.9, 15075544.7, …
+$ ad_fundos_desp_paga_vd_afdp       &lt;dbl&gt; 30601688.9, 30601688.9, 15075544.7, …
+$ ad_fundos_liquidados_laf          &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
+$ despesa_liquidada_via_directa_lvd &lt;dbl&gt; 36076349, 36076349, 19110133, 191101…
+$ liq_ad_fundos_via_directa_lafvd   &lt;dbl&gt; 36076349.2, 36076349.2, 19110132.6, …</code></pre>
+</div>
+</div>
+</section>
+<section id="carregar-ugbs-de-educação" class="level3">
+<h3 class="anchored" data-anchor-id="carregar-ugbs-de-educação">Carregar UGB’s de educação</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Load lookup table for education UGB and other metadata</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>vec_ugb <span class="ot">&lt;-</span> <span class="fu">read_excel</span>(path_ugb, <span class="at">sheet =</span> <span class="st">"UGBS"</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">clean_names</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">ugb_cod =</span> ugb_1,</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">ugb_nome =</span> ugb_3</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span> </span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">distinct</span>(ugb_nome) <span class="sc">|&gt;</span> </span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pull</span>()</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(vec_ugb)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "04B100441 - SERVICO DISTRITAL DE EDUCACAO, JUVENTUDE E TECNOLOGIA DE MECANHELAS"
+[2] "04B110441 - SERVIÇO DISTRITAL DE EDUCAÇÃO JUVENTUDE E TECNOLOGIA - MECULA"      
+[3] "04B120441 - SERVICO DISTRITAL DE EDUCACAO, JUVENTUDE E TECNOLOGIA DE METARICA"  
+[4] "04B130441 - SERVIÇOS DISTRITAL DE EDUCAÇÃO JUVENTUDE E TECNOLOGIA DE MUEMBE"    
+[5] "04B150441 - SERVICO DISTRITAL DE EDUCACAO, JUVENTUDE E TECNOLOGIA DE NIPEPE"    
+[6] "04B160441 - SERVICO DISTRITAL DE EDUCACAO, JUVENTUDE E TECNOLOGIA DE SANGA"     </code></pre>
+</div>
+</div>
+</section>
+<section id="classificar-filtro-ugb-de-educação" class="level3">
+<h3 class="anchored" data-anchor-id="classificar-filtro-ugb-de-educação">Classificar filtro UGB de educação</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>df_limpeza_4 <span class="ot">&lt;-</span> df_limpeza_3 <span class="sc">|&gt;</span> </span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>      <span class="fu">mutate</span>(<span class="at">mec_ugb_class  =</span> <span class="fu">ifelse</span>(ugb <span class="sc">%in%</span> vec_ugb, <span class="st">"Keep"</span>, <span class="st">"Remove"</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>      <span class="fu">filter</span>(mec_ugb_class <span class="sc">==</span> <span class="st">"Keep"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>      <span class="fu">select</span>(<span class="sc">-</span>mec_ugb_class)</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(df_limpeza_4)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Rows: 220
+Columns: 18
+$ file_name                         &lt;chr&gt; "DemonstrativoConsolidadoOrcamentoFu…
+$ ugb                               &lt;chr&gt; "50A000141 - MINISTÉRIO DA EDUCAÇÃO …
+$ ugb_id                            &lt;chr&gt; "50A000141", "50A000141", "50A000141…
+$ funcao                            &lt;chr&gt; NA, "01331 - OUTROS SERVICOS GERAIS"…
+$ programa                          &lt;chr&gt; NA, NA, "101MAE0106EGE2018OF02  - GR…
+$ fr                                &lt;chr&gt; NA, NA, NA, "101000000000", "1010000…
+$ ced                               &lt;chr&gt; NA, NA, NA, NA, "112000", "112100", …
+$ dotacao_inicial                   &lt;dbl&gt; 655481940, 0, 0, 0, 0, 0, 0, 0, 0, 0…
+$ dotacao_revista                   &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
+$ dotacao_actualizada_da            &lt;dbl&gt; 1.007812e+09, 6.506072e+06, 4.955284…
+$ dotacao_disponivel                &lt;dbl&gt; 99305413.89, 2982596.95, 2596760.86,…
+$ dotacao_cabimentada_dc            &lt;dbl&gt; 908506354.7, 3523475.4, 2358523.1, 2…
+$ ad_fundos_concedidos_af           &lt;dbl&gt; 1131659, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
+$ despesa_paga_via_directa_dp       &lt;dbl&gt; 811852772, 179400, 0, 0, 0, 0, 0, 0,…
+$ ad_fundos_desp_paga_vd_afdp       &lt;dbl&gt; 812984431, 179400, 0, 0, 0, 0, 0, 0,…
+$ ad_fundos_liquidados_laf          &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
+$ despesa_liquidada_via_directa_lvd &lt;dbl&gt; 894644910.5, 3523475.4, 2358523.1, 2…
+$ liq_ad_fundos_via_directa_lafvd   &lt;dbl&gt; 894644910.5, 3523475.4, 2358523.1, 2…</code></pre>
+</div>
+</div>
+</section>
+<section id="categorizar-ced-por-nível" class="level3">
+<h3 class="anchored" data-anchor-id="categorizar-ced-por-nível">Categorizar CED por nível</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>df_limpeza_5 <span class="ot">&lt;-</span> df_limpeza_4 <span class="sc">|&gt;</span> </span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">mutate</span>(</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>      <span class="at">ced_blank_class =</span> <span class="fu">ifelse</span>(<span class="sc">!</span><span class="fu">is.na</span>(ced), <span class="st">"Keep"</span>, <span class="st">"Remove"</span>),</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>      <span class="at">ced_group =</span> dplyr<span class="sc">::</span><span class="fu">case_when</span>(</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>        <span class="sc">!</span>stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"00"</span>)                                           <span class="sc">~</span> <span class="st">"A"</span>,</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>        stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"00"</span>) <span class="sc">&amp;</span> <span class="sc">!</span>stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"000"</span>) <span class="sc">&amp;</span> <span class="sc">!</span>stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"0000"</span>) <span class="sc">~</span> <span class="st">"B"</span>,</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>        stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"000"</span>) <span class="sc">&amp;</span> <span class="sc">!</span>stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"0000"</span>)        <span class="sc">~</span> <span class="st">"C"</span>,</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>        stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"0000"</span>)                                         <span class="sc">~</span> <span class="st">"D"</span>,</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>        <span class="cn">TRUE</span>                                                                   <span class="sc">~</span> <span class="cn">NA_character_</span></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(df_limpeza_5)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Rows: 220
+Columns: 20
+$ file_name                         &lt;chr&gt; "DemonstrativoConsolidadoOrcamentoFu…
+$ ugb                               &lt;chr&gt; "50A000141 - MINISTÉRIO DA EDUCAÇÃO …
+$ ugb_id                            &lt;chr&gt; "50A000141", "50A000141", "50A000141…
+$ funcao                            &lt;chr&gt; NA, "01331 - OUTROS SERVICOS GERAIS"…
+$ programa                          &lt;chr&gt; NA, NA, "101MAE0106EGE2018OF02  - GR…
+$ fr                                &lt;chr&gt; NA, NA, NA, "101000000000", "1010000…
+$ ced                               &lt;chr&gt; NA, NA, NA, NA, "112000", "112100", …
+$ dotacao_inicial                   &lt;dbl&gt; 655481940, 0, 0, 0, 0, 0, 0, 0, 0, 0…
+$ dotacao_revista                   &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
+$ dotacao_actualizada_da            &lt;dbl&gt; 1.007812e+09, 6.506072e+06, 4.955284…
+$ dotacao_disponivel                &lt;dbl&gt; 99305413.89, 2982596.95, 2596760.86,…
+$ dotacao_cabimentada_dc            &lt;dbl&gt; 908506354.7, 3523475.4, 2358523.1, 2…
+$ ad_fundos_concedidos_af           &lt;dbl&gt; 1131659, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
+$ despesa_paga_via_directa_dp       &lt;dbl&gt; 811852772, 179400, 0, 0, 0, 0, 0, 0,…
+$ ad_fundos_desp_paga_vd_afdp       &lt;dbl&gt; 812984431, 179400, 0, 0, 0, 0, 0, 0,…
+$ ad_fundos_liquidados_laf          &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
+$ despesa_liquidada_via_directa_lvd &lt;dbl&gt; 894644910.5, 3523475.4, 2358523.1, 2…
+$ liq_ad_fundos_via_directa_lafvd   &lt;dbl&gt; 894644910.5, 3523475.4, 2358523.1, 2…
+$ ced_blank_class                   &lt;chr&gt; "Remove", "Remove", "Remove", "Remov…
+$ ced_group                         &lt;chr&gt; NA, NA, NA, NA, "C", "B", "D", "C", …</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>df_limpeza_6 <span class="ot">&lt;-</span> df_limpeza_5 <span class="sc">|&gt;</span> </span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">is.na</span>(ced_group) <span class="sc">|</span> ced_group <span class="sc">!=</span> <span class="st">"D"</span>)</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="fu">unique</span>(df_limpeza_6<span class="sc">$</span>ced_group)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] NA  "C" "B" "A"</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>df_limpeza_7 <span class="ot">&lt;-</span> df_limpeza_6 <span class="sc">|&gt;</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(ced) <span class="sc">|</span> (<span class="sc">!</span><span class="fu">is.na</span>(funcao) <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(programa) <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(fr))) <span class="sc">%&gt;%</span> </span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">data_tipo =</span> <span class="fu">if_else</span>(<span class="fu">is.na</span>(ced), <span class="st">"Metrica"</span>, <span class="st">"Valor"</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">relocate</span>(data_tipo, <span class="at">.after =</span> ced_group)</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>df_limpeza_7 <span class="sc">|&gt;</span> <span class="fu">count</span>(ced_group, data_tipo)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 4 × 3
+  ced_group data_tipo     n
+  &lt;chr&gt;     &lt;chr&gt;     &lt;int&gt;
+1 A         Valor       120
+2 B         Valor        14
+3 C         Valor        37
+4 &lt;NA&gt;      Metrica      17</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>df_limpeza_7 <span class="sc">|&gt;</span> </span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">has_ced =</span> <span class="fu">sum</span>(<span class="sc">!</span><span class="fu">is.na</span>(ced)),</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">no_ced_but_valid =</span> <span class="fu">sum</span>(<span class="fu">is.na</span>(ced) <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(funcao) <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(programa) <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(fr)),</span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">rows_dropped =</span> <span class="fu">nrow</span>(df_limpeza_6) <span class="sc">-</span> <span class="fu">n</span>()</span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 1 × 3
+  has_ced no_ced_but_valid rows_dropped
+    &lt;int&gt;            &lt;int&gt;        &lt;int&gt;
+1     171               17           21</code></pre>
+</div>
+</div>
+</section>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

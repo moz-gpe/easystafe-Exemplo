@@ -1,11 +1,44 @@
 ---
-title: "Exemplo de processamento de ficheiro eSISTAFE"
+title: "*Automatização da limpeza de dados do e-SISTAFE*"
+subtitle: "*Usando R para automatizar a compilação e limpeza de ficheiros exportados e-SISTAFE*"
 format: html
+logo: Images/emblem_giz_large.png
 ---
 
-# Configuração
+# Introdução
 
-Primeiro, vamos começar carregando o código de programação necessário para processar o nosso ficheiro e-SISTAFE. No R, isso é feito através das funções ‘library()’ e ‘source()’.
+Este documento foi elaborado para a equipa da DAF MEC com o objectivo de demonstrar como é possível 
+automatizar a compilação e limpeza dos dados exportados do sistema e-SISTAFE utilizando a linguagem de programação R.
+
+Actualmente, este processo é frequentemente realizado de forma manual copiando e colando dados entre ficheiros Excel, aplicando filtros à mão, e repetindo os mesmos passos a cada novo relatório. Este tipo de trabalho consome tempo, é propenso a erros, e dificulta a rastreabilidade das decisões tomadas durante a limpeza dos dados.
+
+Com a abordagem apresentada aqui, os mesmos passos de limpeza e organização são executados automaticamente pelo R, de forma consistente e reproduzível — independentemente do número de ficheiros ou do período analisado. O resultado é um conjunto de dados limpo, filtrado e pronto para análise, gerado em segundos.
+
+Este documento está organizado da seguinte forma:
+
+1. Configuração do ambiente de trabalho
+2. Detecção automática dos ficheiros e-SISTAFE
+3. Extracção de metadados
+4. Carregamento e limpeza dos dados
+5. Classificação e categorização das variáveis-chave
+
+```{mermaid}
+flowchart TD
+    A[📁 Ficheiros .xls na pasta Data/] --> B[Detectar ficheiros automaticamente]
+    B --> C[Extrair metadados dos ficheiros]
+    C --> D[Carregar e combinar todos os ficheiros]
+    D --> E[Limpar nomes de colunas]
+    E --> F[Remover colunas desnecessárias]
+    F --> G[Extrair código UGB]
+    G --> H[Filtrar UGBs do sector educação]
+    H --> I[Classificar grupos CED]
+    I --> J[✅ Dados limpos e prontos para análise]
+```
+
+# Configurar o ambiente R
+
+## Carregar pacotes requiridos
+Primeiro, vamos carregar os pacotes de programação necessários para processar os nossos ficheiros e-SISTAFE. No R, fazemos isso através da função `library`. Também usamos `source` para carregar funções personalizadas que criámos especificamente para este trabalho.
 
 ```{r attach-packages}
 #| message: false
@@ -14,18 +47,36 @@ Primeiro, vamos começar carregando o código de programação necessário para 
 library(tidyverse)
 library(readxl)
 library(janitor)
+library(glue)
 source("Scripts/functions.R")
 
 ```
 
-# Detecção dos ficheiros e metadados
+## Definir caminhos aos dados e-SISTAFE e UGB's
 
-Agora vamos pedir ao R para identificar os nomes dos ficheiros que foram armazenados numa pasta para processamento.  
+A seguir, definimos os caminhos para os ficheiros que vamos usar. Isto facilita a organização e permite alterar facilmente a localização dos dados sem modificar o resto do código.
 
-```{r list-files}
+```{r set-globals}
+#| message: false
+#| warning: false
+
+path_ugb <- "../../Data/ugb/Codigos de UGBs.xlsx"
+path_data <- "Data/"
+
+```
+
+# Detectar ficheiros e metadados
+
+## Detectar ficheiros
+
+Agora pedimos ao R para identificar automaticamente todos os ficheiros Excel (.xls) que estão na nossa pasta de dados. Assim, não precisamos de escrever cada nome de ficheiro manualmente!
+
+```{r set-paths}
+#| message: false
+#| warning: false
 
   paths <- list.files(
-    path = "Data/",
+    path = path_data,
     pattern = "\\.xls$",
     full.names = TRUE,
     ignore.case = TRUE
@@ -34,58 +85,89 @@ Agora vamos pedir ao R para identificar os nomes dos ficheiros que foram armazen
   paths
 
 ```
-A seguir, vamos chamar uma função que foi concebida para descodificar os nomes dos ficheiros eSISTAFE!  Esta função é chamada `extrair_meta_extracto`.
+
+## Extrair metadados dos ficheiros
+
+Os nomes dos ficheiros eSISTAFE contêm informações úteis (como datas e códigos). A função `extrair_meta_extracto` é uma função personalizada desenvolvida especificamente para este projecto e definida no ficheiro `Scripts/functions.R`. O seu objectivo é extrair automaticamente informações de identificação — os chamados *metadados* — a partir do nome e do conteúdo de cada ficheiro e-SISTAFE exportado.
+
+Concretamente, a função identifica e extrai elementos como o período de reporte (mês e ano), o código UGB, e outros identificadores presentes no nome do ficheiro ou no cabeçalho do extracto. Estes metadados são essenciais para garantir que, ao combinar múltiplos ficheiros numa única tabela, cada linha de dados possa ser correctamente associada à sua fonte original.
+
+Em vez de inserir estas informações manualmente para cada ficheiro — o que seria moroso e sujeito a erros — a função faz este trabalho de forma automática e consistente para todos os ficheiros detectados.
 
 ```{r extract-metadata}
+#| message: false
+#| warning: false
 
-resultados_df <- map(paths, extrair_meta_extracto) |> 
+df_metadados <- map(paths, extrair_meta_extracto) |> 
                  list_rbind(names_to = "arquivo_fonte")
 
-glimpse(resultados_df)
+head(df_metadados)
+
 
 ```
 
-# Carregar e limpar ficheiros
+# Carregar e limpar ficheiros no R
 
-## Carregamento
-Vamos carregar todos os nossos ficheiros eSISTAFE e combiná-los num único conjunto de dados! Podemos fazer isso numa única ação, apontando o nosso código para o conjunto de caminhos de ficheiros que já definimos.
+## Carregar ficheiros
+
+Agora carregamos todos os ficheiros eSISTAFE e combinamo-los num único conjunto de dados. A funcção `map` aplica a mesma operação a cada ficheiro, e `list_rbind` junta tudo numa única tabela.
 
 ```{r load-files}
+#| message: false
+#| warning: false
 
 df <- map(paths, ~read_excel(.x, col_types = "text")) |> 
   set_names(basename(paths)) |> 
   list_rbind(names_to = "file_name")
 
-glimpse(df)
-
+glue(
+  "Ficheiros carregados: {n_distinct(df$file_name)}
+   Linhas carregadas: {nrow(df)}"
+)
 ```
 
-## Limpeza
+## Limpar ficheiros
 
-Agora começa o verdadeiro trabalho: limpar os ficheiros eSISTAFE! A primeira coisa que vamos fazer é converter os nomes das colunas em algo mais legível pela máquina.
-
+Agora começa o verdadeiro trabalho: limpar os dados! Vamos seguir vários passos para transformar os dados brutos em algo utilizável para análise.
 
 ### Renomear colunas
+
+O primeiro passo é padronizar os nomes das colunas. A função `clean_names` remove espaços, acentos e caracteres especiais, tornando os nomes mais fáceis de usar no código.
+
 ```{r rename-files}
+#| message: false
+#| warning: false
 
 df_limpeza_1 <- clean_names(df)
 
-glimpse(df_limpeza_1)
+names(df_limpeza_1)
 
 ```
 
 ### Remover colunas desnecessarias
+
+Algumas colunas não são necessárias para a nossa análise. Aqui removemos todas as colunas que terminam em "percent", pois podemos calcular percentagens mais tarde se precisarmos.
+
 ```{r remove-cols}
+#| message: false
+#| warning: false
 
 df_limpeza_2 <- df_limpeza_1 |> 
   select(!dplyr::ends_with("percent"))
 
-glimpse(df_limpeza_2)
+names(df_limpeza_2)
 
 ```
 
-### Isolar codigo ugb
+### Extrair código UGB
+
+Neste passo, criamos uma nova variável chamada `ugb_id`, extraindo os primeiros 9 caracteres da coluna `ugb`. Estes 9 caracteres representam o código único que identifica cada UGB no sistema e-SISTAFE, e será esta variável — `ugb_id` — que usaremos posteriormente para cruzar os dados com a nossa tabela de referência das UGBs do sector da educação.
+
+Aproveitamos também este passo para converter todas as colunas financeiras (de `dotacao_inicial` até `liq_ad_fundos_via_directa_lafvd`) de texto para valores numéricos, o que é necessário para realizar quaisquer cálculos matemáticos mais tarde.
+
 ```{r create-ugb-code}
+#| message: false
+#| warning: false
 
 df_limpeza_3 <- df_limpeza_2 |> 
   mutate(
@@ -95,36 +177,58 @@ df_limpeza_3 <- df_limpeza_2 |>
     relocate(ugb_id, .after = ugb)
 
   glimpse(df_limpeza_3)
+
 ```
 
-### Carregar ugb's de educação
+### Carregar UGB's de educação
+
+Carregamos uma tabela de referência que contém os códigos das UGBs do sector da educação. Esta lista vai servir como filtro para manter apenas os dados relevantes para o MEC.
+
 ```{r carregar-ugb-valido}
+#| message: false
+#| warning: false
 
   # Load lookup table for education UGB and other metadata
-  vec_ugb <- read_excel("Documents/xxx_Orcamento_DB_ficheiro branco.xlsm",
-                        sheet = "Organica da Educação") |>  
-    clean_names() |>  
-    distinct(codigo_ugb) |> 
-    pull()
+vec_ugb <- read_excel(path_ugb, sheet = "UGBS") |> 
+  clean_names() |> 
+  select(
+    ugb_cod = ugb_1,
+    ugb_nome = ugb_3
+  ) |> 
+  distinct(ugb_nome) |> 
+  pull()
 
-  glimpse(vec_ugb)
+head(vec_ugb)
+
 
 ```
 
-### Filtrar ugb's de educação
+### Aplicar filtro UGB de educação
+
+Agora aplicamos o filtro com base na nossa lista de UGBs de educação! Observe como o número de linhas no conjunto de dados diminui drasticamente!
+
 ```{r filtrar-ugb-valido}
+#| message: false
+#| warning: false
 
 df_limpeza_4 <- df_limpeza_3 |> 
-      mutate(mec_ugb_class  = ifelse(ugb_id %in% vec_ugb, "Keep", "Remove")
+      mutate(mec_ugb_class  = ifelse(ugb %in% vec_ugb, "Keep", "Remove")
       ) |> 
-      filter(mec_ugb_class == "Keep")
+      filter(mec_ugb_class == "Keep") |> 
+      select(-mec_ugb_class)
 
 glimpse(df_limpeza_4)
 
+
 ```
 
-### Codificar ced parametros
+### Categorizar CED por nível
+
+Aqui criamos uma nova variável que identifica o nível de reporte do orçamento/execução dentro do conjunto de dados. Isto é importante porque os dados eSISTAFE contêm valores em diferentes níveis de agregação do CED. Com base na estrutura do código CED , classificamos cada linha em grupos (A, B, C, D) — onde "A" representa o nível mais detalhado e "D" o mais agregado.
+
 ```{r codificar-ced-param}
+#| message: false
+#| warning: false
 
 df_limpeza_5 <- df_limpeza_4 |> 
     dplyr::mutate(
@@ -136,7 +240,9 @@ df_limpeza_5 <- df_limpeza_4 |>
         stringr::str_ends(ced, "0000")                                         ~ "D",
         TRUE                                                                   ~ NA_character_
       )
-    )
+    ) |> 
+      select(-ced_blank_class) |> 
+      relocate(ced_group, .after = ced)
     
 
 glimpse(df_limpeza_5)

@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Exemplo de processamento de ficheiro eSISTAFE</title>
+<title>Automatização da limpeza de dados do e-SISTAFE</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -70,6 +70,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="Example File Processing_files/libs/bootstrap/bootstrap.min.js"></script>
 <link href="Example File Processing_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
 <link href="Example File Processing_files/libs/bootstrap/bootstrap-9e3ffae467580fdb927a41352e75a2e0.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script src="Example File Processing_files/libs/quarto-diagram/mermaid.min.js"></script>
+<script src="Example File Processing_files/libs/quarto-diagram/mermaid-init.js"></script>
+<link href="Example File Processing_files/libs/quarto-diagram/mermaid.css" rel="stylesheet">
 
 
 </head>
@@ -82,7 +85,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Exemplo de processamento de ficheiro eSISTAFE</h1>
+<h1 class="title"><em>Automatização da limpeza de dados do e-SISTAFE</em></h1>
+<p class="subtitle lead"><em>Usando R para automatizar a compilação e limpeza de ficheiros exportados e-SISTAFE</em></p>
 </div>
 
 
@@ -99,28 +103,77 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<section id="configuração" class="level1">
-<h1>Configuração</h1>
-<p>Primeiro, vamos começar carregando o código de programação necessário para processar o nosso ficheiro e-SISTAFE. No R, isso é feito através das funções ‘library()’ e ‘source()’.</p>
+<section id="introdução" class="level1">
+<h1>Introdução</h1>
+<p>Este documento foi elaborado para a equipa da DAF MEC com o objectivo de demonstrar como é possível automatizar a compilação e limpeza dos dados exportados do sistema e-SISTAFE utilizando a linguagem de programação R.</p>
+<p>Actualmente, este processo é frequentemente realizado de forma manual copiando e colando dados entre ficheiros Excel, aplicando filtros à mão, e repetindo os mesmos passos a cada novo relatório. Este tipo de trabalho consome tempo, é propenso a erros, e dificulta a rastreabilidade das decisões tomadas durante a limpeza dos dados.</p>
+<p>Com a abordagem apresentada aqui, os mesmos passos de limpeza e organização são executados automaticamente pelo R, de forma consistente e reproduzível — independentemente do número de ficheiros ou do período analisado. O resultado é um conjunto de dados limpo, filtrado e pronto para análise, gerado em segundos.</p>
+<p>Este documento está organizado da seguinte forma:</p>
+<ol type="1">
+<li>Configuração do ambiente de trabalho</li>
+<li>Detecção automática dos ficheiros e-SISTAFE</li>
+<li>Extracção de metadados</li>
+<li>Carregamento e limpeza dos dados</li>
+<li>Classificação e categorização das variáveis-chave</li>
+</ol>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart TD
+    A[📁 Ficheiros .xls na pasta Data/] --&gt; B[Detectar ficheiros automaticamente]
+    B --&gt; C[Extrair metadados dos ficheiros]
+    C --&gt; D[Carregar e combinar todos os ficheiros]
+    D --&gt; E[Limpar nomes de colunas]
+    E --&gt; F[Remover colunas desnecessárias]
+    F --&gt; G[Extrair código UGB]
+    G --&gt; H[Filtrar UGBs do sector educação]
+    H --&gt; I[Classificar grupos CED]
+    I --&gt; J[✅ Dados limpos e prontos para análise]
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+</section>
+<section id="configurar-o-ambiente-r" class="level1">
+<h1>Configurar o ambiente R</h1>
+<section id="carregar-pacotes-requiridos" class="level2">
+<h2 class="anchored" data-anchor-id="carregar-pacotes-requiridos">Carregar pacotes requiridos</h2>
+<p>Primeiro, vamos carregar os pacotes de programação necessários para processar os nossos ficheiros e-SISTAFE. No R, fazemos isso através da função <code>library</code>. Também usamos <code>source</code> para carregar funções personalizadas que criámos especificamente para este trabalho.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readxl)</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(janitor)</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="st">"Scripts/functions.R"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(glue)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="st">"Scripts/functions.R"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
-<section id="detecção-dos-ficheiros-e-metadados" class="level1">
-<h1>Detecção dos ficheiros e metadados</h1>
-<p>Agora vamos pedir ao R para identificar os nomes dos ficheiros que foram armazenados numa pasta para processamento.</p>
+<section id="definir-caminhos-aos-dados-e-sistafe-e-ugbs" class="level2">
+<h2 class="anchored" data-anchor-id="definir-caminhos-aos-dados-e-sistafe-e-ugbs">Definir caminhos aos dados e-SISTAFE e UGB’s</h2>
+<p>A seguir, definimos os caminhos para os ficheiros que vamos usar. Isto facilita a organização e permite alterar facilmente a localização dos dados sem modificar o resto do código.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>  paths <span class="ot">&lt;-</span> <span class="fu">list.files</span>(</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">path =</span> <span class="st">"Data/"</span>,</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">pattern =</span> <span class="st">"</span><span class="sc">\\</span><span class="st">.xls$"</span>,</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">full.names =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">ignore.case =</span> <span class="cn">TRUE</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  paths</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>path_ugb <span class="ot">&lt;-</span> <span class="st">"../../Data/ugb/Codigos de UGBs.xlsx"</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>path_data <span class="ot">&lt;-</span> <span class="st">"Data/"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+</section>
+<section id="detectar-ficheiros-e-metadados" class="level1">
+<h1>Detectar ficheiros e metadados</h1>
+<section id="detectar-ficheiros" class="level2">
+<h2 class="anchored" data-anchor-id="detectar-ficheiros">Detectar ficheiros</h2>
+<p>Agora pedimos ao R para identificar automaticamente todos os ficheiros Excel (.xls) que estão na nossa pasta de dados. Assim, não precisamos de escrever cada nome de ficheiro manualmente!</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>  paths <span class="ot">&lt;-</span> <span class="fu">list.files</span>(</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">path =</span> path_data,</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">pattern =</span> <span class="st">"</span><span class="sc">\\</span><span class="st">.xls$"</span>,</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">full.names =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">ignore.case =</span> <span class="cn">TRUE</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  paths</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] "Data/DemonstrativoConsolidadoOrcamentoFuncionamentoPorUGBFuncionalProgramaFRCED_A_Central_20231231_20240106-2024-01-15_12-05-45.500.xls"          
 [2] "Data/DemonstrativoConsolidadoOrcamentoFuncionamentoPorUGBFuncionalProgramaFRCED_Distrital_20231231_20240106-2024-01-12_17-02-56.927.xls"          
@@ -129,145 +182,108 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 [5] "Data/DemonstrativoConsolidadoOrcamentoInvestimentoCompInternaPorUGBFuncionalProgramaFRCED_Global_20241231_20250102-2025-01-10_15-41-48.658.xls"   </code></pre>
 </div>
 </div>
-<p>A seguir, vamos chamar uma função que foi concebida para descodificar os nomes dos ficheiros eSISTAFE! Esta função é chamada <code>extrair_meta_extracto</code>.</p>
+</section>
+<section id="extrair-metadados-dos-ficheiros" class="level2">
+<h2 class="anchored" data-anchor-id="extrair-metadados-dos-ficheiros">Extrair metadados dos ficheiros</h2>
+<p>Os nomes dos ficheiros eSISTAFE contêm informações úteis (como datas e códigos). A função <code>extrair_meta_extracto</code> é uma função personalizada desenvolvida especificamente para este projecto e definida no ficheiro <code>Scripts/functions.R</code>. O seu objectivo é extrair automaticamente informações de identificação — os chamados <em>metadados</em> — a partir do nome e do conteúdo de cada ficheiro e-SISTAFE exportado.</p>
+<p>Concretamente, a função identifica e extrai elementos como o período de reporte (mês e ano), o código UGB, e outros identificadores presentes no nome do ficheiro ou no cabeçalho do extracto. Estes metadados são essenciais para garantir que, ao combinar múltiplos ficheiros numa única tabela, cada linha de dados possa ser correctamente associada à sua fonte original.</p>
+<p>Em vez de inserir estas informações manualmente para cada ficheiro — o que seria moroso e sujeito a erros — a função faz este trabalho de forma automática e consistente para todos os ficheiros detectados.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>resultados_df <span class="ot">&lt;-</span> <span class="fu">map</span>(paths, extrair_meta_extracto) <span class="sc">|&gt;</span> </span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>                 <span class="fu">list_rbind</span>(<span class="at">names_to =</span> <span class="st">"arquivo_fonte"</span>)</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(resultados_df)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>df_metadados <span class="ot">&lt;-</span> <span class="fu">map</span>(paths, extrair_meta_extracto) <span class="sc">|&gt;</span> </span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>                 <span class="fu">list_rbind</span>(<span class="at">names_to =</span> <span class="st">"arquivo_fonte"</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(df_metadados)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Rows: 5
-Columns: 7
-$ arquivo_fonte &lt;int&gt; 1, 2, 3, 4, 5
-$ file_name     &lt;chr&gt; "DemonstrativoConsolidadoOrcamentoFuncionamentoPorUGBFun…
-$ reporte_tipo  &lt;chr&gt; "Funcionamento", "Funcionamento", "Funcionamento", "Inve…
-$ data_reporte  &lt;date&gt; 2023-12-31, 2023-12-31, 2024-12-31, 2024-12-31, 2024-12-…
-$ data_extraido &lt;date&gt; 2024-01-06, 2024-01-06, 2025-01-02, 2025-01-02, 2025-01…
-$ ano           &lt;dbl&gt; 2023, 2023, 2024, 2024, 2024
-$ mes           &lt;chr&gt; "Dezembro", "Dezembro", "Dezembro", "Dezembro", "Dezemb…</code></pre>
+<pre><code># A tibble: 5 × 7
+  arquivo_fonte file_name    reporte_tipo data_reporte data_extraido   ano mes  
+          &lt;int&gt; &lt;chr&gt;        &lt;chr&gt;        &lt;date&gt;       &lt;date&gt;        &lt;dbl&gt; &lt;chr&gt;
+1             1 Demonstrati… Funcionamen… 2023-12-31   2024-01-06     2023 Deze…
+2             2 Demonstrati… Funcionamen… 2023-12-31   2024-01-06     2023 Deze…
+3             3 Demonstrati… Funcionamen… 2024-12-31   2025-01-02     2024 Deze…
+4             4 Demonstrati… Investiment… 2024-12-31   2025-01-02     2024 Deze…
+5             5 Demonstrati… Investiment… 2024-12-31   2025-01-02     2024 Deze…</code></pre>
 </div>
 </div>
 </section>
-<section id="carregar-e-limpar-ficheiros" class="level1">
-<h1>Carregar e limpar ficheiros</h1>
-<section id="carregamento" class="level2">
-<h2 class="anchored" data-anchor-id="carregamento">Carregamento</h2>
-<p>Vamos carregar todos os nossos ficheiros eSISTAFE e combiná-los num único conjunto de dados! Podemos fazer isso numa única ação, apontando o nosso código para o conjunto de caminhos de ficheiros que já definimos.</p>
+</section>
+<section id="carregar-e-limpar-ficheiros-no-r" class="level1">
+<h1>Carregar e limpar ficheiros no R</h1>
+<section id="carregar-ficheiros" class="level2">
+<h2 class="anchored" data-anchor-id="carregar-ficheiros">Carregar ficheiros</h2>
+<p>Agora carregamos todos os ficheiros eSISTAFE e combinamo-los num único conjunto de dados. A funcção <code>map</code> aplica a mesma operação a cada ficheiro, e <code>list_rbind</code> junta tudo numa única tabela.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">map</span>(paths, <span class="sc">~</span><span class="fu">read_excel</span>(.x, <span class="at">col_types =</span> <span class="st">"text"</span>)) <span class="sc">|&gt;</span> </span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_names</span>(<span class="fu">basename</span>(paths)) <span class="sc">|&gt;</span> </span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list_rbind</span>(<span class="at">names_to =</span> <span class="st">"file_name"</span>)</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(df)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">map</span>(paths, <span class="sc">~</span><span class="fu">read_excel</span>(.x, <span class="at">col_types =</span> <span class="st">"text"</span>)) <span class="sc">|&gt;</span> </span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_names</span>(<span class="fu">basename</span>(paths)) <span class="sc">|&gt;</span> </span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list_rbind</span>(<span class="at">names_to =</span> <span class="st">"file_name"</span>)</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="fu">glue</span>(</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Ficheiros carregados: {n_distinct(df$file_name)}</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="st">   Linhas carregadas: {nrow(df)}"</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Rows: 175,786
-Columns: 20
-$ file_name                                   &lt;chr&gt; "DemonstrativoConsolidadoO…
-$ UGB                                         &lt;chr&gt; "01A000141 - PRESIDENCIA D…
-$ Função                                      &lt;chr&gt; NA, "01111 - ORGAOS EXECUT…
-$ Programa                                    &lt;chr&gt; NA, NA, "20100000000000000…
-$ FR                                          &lt;chr&gt; NA, NA, NA, "101000000000"…
-$ CED                                         &lt;chr&gt; NA, NA, NA, NA, "120000", …
-$ `Dotação Inicial\n`                         &lt;chr&gt; "760282010", "760282010", …
-$ `Dotação Revista`                           &lt;chr&gt; "0", "0", "0", "0", "0", "…
-$ `Dotação\nActualizada\n(DA)\n`              &lt;chr&gt; "2974973997.04", "28687764…
-$ `Dotação\nDisponível`                       &lt;chr&gt; "50047882.740000002", "984…
-$ `Dotação \nCabimentada\n(DC)`               &lt;chr&gt; "2924666871.7600002", "285…
-$ `Ad Fundos\nConcedidos \n(AF)`              &lt;chr&gt; "1199043945.5799999", "119…
-$ `Despesa Paga \nVia Directa \n(DP)`         &lt;chr&gt; "1724504346.4100001", "165…
-$ `Ad. Fundos + Desp. Paga VD (AFDP)`         &lt;chr&gt; "2923548291.9899998", "285…
-$ `Ad. Fundos \nLiquidados \n(LAF)`           &lt;chr&gt; "1199043945.5799999", "119…
-$ `Despesa \nLiquidada \nVia Directa \n(LVD)` &lt;chr&gt; "1725621135.8800001", "165…
-$ `Liq. Ad. Fundos + Via Directa (LAFVD)`     &lt;chr&gt; "2924665081.46", "28586658…
-$ `DC / DA (%)`                               &lt;chr&gt; "98.310000000000002", "99.…
-$ `AFDP / DA (%)`                             &lt;chr&gt; "98.269999999999996", "99.…
-$ `LAF / AF (%)`                              &lt;chr&gt; "100", "100", "100", "100"…</code></pre>
+<pre><code>Ficheiros carregados: 5
+Linhas carregadas: 175786</code></pre>
 </div>
 </div>
 </section>
-<section id="limpeza" class="level2">
-<h2 class="anchored" data-anchor-id="limpeza">Limpeza</h2>
-<p>Agora começa o verdadeiro trabalho: limpar os ficheiros eSISTAFE! A primeira coisa que vamos fazer é converter os nomes das colunas em algo mais legível pela máquina.</p>
+<section id="limpar-ficheiros" class="level2">
+<h2 class="anchored" data-anchor-id="limpar-ficheiros">Limpar ficheiros</h2>
+<p>Agora começa o verdadeiro trabalho: limpar os dados! Vamos seguir vários passos para transformar os dados brutos em algo utilizável para análise.</p>
 <section id="renomear-colunas" class="level3">
 <h3 class="anchored" data-anchor-id="renomear-colunas">Renomear colunas</h3>
+<p>O primeiro passo é padronizar os nomes das colunas. A função <code>clean_names</code> remove espaços, acentos e caracteres especiais, tornando os nomes mais fáceis de usar no código.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>df_limpeza_1 <span class="ot">&lt;-</span> <span class="fu">clean_names</span>(df)</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(df_limpeza_1)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>df_limpeza_1 <span class="ot">&lt;-</span> <span class="fu">clean_names</span>(df)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(df_limpeza_1)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Rows: 175,786
-Columns: 20
-$ file_name                         &lt;chr&gt; "DemonstrativoConsolidadoOrcamentoFu…
-$ ugb                               &lt;chr&gt; "01A000141 - PRESIDENCIA DA REPUBLIC…
-$ funcao                            &lt;chr&gt; NA, "01111 - ORGAOS EXECUTIVOS E LEG…
-$ programa                          &lt;chr&gt; NA, NA, "20100000000000000OF00  - DE…
-$ fr                                &lt;chr&gt; NA, NA, NA, "101000000000", "1010000…
-$ ced                               &lt;chr&gt; NA, NA, NA, NA, "120000", "122000", …
-$ dotacao_inicial                   &lt;chr&gt; "760282010", "760282010", "0", "0", …
-$ dotacao_revista                   &lt;chr&gt; "0", "0", "0", "0", "0", "0", "0", "…
-$ dotacao_actualizada_da            &lt;chr&gt; "2974973997.04", "2868776457.54", "2…
-$ dotacao_disponivel                &lt;chr&gt; "50047882.740000002", "9849558.33999…
-$ dotacao_cabimentada_dc            &lt;chr&gt; "2924666871.7600002", "2858667656.65…
-$ ad_fundos_concedidos_af           &lt;chr&gt; "1199043945.5799999", "1199043945.57…
-$ despesa_paga_via_directa_dp       &lt;chr&gt; "1724504346.4100001", "1658505131.30…
-$ ad_fundos_desp_paga_vd_afdp       &lt;chr&gt; "2923548291.9899998", "2857549076.88…
-$ ad_fundos_liquidados_laf          &lt;chr&gt; "1199043945.5799999", "1199043945.57…
-$ despesa_liquidada_via_directa_lvd &lt;chr&gt; "1725621135.8800001", "1659621920.78…
-$ liq_ad_fundos_via_directa_lafvd   &lt;chr&gt; "2924665081.46", "2858665866.3600001…
-$ dc_da_percent                     &lt;chr&gt; "98.310000000000002", "99.6500000000…
-$ afdp_da_percent                   &lt;chr&gt; "98.269999999999996", "99.6099999999…
-$ laf_af_percent                    &lt;chr&gt; "100", "100", "100", "100", "100", "…</code></pre>
+<pre><code> [1] "file_name"                         "ugb"                              
+ [3] "funcao"                            "programa"                         
+ [5] "fr"                                "ced"                              
+ [7] "dotacao_inicial"                   "dotacao_revista"                  
+ [9] "dotacao_actualizada_da"            "dotacao_disponivel"               
+[11] "dotacao_cabimentada_dc"            "ad_fundos_concedidos_af"          
+[13] "despesa_paga_via_directa_dp"       "ad_fundos_desp_paga_vd_afdp"      
+[15] "ad_fundos_liquidados_laf"          "despesa_liquidada_via_directa_lvd"
+[17] "liq_ad_fundos_via_directa_lafvd"   "dc_da_percent"                    
+[19] "afdp_da_percent"                   "laf_af_percent"                   </code></pre>
 </div>
 </div>
 </section>
 <section id="remover-colunas-desnecessarias" class="level3">
 <h3 class="anchored" data-anchor-id="remover-colunas-desnecessarias">Remover colunas desnecessarias</h3>
+<p>Algumas colunas não são necessárias para a nossa análise. Aqui removemos todas as colunas que terminam em “percent”, pois podemos calcular percentagens mais tarde se precisarmos.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>df_limpeza_2 <span class="ot">&lt;-</span> df_limpeza_1 <span class="sc">|&gt;</span> </span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">!</span>dplyr<span class="sc">::</span><span class="fu">ends_with</span>(<span class="st">"percent"</span>))</span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(df_limpeza_2)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>df_limpeza_2 <span class="ot">&lt;-</span> df_limpeza_1 <span class="sc">|&gt;</span> </span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">!</span>dplyr<span class="sc">::</span><span class="fu">ends_with</span>(<span class="st">"percent"</span>))</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(df_limpeza_2)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Rows: 175,786
-Columns: 17
-$ file_name                         &lt;chr&gt; "DemonstrativoConsolidadoOrcamentoFu…
-$ ugb                               &lt;chr&gt; "01A000141 - PRESIDENCIA DA REPUBLIC…
-$ funcao                            &lt;chr&gt; NA, "01111 - ORGAOS EXECUTIVOS E LEG…
-$ programa                          &lt;chr&gt; NA, NA, "20100000000000000OF00  - DE…
-$ fr                                &lt;chr&gt; NA, NA, NA, "101000000000", "1010000…
-$ ced                               &lt;chr&gt; NA, NA, NA, NA, "120000", "122000", …
-$ dotacao_inicial                   &lt;chr&gt; "760282010", "760282010", "0", "0", …
-$ dotacao_revista                   &lt;chr&gt; "0", "0", "0", "0", "0", "0", "0", "…
-$ dotacao_actualizada_da            &lt;chr&gt; "2974973997.04", "2868776457.54", "2…
-$ dotacao_disponivel                &lt;chr&gt; "50047882.740000002", "9849558.33999…
-$ dotacao_cabimentada_dc            &lt;chr&gt; "2924666871.7600002", "2858667656.65…
-$ ad_fundos_concedidos_af           &lt;chr&gt; "1199043945.5799999", "1199043945.57…
-$ despesa_paga_via_directa_dp       &lt;chr&gt; "1724504346.4100001", "1658505131.30…
-$ ad_fundos_desp_paga_vd_afdp       &lt;chr&gt; "2923548291.9899998", "2857549076.88…
-$ ad_fundos_liquidados_laf          &lt;chr&gt; "1199043945.5799999", "1199043945.57…
-$ despesa_liquidada_via_directa_lvd &lt;chr&gt; "1725621135.8800001", "1659621920.78…
-$ liq_ad_fundos_via_directa_lafvd   &lt;chr&gt; "2924665081.46", "2858665866.3600001…</code></pre>
+<pre><code> [1] "file_name"                         "ugb"                              
+ [3] "funcao"                            "programa"                         
+ [5] "fr"                                "ced"                              
+ [7] "dotacao_inicial"                   "dotacao_revista"                  
+ [9] "dotacao_actualizada_da"            "dotacao_disponivel"               
+[11] "dotacao_cabimentada_dc"            "ad_fundos_concedidos_af"          
+[13] "despesa_paga_via_directa_dp"       "ad_fundos_desp_paga_vd_afdp"      
+[15] "ad_fundos_liquidados_laf"          "despesa_liquidada_via_directa_lvd"
+[17] "liq_ad_fundos_via_directa_lafvd"  </code></pre>
 </div>
 </div>
 </section>
-<section id="isolar-codigo-ugb" class="level3">
-<h3 class="anchored" data-anchor-id="isolar-codigo-ugb">Isolar codigo ugb</h3>
+<section id="extrair-código-ugb" class="level3">
+<h3 class="anchored" data-anchor-id="extrair-código-ugb">Extrair código UGB</h3>
+<p>Neste passo, criamos uma nova variável chamada <code>ugb_id</code>, extraindo os primeiros 9 caracteres da coluna <code>ugb</code>. Estes 9 caracteres representam o código único que identifica cada UGB no sistema e-SISTAFE, e será esta variável — <code>ugb_id</code> — que usaremos posteriormente para cruzar os dados com a nossa tabela de referência das UGBs do sector da educação.</p>
+<p>Aproveitamos também este passo para converter todas as colunas financeiras (de <code>dotacao_inicial</code> até <code>liq_ad_fundos_via_directa_lafvd</code>) de texto para valores numéricos, o que é necessário para realizar quaisquer cálculos matemáticos mais tarde.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>df_limpeza_3 <span class="ot">&lt;-</span> df_limpeza_2 <span class="sc">|&gt;</span> </span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>      dplyr<span class="sc">::</span><span class="fu">across</span>(dotacao_inicial<span class="sc">:</span>liq_ad_fundos_via_directa_lafvd, as.numeric),</span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>      <span class="at">ugb_id =</span> <span class="fu">substr</span>(ugb, <span class="dv">1</span>, <span class="dv">9</span>)</span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span> </span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">relocate</span>(ugb_id, <span class="at">.after =</span> ugb)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Warning: There were 11 warnings in `mutate()`.
-The first warning was:
-ℹ In argument: `dplyr::across(...)`.
-Caused by warning:
-! NAs introduced by coercion
-ℹ Run `dplyr::last_dplyr_warnings()` to see the 10 remaining warnings.</code></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>  <span class="fu">glimpse</span>(df_limpeza_3)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>df_limpeza_3 <span class="ot">&lt;-</span> df_limpeza_2 <span class="sc">|&gt;</span> </span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>      dplyr<span class="sc">::</span><span class="fu">across</span>(dotacao_inicial<span class="sc">:</span>liq_ad_fundos_via_directa_lafvd, as.numeric),</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>      <span class="at">ugb_id =</span> <span class="fu">substr</span>(ugb, <span class="dv">1</span>, <span class="dv">9</span>)</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span> </span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">relocate</span>(ugb_id, <span class="at">.after =</span> ugb)</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">glimpse</span>(df_limpeza_3)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Rows: 175,786
 Columns: 18
@@ -293,96 +309,107 @@ $ liq_ad_fundos_via_directa_lafvd   &lt;dbl&gt; 2.924665e+09, 2.858666e+09, 1.99
 </div>
 </section>
 <section id="carregar-ugbs-de-educação" class="level3">
-<h3 class="anchored" data-anchor-id="carregar-ugbs-de-educação">Carregar ugb’s de educação</h3>
+<h3 class="anchored" data-anchor-id="carregar-ugbs-de-educação">Carregar UGB’s de educação</h3>
+<p>Carregamos uma tabela de referência que contém os códigos das UGBs do sector da educação. Esta lista vai servir como filtro para manter apenas os dados relevantes para o MEC.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Load lookup table for education UGB and other metadata</span></span>
-<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  vec_ugb <span class="ot">&lt;-</span> <span class="fu">read_excel</span>(<span class="st">"Documents/xxx_Orcamento_DB_ficheiro branco.xlsm"</span>,</span>
-<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>                        <span class="at">sheet =</span> <span class="st">"Organica da Educação"</span>) <span class="sc">|&gt;</span>  </span>
-<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">clean_names</span>() <span class="sc">|&gt;</span>  </span>
-<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">distinct</span>(codigo_ugb) <span class="sc">|&gt;</span> </span>
-<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">pull</span>()</span>
-<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">glimpse</span>(vec_ugb)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Load lookup table for education UGB and other metadata</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>vec_ugb <span class="ot">&lt;-</span> <span class="fu">read_excel</span>(path_ugb, <span class="at">sheet =</span> <span class="st">"UGBS"</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">clean_names</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">ugb_cod =</span> ugb_1,</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">ugb_nome =</span> ugb_3</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span> </span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">distinct</span>(ugb_nome) <span class="sc">|&gt;</span> </span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pull</span>()</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(vec_ugb)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code> chr [1:255] "04B040441" "04B050441" "04B060441" "04B070441" "04B080441" ...</code></pre>
+<pre><code>[1] "04B100441 - SERVICO DISTRITAL DE EDUCACAO, JUVENTUDE E TECNOLOGIA DE MECANHELAS"
+[2] "04B110441 - SERVIÇO DISTRITAL DE EDUCAÇÃO JUVENTUDE E TECNOLOGIA - MECULA"      
+[3] "04B120441 - SERVICO DISTRITAL DE EDUCACAO, JUVENTUDE E TECNOLOGIA DE METARICA"  
+[4] "04B130441 - SERVIÇOS DISTRITAL DE EDUCAÇÃO JUVENTUDE E TECNOLOGIA DE MUEMBE"    
+[5] "04B150441 - SERVICO DISTRITAL DE EDUCACAO, JUVENTUDE E TECNOLOGIA DE NIPEPE"    
+[6] "04B160441 - SERVICO DISTRITAL DE EDUCACAO, JUVENTUDE E TECNOLOGIA DE SANGA"     </code></pre>
 </div>
 </div>
 </section>
-<section id="filtrar-ugbs-de-educação" class="level3">
-<h3 class="anchored" data-anchor-id="filtrar-ugbs-de-educação">Filtrar ugb’s de educação</h3>
+<section id="aplicar-filtro-ugb-de-educação" class="level3">
+<h3 class="anchored" data-anchor-id="aplicar-filtro-ugb-de-educação">Aplicar filtro UGB de educação</h3>
+<p>Agora aplicamos o filtro com base na nossa lista de UGBs de educação! Observe como o número de linhas no conjunto de dados diminui drasticamente!</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>df_limpeza_4 <span class="ot">&lt;-</span> df_limpeza_3 <span class="sc">|&gt;</span> </span>
-<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>      <span class="fu">mutate</span>(<span class="at">mec_ugb_class  =</span> <span class="fu">ifelse</span>(ugb_id <span class="sc">%in%</span> vec_ugb, <span class="st">"Keep"</span>, <span class="st">"Remove"</span>)</span>
-<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>      ) <span class="sc">|&gt;</span> </span>
-<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>      <span class="fu">filter</span>(mec_ugb_class <span class="sc">==</span> <span class="st">"Keep"</span>)</span>
-<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(df_limpeza_4)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>df_limpeza_4 <span class="ot">&lt;-</span> df_limpeza_3 <span class="sc">|&gt;</span> </span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>      <span class="fu">mutate</span>(<span class="at">mec_ugb_class  =</span> <span class="fu">ifelse</span>(ugb <span class="sc">%in%</span> vec_ugb, <span class="st">"Keep"</span>, <span class="st">"Remove"</span>)</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>      ) <span class="sc">|&gt;</span> </span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>      <span class="fu">filter</span>(mec_ugb_class <span class="sc">==</span> <span class="st">"Keep"</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>      <span class="fu">select</span>(<span class="sc">-</span>mec_ugb_class)</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(df_limpeza_4)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Rows: 42,263
+<pre><code>Rows: 35,817
+Columns: 18
+$ file_name                         &lt;chr&gt; "DemonstrativoConsolidadoOrcamentoFu…
+$ ugb                               &lt;chr&gt; "43A001441 - ESCOLA ARTES VISUAIS", …
+$ ugb_id                            &lt;chr&gt; "43A001441", "43A001441", "43A001441…
+$ funcao                            &lt;chr&gt; NA, "08211 - SERVICOS CULTURAIS", "0…
+$ programa                          &lt;chr&gt; NA, NA, "201MAE01060000000OF00  - DE…
+$ fr                                &lt;chr&gt; NA, NA, NA, "101000000000", "1010000…
+$ ced                               &lt;chr&gt; NA, NA, NA, NA, "111000", "111100", …
+$ dotacao_inicial                   &lt;dbl&gt; 24014450, 24014450, 24014450, 236144…
+$ dotacao_revista                   &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
+$ dotacao_actualizada_da            &lt;dbl&gt; 20871296, 20871296, 20871296, 204712…
+$ dotacao_disponivel                &lt;dbl&gt; 2239930.9, 2239930.9, 2239930.9, 211…
+$ dotacao_cabimentada_dc            &lt;dbl&gt; 18383220.6, 18383220.6, 18383220.6, …
+$ ad_fundos_concedidos_af           &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
+$ despesa_paga_via_directa_dp       &lt;dbl&gt; 18119931.2, 18119931.2, 18119931.2, …
+$ ad_fundos_desp_paga_vd_afdp       &lt;dbl&gt; 18119931.2, 18119931.2, 18119931.2, …
+$ ad_fundos_liquidados_laf          &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
+$ despesa_liquidada_via_directa_lvd &lt;dbl&gt; 18181731.2, 18181731.2, 18181731.2, …
+$ liq_ad_fundos_via_directa_lafvd   &lt;dbl&gt; 18181731.2, 18181731.2, 18181731.2, …</code></pre>
+</div>
+</div>
+</section>
+<section id="categorizar-ced-por-nível" class="level3">
+<h3 class="anchored" data-anchor-id="categorizar-ced-por-nível">Categorizar CED por nível</h3>
+<p>Aqui criamos uma nova variável que identifica o nível de reporte do orçamento/execução dentro do conjunto de dados. Isto é importante porque os dados eSISTAFE contêm valores em diferentes níveis de agregação do CED. Com base na estrutura do código CED , classificamos cada linha em grupos (A, B, C, D) — onde “A” representa o nível mais detalhado e “D” o mais agregado.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>df_limpeza_5 <span class="ot">&lt;-</span> df_limpeza_4 <span class="sc">|&gt;</span> </span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">mutate</span>(</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>      <span class="at">ced_blank_class =</span> <span class="fu">ifelse</span>(<span class="sc">!</span><span class="fu">is.na</span>(ced), <span class="st">"Keep"</span>, <span class="st">"Remove"</span>),</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>      <span class="at">ced_group =</span> dplyr<span class="sc">::</span><span class="fu">case_when</span>(</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>        <span class="sc">!</span>stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"00"</span>)                                           <span class="sc">~</span> <span class="st">"A"</span>,</span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>        stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"00"</span>) <span class="sc">&amp;</span> <span class="sc">!</span>stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"000"</span>) <span class="sc">&amp;</span> <span class="sc">!</span>stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"0000"</span>) <span class="sc">~</span> <span class="st">"B"</span>,</span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>        stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"000"</span>) <span class="sc">&amp;</span> <span class="sc">!</span>stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"0000"</span>)        <span class="sc">~</span> <span class="st">"C"</span>,</span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>        stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"0000"</span>)                                         <span class="sc">~</span> <span class="st">"D"</span>,</span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>        <span class="cn">TRUE</span>                                                                   <span class="sc">~</span> <span class="cn">NA_character_</span></span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">|&gt;</span> </span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>      <span class="fu">select</span>(<span class="sc">-</span>ced_blank_class) <span class="sc">|&gt;</span> </span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>      <span class="fu">relocate</span>(ced_group, <span class="at">.after =</span> ced)</span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(df_limpeza_5)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Rows: 35,817
 Columns: 19
 $ file_name                         &lt;chr&gt; "DemonstrativoConsolidadoOrcamentoFu…
-$ ugb                               &lt;chr&gt; "43A000141 - MISTÉRIO DA CULTURA", "…
-$ ugb_id                            &lt;chr&gt; "43A000141", "43A000141", "43A000141…
-$ funcao                            &lt;chr&gt; NA, "01331 - OUTROS SERVICOS GERAIS"…
-$ programa                          &lt;chr&gt; NA, NA, "201MDF0102EGE2018OF02  - GR…
+$ ugb                               &lt;chr&gt; "43A001441 - ESCOLA ARTES VISUAIS", …
+$ ugb_id                            &lt;chr&gt; "43A001441", "43A001441", "43A001441…
+$ funcao                            &lt;chr&gt; NA, "08211 - SERVICOS CULTURAIS", "0…
+$ programa                          &lt;chr&gt; NA, NA, "201MAE01060000000OF00  - DE…
 $ fr                                &lt;chr&gt; NA, NA, NA, "101000000000", "1010000…
-$ ced                               &lt;chr&gt; NA, NA, NA, NA, "112000", "112100", …
-$ dotacao_inicial                   &lt;dbl&gt; 271464740, 0, 0, 0, 0, 0, 0, 0, 0, 0…
+$ ced                               &lt;chr&gt; NA, NA, NA, NA, "111000", "111100", …
+$ ced_group                         &lt;chr&gt; NA, NA, NA, NA, "C", "B", "A", "A", …
+$ dotacao_inicial                   &lt;dbl&gt; 24014450, 24014450, 24014450, 236144…
 $ dotacao_revista                   &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
-$ dotacao_actualizada_da            &lt;dbl&gt; 326390338, 28800000, 28800000, 28800…
-$ dotacao_disponivel                &lt;dbl&gt; 67985521.0, 2729216.7, 2729216.7, 27…
-$ dotacao_cabimentada_dc            &lt;dbl&gt; 257088974, 26070783, 26070783, 26070…
-$ ad_fundos_concedidos_af           &lt;dbl&gt; 2500000, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
-$ despesa_paga_via_directa_dp       &lt;dbl&gt; 235292633, 24437623, 24437623, 24437…
-$ ad_fundos_desp_paga_vd_afdp       &lt;dbl&gt; 237792633, 24437623, 24437623, 24437…
+$ dotacao_actualizada_da            &lt;dbl&gt; 20871296, 20871296, 20871296, 204712…
+$ dotacao_disponivel                &lt;dbl&gt; 2239930.9, 2239930.9, 2239930.9, 211…
+$ dotacao_cabimentada_dc            &lt;dbl&gt; 18383220.6, 18383220.6, 18383220.6, …
+$ ad_fundos_concedidos_af           &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
+$ despesa_paga_via_directa_dp       &lt;dbl&gt; 18119931.2, 18119931.2, 18119931.2, …
+$ ad_fundos_desp_paga_vd_afdp       &lt;dbl&gt; 18119931.2, 18119931.2, 18119931.2, …
 $ ad_fundos_liquidados_laf          &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
-$ despesa_liquidada_via_directa_lvd &lt;dbl&gt; 253974906, 26070783, 26070783, 26070…
-$ liq_ad_fundos_via_directa_lafvd   &lt;dbl&gt; 253974906, 26070783, 26070783, 26070…
-$ mec_ugb_class                     &lt;chr&gt; "Keep", "Keep", "Keep", "Keep", "Kee…</code></pre>
-</div>
-</div>
-</section>
-<section id="codificar-ced-parametros" class="level3">
-<h3 class="anchored" data-anchor-id="codificar-ced-parametros">Codificar ced parametros</h3>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>df_limpeza_5 <span class="ot">&lt;-</span> df_limpeza_4 <span class="sc">|&gt;</span> </span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">mutate</span>(</span>
-<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>      <span class="at">ced_blank_class =</span> <span class="fu">ifelse</span>(<span class="sc">!</span><span class="fu">is.na</span>(ced), <span class="st">"Keep"</span>, <span class="st">"Remove"</span>),</span>
-<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>      <span class="at">ced_group =</span> dplyr<span class="sc">::</span><span class="fu">case_when</span>(</span>
-<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>        <span class="sc">!</span>stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"00"</span>)                                           <span class="sc">~</span> <span class="st">"A"</span>,</span>
-<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>        stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"00"</span>) <span class="sc">&amp;</span> <span class="sc">!</span>stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"000"</span>) <span class="sc">&amp;</span> <span class="sc">!</span>stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"0000"</span>) <span class="sc">~</span> <span class="st">"B"</span>,</span>
-<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>        stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"000"</span>) <span class="sc">&amp;</span> <span class="sc">!</span>stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"0000"</span>)        <span class="sc">~</span> <span class="st">"C"</span>,</span>
-<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>        stringr<span class="sc">::</span><span class="fu">str_ends</span>(ced, <span class="st">"0000"</span>)                                         <span class="sc">~</span> <span class="st">"D"</span>,</span>
-<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>        <span class="cn">TRUE</span>                                                                   <span class="sc">~</span> <span class="cn">NA_character_</span></span>
-<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>      )</span>
-<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(df_limpeza_5)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>Rows: 42,263
-Columns: 21
-$ file_name                         &lt;chr&gt; "DemonstrativoConsolidadoOrcamentoFu…
-$ ugb                               &lt;chr&gt; "43A000141 - MISTÉRIO DA CULTURA", "…
-$ ugb_id                            &lt;chr&gt; "43A000141", "43A000141", "43A000141…
-$ funcao                            &lt;chr&gt; NA, "01331 - OUTROS SERVICOS GERAIS"…
-$ programa                          &lt;chr&gt; NA, NA, "201MDF0102EGE2018OF02  - GR…
-$ fr                                &lt;chr&gt; NA, NA, NA, "101000000000", "1010000…
-$ ced                               &lt;chr&gt; NA, NA, NA, NA, "112000", "112100", …
-$ dotacao_inicial                   &lt;dbl&gt; 271464740, 0, 0, 0, 0, 0, 0, 0, 0, 0…
-$ dotacao_revista                   &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
-$ dotacao_actualizada_da            &lt;dbl&gt; 326390338, 28800000, 28800000, 28800…
-$ dotacao_disponivel                &lt;dbl&gt; 67985521.0, 2729216.7, 2729216.7, 27…
-$ dotacao_cabimentada_dc            &lt;dbl&gt; 257088974, 26070783, 26070783, 26070…
-$ ad_fundos_concedidos_af           &lt;dbl&gt; 2500000, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
-$ despesa_paga_via_directa_dp       &lt;dbl&gt; 235292633, 24437623, 24437623, 24437…
-$ ad_fundos_desp_paga_vd_afdp       &lt;dbl&gt; 237792633, 24437623, 24437623, 24437…
-$ ad_fundos_liquidados_laf          &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
-$ despesa_liquidada_via_directa_lvd &lt;dbl&gt; 253974906, 26070783, 26070783, 26070…
-$ liq_ad_fundos_via_directa_lafvd   &lt;dbl&gt; 253974906, 26070783, 26070783, 26070…
-$ mec_ugb_class                     &lt;chr&gt; "Keep", "Keep", "Keep", "Keep", "Kee…
-$ ced_blank_class                   &lt;chr&gt; "Remove", "Remove", "Remove", "Remov…
-$ ced_group                         &lt;chr&gt; NA, NA, NA, NA, "C", "B", "A", "D", …</code></pre>
+$ despesa_liquidada_via_directa_lvd &lt;dbl&gt; 18181731.2, 18181731.2, 18181731.2, …
+$ liq_ad_fundos_via_directa_lafvd   &lt;dbl&gt; 18181731.2, 18181731.2, 18181731.2, …</code></pre>
 </div>
 </div>
 </section>
