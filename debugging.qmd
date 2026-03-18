@@ -180,8 +180,8 @@ unique(df_limpeza_6$ced_group)
 #| warning: false
 
 df_limpeza_7 <- df_limpeza_6 |>
-  filter(!is.na(ced) | (!is.na(funcao) & !is.na(programa) & !is.na(fr))) %>% 
-  mutate(data_tipo = if_else(is.na(ced), "Metrica", "Valor")) %>% 
+  filter(!is.na(ced) | (!is.na(funcao) & !is.na(programa) & !is.na(fr))) |> 
+  mutate(data_tipo = if_else(is.na(ced), "Metrica", "Valor")) |> 
   relocate(data_tipo, .after = ced_group)
 
 df_limpeza_7 |> count(ced_group, data_tipo)
@@ -192,12 +192,19 @@ df_limpeza_7 |> count(ced_group, data_tipo)
 #| message: false
 #| warning: false
 
-df_limpeza_7 <- df_limpeza_6 |>
-  filter(!is.na(ced) | (!is.na(funcao) & !is.na(programa) & !is.na(fr))) %>% 
-  mutate(data_tipo = if_else(is.na(ced), "Metrica", "Valor")) %>% 
-  relocate(data_tipo, .after = ced_group)
+df_limpeza_8 <- df_limpeza_7 |>
+  mutate(
+    ced_b4 = stringr::str_sub(ced, 1, 4),
+    ced_b3 = stringr::str_sub(ced, 1, 3),
+    id_ced_b4 = stringr::str_c(ugb, funcao, programa, fr, ced_b4, sep = "_"),
+    id_ced_b3 = stringr::str_c(ugb, funcao, programa, fr, ced_b3, sep = "_")) |>
+  unite(ugb_funcao_prog_fr, ugb_id, funcao, programa, fr, sep = " | ", remove = FALSE, na.rm = FALSE) |>
+  relocate(c(ced_base_4, ced_base_3), .after = ced) |>
+  relocate(ced_group, .before = ced) |> 
+  relocate(data_tipo, .after = ced_3d) %>% 
+  relocate(ugb_funcao_prog_fr, .before = everything())
 
-df_limpeza_7 |> count(ced_group, data_tipo)
+glimpse(df_limpeza_8)
 
 ```
 
