@@ -199,9 +199,9 @@ df_limpeza_8 <- df_limpeza_7 |>
     id_ced_b4 = stringr::str_c(ugb, funcao, programa, fr, ced_b4, sep = "_"),
     id_ced_b3 = stringr::str_c(ugb, funcao, programa, fr, ced_b3, sep = "_")) |>
   unite(ugb_funcao_prog_fr, ugb_id, funcao, programa, fr, sep = " | ", remove = FALSE, na.rm = FALSE) |>
-  relocate(c(ced_base_4, ced_base_3), .after = ced) |>
+  relocate(c(ced_b4, ced_b3), .after = ced) |>
   relocate(ced_group, .before = ced) |> 
-  relocate(data_tipo, .after = ced_3d) %>% 
+  relocate(data_tipo, .after = ced_b3) %>% 
   relocate(ugb_funcao_prog_fr, .before = everything())
 
 glimpse(df_limpeza_8)
