@@ -10,7 +10,7 @@ source("Scripts/functions.R")
 
 
 path_ugb_file <- "../../Data/ugb/Codigos de UGBs.xlsx"
-path_data_folder <- "Data/debugging/"
+path_data_folder <- "../../Data/esistafe/dez_2025/"
 
 stopifnot(
   "UGB file not found — check path_ugb_file" = file.exists(path_ugb_file),
@@ -19,7 +19,7 @@ stopifnot(
 
 path_files <- list.files(
   path = path_data_folder,
-  pattern = "\\.xlsx$",
+  pattern = "\\.xls$",
   full.names = TRUE,
   ignore.case = TRUE
 )
@@ -62,7 +62,7 @@ df <- processar_extracto_sistafe(
 gravar_extracto_sistafe(df)
 
 # Custom output folder
-gravar_extracto_sistafe(df, output_folder = "Data/processed")
+gravar_extracto_sistafe(df, output_folder = "Dataout")
 
 # With verbose output
 gravar_extracto_sistafe(df, quiet = FALSE)
