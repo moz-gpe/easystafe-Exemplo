@@ -12,9 +12,11 @@ logo: Images/emblem_giz_large.png
 
 library(tidyverse)
 library(readxl)
+library(writexl)
 library(janitor)
 library(glue)
 library(gt)
+#library(easystafe)
 source("Scripts/functions.R")
 
 ```
@@ -25,8 +27,8 @@ source("Scripts/functions.R")
 #| warning: false
 #| echo: false
 
-path_ugb <- "../../Data/ugb/Codigos de UGBs.xlsx"
-path_data <- "Data/debugging/"
+path_ugb_file <- "../../Data/ugb/Codigos de UGBs.xlsx"
+path_data_folder <- "Data/debugging/"
 
 ```
 
@@ -36,12 +38,20 @@ path_data <- "Data/debugging/"
 #| warning: false
 #| echo: false
 
-  paths <- list.files(
-    path = path_data,
+  path_files <- list.files(
+    path = path_data_folder,
     pattern = "\\.xlsx$",
     full.names = TRUE,
     ignore.case = TRUE
   )
+
+```
+
+```{r}
+
+paths_meta <- extrair_meta_extracto(path_files)
+
+ugb_raw <- read_excel(path_ugb_file, sheet = "UGBS")
 
 ```
 
@@ -54,15 +64,29 @@ path_data <- "Data/debugging/"
 #| warning: false
 #| echo: false
 
-df <- map(paths, ~read_excel(.x, col_types = "text")) |> 
-  set_names(basename(paths)) |> 
-  list_rbind(names_to = "file_name")
-
-glue(
-  "Ficheiros carregados: {n_distinct(df$file_name)}
-   Linhas carregadas: {nrow(df)}"
-)
+# df <- map(paths, ~read_excel(.x, col_types = "text")) |> 
+#   set_names(basename(paths)) |> 
+#   list_rbind(names_to = "file_name")
+# 
+# glue(
+#   "Ficheiros carregados: {n_distinct(df$file_name)}
+#    Linhas carregadas: {nrow(df)}"
+# )
 ```
+
+
+
+```{r}
+
+df <- processar_extracto_sistafe(
+  source_path     = path_files,
+  ugb_lookup      = ugb_raw,
+  include_percent = TRUE,
+  quiet           = TRUE
+)
+
+```
+
 
 ## Limpar ficheiros
 
@@ -494,5 +518,28 @@ df_step3_comparison %>%
     locations = gt::cells_row_groups()
   ) %>%
   gt::tab_options(table.font.size = "small")
+
+```
+
+```{r write-final-excel}
+
+df_limpeza_final <- df_limpeza_9 %>%
+  select(any_of(names(df_limpeza_1))) %>%
+  mutate(
+    dc_da_percent = NA_real_,
+    afdp_da_percent = NA_real_,
+    laf_af_percent = NA_real_
+  ) %>%
+  select(all_of(names(df_limpeza_1)))
+
+writexl::write_xlsx(
+  df,
+  glue::glue("Dataout/debugging_output_r_{format(Sys.Date(), '%Y%m%d')}.xlsx")
+)
+
+writexl::write_xlsx(
+  df,
+  glue::glue("Dataout/debugging_raw_output_r_{format(Sys.Date(), '%Y%m%d')}.xlsx")
+)
 
 ```
