@@ -1,4 +1,5 @@
-pak::pak("moz-gpe/easystafe")
+# pak::pak("moz-gpe/easystafe")
+# https://github.com/moz-gpe/easystafe
 
 library(tidyverse)
 library(readxl)
@@ -6,7 +7,6 @@ library(writexl)
 library(janitor)
 library(glue)
 library(easystafe)
-
 
 # GLOBAL VARS -------------------------------------------------------------
 
@@ -46,7 +46,7 @@ df_final <- df %>%
   recode_programa_tipo()
 
 
-# CHECK RECODING ----------------------------------------------------------
+# VERIFICAR RECODIFICACAO ----------------------------------------------------------
 
 df_final %>% distinct(programa_tipo) %>% print(n = Inf)
 
