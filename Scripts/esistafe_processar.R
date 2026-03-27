@@ -38,7 +38,11 @@ ugb_lookup <- read_excel(path_ugb_lookup) %>% clean_names() %>% filter_out(codig
 
 df <- processar_extracto_esistafe(
   source_path = path_files,
-  ugb_lookup  = ugb_raw
+  ugb_lookup  = ugb_raw,
+  include_percent = TRUE,
+  include_file_metadata = TRUE,
+  include_metrica = TRUE,
+  quiet = TRUE
 )
 
 df_final <- df %>%
