@@ -11,12 +11,11 @@ library(easystafe)
 # GLOBAL VARS -------------------------------------------------------------
 
 path_data_folder <- "Data/"
-path_ugb_file <- "Documents/Codigos de UGBs.xlsx"
-path_ugb_lookup <- "Documents/ugb_lookup.xlsx"
+path_ugb_lookup <- "Documents/OrganicaEducação.xlsx"
 
 
 stopifnot(
-  "UGB file not found — check path_ugb_file" = file.exists(path_ugb_file),
+  "UGB file not found — check path_ugb_lookup" = file.exists(path_ugb_lookup),
   "Data folder not found — check path_data_folder" = dir.exists(path_data_folder)
 )
 
@@ -30,15 +29,18 @@ path_files <- list.files(
 
 # LOAD LOOKUPS ------------------------------------------------------------
 
-ugb_raw <- read_excel(path_ugb_file, sheet = "UGBS")
-ugb_lookup <- read_excel(path_ugb_lookup) %>% clean_names() %>% filter_out(codigo_ugb == "Total") %>% select(codigo_ugb, ambito, provincia, distrito, descricao)
+ugb_lookup <- read_excel(path_ugb_lookup,
+                         sheet = "Sheet1") %>%
+  clean_names() %>%
+  select(-c(starts_with("nome_"), codigo_provincia)) %>%
+  filter(!codigo_ugb == "Total")
 
 
 # PROCESSAR FICHEIROS -----------------------------------------------------
 
 df <- processar_extracto_esistafe(
   source_path = path_files,
-  ugb_lookup  = ugb_raw,
+  df_ugb_lookup  = ugb_lookup,
   include_percent = TRUE,
   include_file_metadata = TRUE,
   include_metrica = TRUE,
@@ -49,6 +51,14 @@ df_final <- df %>%
   left_join(ugb_lookup, by = join_by(ugb_id == codigo_ugb)) %>%
   recode_programa_tipo()
 
+
+t <- df_final %>%
+  separate(col = programa,
+           into = c("programa_id", "programa_nome"),
+           sep = " - ")
+t %>%
+  filter_out(programa_tipo == "Outro") %>%
+  distinct(programa_id)
 
 # VERIFICAR RECODIFICACAO ----------------------------------------------------------
 
