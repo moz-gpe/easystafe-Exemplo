@@ -8,66 +8,81 @@ library(janitor)
 library(glue)
 library(easystafe)
 
-# GLOBAL VARS -------------------------------------------------------------
+# GLOBAL VARS -------------------------------------------------
 
-path_data_folder <- "Data/"
-path_ugb_lookup <- "Documents/OrganicaEducação.xlsx"
-
+metadata_lookup <- "Documents/lookup_ugb.xlsx"
 
 stopifnot(
-  "UGB file not found — check path_ugb_lookup" = file.exists(path_ugb_lookup),
-  "Data folder not found — check path_data_folder" = dir.exists(path_data_folder)
-)
-
-path_files <- list.files(
-  path = path_data_folder,
-  pattern = "\\.xls$",
-  full.names = TRUE,
-  ignore.case = TRUE
+  "UGB file not found" = file.exists(path_ugb_lookup),
+  "Data folder not found" = dir.exists("Data/")
 )
 
 
 # LOAD LOOKUPS ------------------------------------------------------------
 
-ugb_lookup <- read_excel(path_ugb_lookup,
+lookup_ugb <- read_excel(metadata_lookup,
                          sheet = "Sheet1") %>%
   clean_names() %>%
-  select(-c(starts_with("nome_"), codigo_provincia)) %>%
+  select(codigo_ugb,
+         provincia,
+         distrito,
+         ambito,
+         starts_with("adm"),
+         nivel_da_instituicao,
+         descricao) %>%
   filter(!codigo_ugb == "Total")
 
 
-# PROCESSAR FICHEIROS -----------------------------------------------------
+lookup_funcao <- read_excel(metadata_lookup,
+                            sheet = "Sheet2") %>%
+  clean_names() %>%
+  select(funcao,
+         funcao_nivel =classificacao_funcional_por_nivel) %>%
+  filter(!is.na(funcao))
 
-df <- processar_extracto_esistafe(
-  source_path = path_files,
-  df_ugb_lookup  = ugb_lookup,
-  include_percent = TRUE,
+
+lookup_programa <- read_excel(metadata_lookup,
+                              sheet = "Sheet2") %>%
+  clean_names() %>%
+  select(programa_esistafe = programa_e_sistafe,
+         programa_educacao) %>%
+  filter(!is.na(programa_esistafe))
+
+
+# PROCESSAMENTO E-SISTAFE -----------------------------------------------------
+
+df_esistafe <- processar_extracto_esistafe(
+  df_ugb_lookup  = lookup_ugb,
+  include_percent = FALSE,
   include_file_metadata = TRUE,
   include_metrica = TRUE,
-  quiet = TRUE
-)
-
-df_final <- df %>%
-  left_join(ugb_lookup, by = join_by(ugb_id == codigo_ugb)) %>%
-  recode_programa_tipo()
-
-
-t <- df_final %>%
-  separate(col = programa,
-           into = c("programa_id", "programa_nome"),
-           sep = " - ")
-t %>%
-  filter_out(programa_tipo == "Outro") %>%
-  distinct(programa_id)
-
-# VERIFICAR RECODIFICACAO ----------------------------------------------------------
-
-df_final %>% distinct(programa_tipo) %>% print(n = Inf)
+  quiet = TRUE) %>%
+  left_join(lookup_ugb, by = join_by(ugb_id == codigo_ugb)) %>%
+  left_join(lookup_funcao, by = join_by(funcao == funcao)) %>%
+  left_join(lookup_programa, by = join_by(programa == programa_esistafe)) %>%
+  recode_programa_tipo() %>%
+  relocate(funcao_nivel, .after = funcao) %>%
+  relocate(programa_educacao, .after = programa) %>%
+  relocate(provincia, distrito, ambito, adm2020_24, adm2025_29,
+           nivel_da_instituicao, descricao, programa_tipo,
+           .after = ced)
 
 
-# ESCREVER A DISCO --------------------------------------------------------
+funcao_na <- df_esistafe %>%
+  filter(is.na(funcao_nivel)) %>%
+  distinct(funcao, funcao_nivel)
 
-# Default output folder
-gravar_extracto_sistafe(df_final)
+
+# PROCESSAMENTO RAZAO CONT. & ABSA ---------------------------------------------------------
+
+path_folder_source <- "Data/razao_cont/2026_02/"
+
+df_razao <- processar_extracto_razao_c(source_path = path_folder_source)
+df_absa <- processar_extracto_absa(path_folder_source)
 
 
+# GRAVAR -----------------------------------------------------------------
+
+gravar_extracto_sistafe(df_esistafe)
+gravar_extracto_razao_c(df_razao)
+gravar_extracto_absa(df_absa)
