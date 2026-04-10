@@ -12,11 +12,6 @@ library(easystafe)
 
 metadata_lookup <- "Documents/lookup_ugb.xlsx"
 
-stopifnot(
-  "UGB file not found" = file.exists(path_ugb_lookup),
-  "Data folder not found" = dir.exists("Data/")
-)
-
 
 # LOAD LOOKUPS ------------------------------------------------------------
 
@@ -52,6 +47,7 @@ lookup_programa <- read_excel(metadata_lookup,
 # PROCESSAMENTO E-SISTAFE -----------------------------------------------------
 
 df_esistafe <- processar_extracto_esistafe(
+  source_path = "Data/2025/",
   df_ugb_lookup  = lookup_ugb,
   include_percent = FALSE,
   include_file_metadata = TRUE,
@@ -59,18 +55,19 @@ df_esistafe <- processar_extracto_esistafe(
   quiet = TRUE) %>%
   left_join(lookup_ugb, by = join_by(ugb_id == codigo_ugb)) %>%
   left_join(lookup_funcao, by = join_by(funcao == funcao)) %>%
-  left_join(lookup_programa, by = join_by(programa == programa_esistafe)) %>%
   recode_programa_tipo() %>%
   relocate(funcao_nivel, .after = funcao) %>%
-  relocate(programa_educacao, .after = programa) %>%
   relocate(provincia, distrito, ambito, adm2020_24, adm2025_29,
            nivel_da_instituicao, descricao, programa_tipo,
            .after = ced)
 
 
-funcao_na <- df_esistafe %>%
-  filter(is.na(funcao_nivel)) %>%
-  distinct(funcao, funcao_nivel)
+# funcao_na <- df_esistafe %>%
+#   filter(is.na(funcao_nivel)) %>%
+#   distinct(funcao, funcao_nivel)
+
+# t <- df_esistafe %>%
+#   filter(ambito == "Central")
 
 
 # PROCESSAMENTO RAZAO CONT. & ABSA ---------------------------------------------------------
@@ -80,9 +77,15 @@ path_folder_source <- "Data/razao_cont/2026_02/"
 df_razao <- processar_extracto_razao_c(source_path = path_folder_source)
 df_absa <- processar_extracto_absa(path_folder_source)
 
+df_razao <- bind_rows(df_razao, df_absa)
 
 # GRAVAR -----------------------------------------------------------------
 
 gravar_extracto_sistafe(df_esistafe)
 gravar_extracto_razao_c(df_razao)
-gravar_extracto_absa(df_absa)
+
+
+rm(df_absa,
+   lookup_funcao,
+   lookup_programa,
+   lookup_ugb)
