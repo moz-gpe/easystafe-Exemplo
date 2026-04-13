@@ -1,0 +1,208 @@
+/* =====================================================
+   GLOBAL BASE STYLES
+   -----------------------------------------------------
+   Neutral, professional policy-brief look
+   ===================================================== */
+
+/* Base font and text color */
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #2e2e2e;              /* proper dark grey text */
+  line-height: 1.6;
+  font-size: 16px;
+  background-color: #ffffff;
+}
+
+/* Limit line length for readability */
+.quarto-container {
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* =====================================================
+   TITLE BLOCK / BANNER
+   -----------------------------------------------------
+   IMPORTANT:
+   Quarto injects inline styles for the banner.
+   We MUST override them using !important.
+   ===================================================== */
+
+.quarto-title-banner {
+  background-color: #dddddd !important;  /* very light grey */
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #dddddd;
+}
+
+
+/* Main title text */
+.quarto-title-block h1.title {
+  color: #333333;   /* very dark grey */
+  font-size: 2.0rem;
+}
+
+/* Subtitle text */
+.quarto-title-block .subtitle {
+  color: #555555;   /* slightly lighter dark grey */
+  font-size: 1.2rem;
+}
+
+.quarto-float-caption {
+  font-family: inherit;
+  font-size: 0.9em;
+  text-align: center;
+}
+
+/* =====================================================
+   LOGO INSIDE TITLE BANNER
+   ===================================================== */
+   
+.logo-container {
+  text-align: left;
+  margin-bottom: 2rem;
+}
+
+.logo-container img {
+  max-width: 300px;
+  height: auto;
+}
+
+.banner-logo {
+  position: absolute;
+  top: 50%;
+  right: 2rem;
+  transform: translateY(-50%);
+}
+
+.banner-logo img {
+  height: 60px;
+}
+
+/* =====================================================
+   SECTION HEADINGS
+   ===================================================== */
+
+h2 {
+  margin-top: 2.2rem;
+  margin-bottom: 0.6rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  border-bottom: 2px solid #e0e0e0;
+  padding-bottom: 0.3rem;
+}
+
+h3 {
+  margin-top: 1.6rem;
+  margin-bottom: 0.4rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+/* =====================================================
+   PARAGRAPHS & LISTS
+   ===================================================== */
+
+p {
+  margin-bottom: 0.9rem;
+}
+
+ul,
+ol {
+  margin-bottom: 1rem;
+}
+
+ul li,
+ol li {
+  margin-bottom: 0.4rem;
+}
+
+/* =====================================================
+   LINKS
+   ===================================================== */
+
+a {
+  color: #005b96;              /* muted institutional blue */
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* =====================================================
+   TABLES (policy-friendly)
+   ===================================================== */
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 1.2rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+}
+
+thead th {
+  background-color: #f5f5f5;
+  border-bottom: 2px solid #cccccc;
+  padding: 0.6rem;
+  text-align: left;
+}
+
+tbody td {
+  border-bottom: 1px solid #e6e6e6;
+  padding: 0.6rem;
+  vertical-align: top;
+}
+
+/* =====================================================
+   CALLOUTS (Quarto callouts)
+   ===================================================== */
+
+.callout {
+  border-left: 4px solid #cccccc;
+  background-color: #fafafa;
+}
+
+.callout-title {
+  font-weight: 600;
+}
+
+/* =====================================================
+   OPTIONAL: TOP-RIGHT LOGO
+   ===================================================== */
+
+.top-right-logo {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+}
+
+.top-right-logo img {
+  height: 70px;
+}
+
+/* =====================================================
+   FOOTNOTES
+   ===================================================== */
+
+.footnotes {
+  font-size: 0.85rem;
+  color: #555555;
+}
+
+/* =====================================================
+   RESPONSIVE TWEAKS
+   ===================================================== */
+
+@media print {
+  .quarto-title-block h1.title {
+    font-size: 2.0rem !important;
+  }
+  .quarto-title-block .subtitle {
+    font-size: 1.2rem !important;
+  }
+}
+
+table { font-size: 0.9em; }

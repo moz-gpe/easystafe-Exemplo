@@ -1,0 +1,739 @@
+---
+title: "Relatório de Execução Financeira do MEC"
+subtitle: "Análise da dotação e execução financeira no Ministério da Educação e Cultura"
+date: today
+author: "MEC-DAF"
+format:
+  html:
+    toc: false
+    toc-location: right
+    toc-depth: 3          # How many heading levels to include (default is 3)
+    toc-expand: 1
+    toc-title: "Índice"   # Custom title for the TOC
+    css: styles.css
+    number-sections: true
+    number-depth: 3
+    df-print: paged
+    code-fold: true
+    embed-resources: true
+    include-before-body:
+      - text: |
+          <div style="text-align: center; margin-bottom: 1rem;">
+            <img src="Images/1200px-Emblem_of_Mozambique.svg-716778474.png" width="125">
+          </div>
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r attach-packages}
+#| include: false
+
+library(tidyverse)
+library(gt)
+library(gtExtras)
+library(scales)
+library(patchwork)
+library(glue)
+library(readxl)
+
+
+```
+
+```{r define-globals}
+
+viz_palette <- c(
+  "vermelho_escuro"  = "#8B0000",   # deep dark red
+  "vermelho_medio"   = "#CC0000",   # coat of arms red
+  "vermelho_claro"   = "#E86060",   # lighter red, same hue
+  "vermelho_palido"  = "#FACCCC",   # very light/pale red, same hue
+  
+  "laranja_escuro"   = "#A64E08",   # deep dark orange
+  "laranja_medio"    = "#E8720C",   # coat of arms orange/sunrise
+  "laranja_claro"    = "#FBCA0A",   # lighter orange, same hue LIKE
+  "laranja_palido"   = "#FDE8CC",   # very light/pale orange, same hue
+
+  # Blues
+  "azul_escuro"      = "#1B3A6B",   # deep navy
+  "azul_medio"       = "#2E75B6",   # mid blue
+  "azul_claro"       = "#7BAFD4",   # light steel blue
+  "azul_palido"      = "#C9DFF0",   # very light/pale blue, same hue
+
+# Greys
+  "cinzento_escuro"  = "#404040",   # dark grey
+  "cinzento_medio"   = "#808080",   # mid grey
+  "cinzento_claro"   = "#D9D9D9",   # light grey
+  "cinzento_palido"  = "#F2F2F2",   # very light/pale grey
+
+  # Neutral
+  "branco"           = "#FFFFFF"
+)
+
+pie_palette <- c(
+  "Funcionamento"        = viz_palette[["cinzento_claro"]],
+  "Investimento Interno" = viz_palette[["laranja_escuro"]],
+  "Investimento Externo" = viz_palette[["laranja_medio"]]
+)
+
+
+# ── Colour palette (GPE/GIZ friendly) ─────────────────────────────────────────
+clr_exec_low    <- "#d73027"   # red   — low execution
+clr_exec_mid    <- "#fee08b"   # amber — mid execution
+clr_exec_high   <- "#1a9850"   # green — high execution
+clr_primary     <- "#005b96"   # GIZ blue
+clr_secondary   <- "#6daedb"
+clr_background  <- "#f7f9fc"
+
+# ── Helper: format MZN values (millions) ──────────────────────────────────────
+fmt_mzn_m <- function(x) {
+  paste0("MZN ", number(x / 1e6, accuracy = 0.1, big.mark = ","), "M")
+}
+
+# ── Helper: execution rate colour (for gt) ────────────────────────────────────
+exec_color <- function(rate) {
+  case_when(
+    rate >= 0.90 ~ clr_exec_high,
+    rate >= 0.70 ~ "#74c476",
+    rate >= 0.50 ~ clr_exec_mid,
+    rate >= 0.30 ~ "#fd8d3c",
+    TRUE         ~ clr_exec_low
+  )
+}
+```
+
+
+```{r load-data}
+#| include: false
+
+# load base data
+df_esistafe <- read_excel("Dataout/eSISTAFE_202512_20260410.xlsx")
+
+# create analytic data set
+df <- df_esistafe |>
+  # filter for value-based rows
+  filter(data_tipo == "Valor") |>
+  
+  # feature engineering 
+  mutate(
+    exec_rate = if_else(
+      dotacao_actualizada_da > 0,
+      ad_fundos_desp_paga_vd_afdp / dotacao_actualizada_da,
+      NA_real_
+    ),
+    # Clean funcao label (strip leading code)
+    funcao_label = str_trim(str_remove(funcao, "^\\d+ - "))
+  )
+
+
+```
+
+---
+
+## Resumo Executivo {#sec-summary}
+
+```{r}
+#| label: summary-cards
+
+totals <- df |>
+  summarise(
+    dotacao   = sum(dotacao_actualizada_da,    na.rm = TRUE),
+    executado = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    exec_pct  = executado / dotacao,
+    n_ugb     = n_distinct(ugb_id),
+    n_prov    = n_distinct(provincia)
+  )
+```
+
+```{r kpi-table}
+
+tibble(
+  Indicador = c(
+    "Dotação Actualizada (DA)",
+    "Despesa Paga (AFDP)",
+    "Taxa de Execução Global"
+  ),
+  Valor = c(
+    fmt_mzn_m(totals$dotacao),
+    fmt_mzn_m(totals$executado),
+    percent(totals$exec_pct, accuracy = 0.1)
+  )
+) |>
+  gt() |>
+  tab_header(title = "Execução Global") |>
+  cols_label(
+    Indicador = "",
+    Valor = "Valor"
+  ) |>
+  cols_align(align = "left", columns = Indicador) |>
+  cols_align(align = "right", columns = Valor) |>
+  cols_width(
+    Indicador ~ px(250),
+    Valor ~ px(120)
+  ) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(rows = 3)
+  ) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_labels()
+  ) |>
+  tab_options(
+    table.font.size = px(14),
+    table.width = px(370),
+    table.border.top.color = "white",
+    heading.border.bottom.color = "white"
+  )
+```
+
+```{r gt-fig1-pg8}
+#| echo: false
+
+df |>
+  group_by(reporte_tipo) |>
+  summarise(
+    dotacao_actualizada_da      = sum(dotacao_actualizada_da, na.rm = TRUE),
+    ad_fundos_desp_paga_vd_afdp = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  bind_rows(
+    summarise(
+      df,
+      reporte_tipo                = "Total",
+      dotacao_actualizada_da      = sum(dotacao_actualizada_da, na.rm = TRUE),
+      ad_fundos_desp_paga_vd_afdp = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE)
+    )
+  ) |>
+  gt() |>
+  tab_header(title = "Dotação e Despesa por Tipo de Reporte") |>
+  cols_label(
+    reporte_tipo                = "Tipo de Reporte",
+    dotacao_actualizada_da      = html("Dotação Actualizada"),
+    ad_fundos_desp_paga_vd_afdp = html("Despesa Paga")
+  ) |>
+  cols_width(
+    reporte_tipo                ~ px(160),
+    dotacao_actualizada_da      ~ px(200),
+    ad_fundos_desp_paga_vd_afdp ~ px(200)
+  ) |>
+  fmt_number(
+    columns  = c(dotacao_actualizada_da, ad_fundos_desp_paga_vd_afdp),
+    decimals = 0,
+    use_seps = TRUE
+  ) |>
+  tab_style(
+    style = list(
+      cell_fill(color = "#FFFFFF"),
+      cell_text(weight = "bold")
+    ),
+    locations = cells_body(rows = reporte_tipo == "Total")
+  ) |>
+  tab_style(
+    style    = cell_text(weight = "bold"),
+    locations = list(
+      cells_column_labels()
+    )
+  ) |>
+
+  tab_options(
+    table.border.top.color            = "#FFFFFF",
+    heading.background.color          = "#FFFFFF",
+    column_labels.border.bottom.width = px(2)
+  ) |> 
+  tab_options(
+    table.font.size = px(14),
+    table.width = px(500)
+  )
+
+```
+
+```{r gt-fig2-pg8}
+#| echo: false
+#| fig-width: 5
+#| fig-height: 3
+#| out-width: "60%"
+#| fig-align: "center"
+
+df_pie <- df |>
+  group_by(reporte_tipo) |>
+  summarise(dotacao_actualizada_da = sum(dotacao_actualizada_da, na.rm = TRUE), .groups = "drop") |>
+  mutate(pct = dotacao_actualizada_da / sum(dotacao_actualizada_da),
+         pct_label = paste0(round(pct * 100, 0), "%"))
+
+ggplot(df_pie, aes(x = "", y = dotacao_actualizada_da, fill = reporte_tipo)) +
+  geom_col(width = 1, color = "white") +
+  coord_polar(theta = "y") +
+  geom_text(
+    aes(label = pct_label),
+    position = position_stack(vjust = 0.5),
+    size = 3.5,) +
+  coord_polar(theta = "y") +
+  geom_text(
+    aes(label = pct_label),
+    position = position_stack(vjust = 0.5),
+    size = 3.5,
+    show.legend = FALSE
+  ) +
+  scale_fill_manual(values = pie_palette) +
+  labs(
+    title = glue::glue("Dotação Actualizada por Tipo de Reporte"),
+    fill  = "Tipo de Reporte"
+  ) +
+  theme_void() +
+  theme(
+    plot.title          = element_text(hjust = 0.5, size = 12, color = viz_palette[["cinzento_escuro"]]),
+    plot.title.position = "plot",
+    legend.position     = "right"
+  )
+
+```
+
+```{r}
+#| echo: false
+#| out-width: "60%"
+#| fig-align: "center"
+
+df_summary <- df |>
+  filter(
+    data_tipo == "Valor",
+    ano       == 2025,
+    mes       == "Dezembro"
+  ) |>
+  group_by(descricao) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  arrange(desc(dotacao))
+
+df_summary |>
+  bind_rows(
+    tibble(descricao = "Grand Total", dotacao = sum(df_summary$dotacao))
+  ) |>
+  gt() |>
+  tab_header(title = "Dotação Actualizada por Tipo de Instituição") |>
+  cols_label(
+    descricao = "",
+    dotacao   = html("Dotação Actualizada")
+  ) |>
+  fmt_number(columns = dotacao, decimals = 0, use_seps = TRUE) |>
+  tab_style(
+    style     = cell_text(weight = "bold"),
+    locations = cells_body(rows = descricao == "Grand Total")
+  ) |>
+  tab_style(
+    style     = cell_text(weight = "bold"),
+    locations = cells_column_labels()
+  ) |>
+  tab_options(
+    table.font.size                   = px(14),
+    table.width                       = px(350),  # <-- comma here
+    table.border.top.color            = "white",
+    column_labels.border.bottom.width = px(2)
+  )
+
+```
+
+
+```{r}
+
+# Step 1: Summarise and pivot
+df_pivot <- df |>
+  filter(
+    data_tipo == "Valor",
+    ano       == 2025,
+    mes       == "Dezembro",
+    ambito    == "Provincial"
+  ) |>
+  group_by(provincia, reporte_tipo, descricao) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(col_key = paste0(reporte_tipo, "__", descricao)) |>
+  select(provincia, col_key, dotacao) |>
+  pivot_wider(names_from = col_key, values_from = dotacao, values_fill = 0) |>
+  arrange(provincia)
+
+# Step 2: Row totals + Grand Total row
+df_pivot <- df_pivot |>
+  mutate(grand_total = rowSums(across(where(is.numeric)))) |>
+  bind_rows(
+    summarise(df_pivot, provincia = "Grand Total", across(where(is.numeric), sum))
+  )
+
+
+df_pivot |>
+  gt(rowname_col = "provincia") |>
+
+  cols_label(
+    `Funcionamento__DPE - OGDP`        = "DPE - OGDP",
+    `Funcionamento__SPAS`              = "SPAS",
+    `Funcionamento__CPED`              = "CPED",
+    `Investimento Externo__DPE - OGDP` = "DPE - OGDP",
+    `Investimento Externo__SPAS`       = "SPAS",
+    `Investimento Interno__DPE - OGDP` = "DPE - OGDP",
+    `Investimento Interno__SPAS`       = "SPAS",
+    grand_total                        = "Grand Total"
+  ) |>
+
+  tab_spanner(
+    label   = "Funcionamento",
+    columns = starts_with("Funcionamento")
+  ) |>
+  tab_spanner(
+    label   = "Investimento Externo",
+    columns = starts_with("Investimento Externo")
+  ) |>
+  tab_spanner(
+    label   = "Investimento Interno",
+    columns = starts_with("Investimento Interno")
+  ) |>
+
+  fmt_number(
+    columns  = where(is.numeric),
+    decimals = 0,
+    use_seps = TRUE
+  ) |>
+
+  tab_style(
+    style     = cell_text(weight = "bold"),
+    locations = cells_body(rows = provincia == "Grand Total")
+  ) |>
+
+  tab_style(
+    style     = cell_text(weight = "bold"),
+    locations = list(cells_column_labels(), cells_column_spanners())
+  ) |>
+
+  tab_options(
+    table.font.size                   = px(12),
+    column_labels.border.bottom.width = px(2),
+    table.border.top.color            = "white"
+  )
+```
+
+---
+
+## Execução por Função {#sec-funcao}
+
+Esta secção replica a tabela dinâmica Excel, mostrando dotação, despesa e taxa de execução
+por classificação funcional (`funcao`), com `reporte_tipo` como coluna.
+
+```{r}
+#| label: tbl-funcao
+#| tbl-cap: "Execução orçamental por função e tipo de reporte"
+
+df_funcao <- df |>
+  group_by(funcao_label, reporte_tipo) |>
+  summarise(
+    dotacao   = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    executado = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups   = "drop"
+  ) |>
+  mutate(exec_rate = if_else(dotacao > 0, executado / dotacao, NA_real_))
+
+# ── Pivot wide: one column-set per reporte_tipo ────────────────────────────────
+df_funcao_wide <- df_funcao |>
+  pivot_wider(
+    names_from  = reporte_tipo,
+    values_from = c(dotacao, executado, exec_rate),
+    values_fill = 0
+  )
+
+# ── Also compute row totals ────────────────────────────────────────────────────
+df_funcao_totals <- df |>
+  group_by(funcao_label) |>
+  summarise(
+    dotacao_total   = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    executado_total = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(exec_rate_total = if_else(
+    dotacao_total > 0, executado_total / dotacao_total, NA_real_
+  ))
+
+df_funcao_final <- df_funcao_totals |>
+  arrange(desc(dotacao_total))
+
+# ── gt table ──────────────────────────────────────────────────────────────────
+df_funcao_final |>
+  gt() |>
+  tab_header(title = "Execução por Função") |>
+  cols_label(
+    funcao_label    = "Função",
+    dotacao_total   = "Dotação Actualizada",
+    executado_total = "Despesa Paga",
+    exec_rate_total = "Taxa de Execução"
+  ) |>
+  fmt_number(columns = c(dotacao_total, executado_total), suffixing = TRUE, decimals = 1) |>
+  fmt_percent(columns = exec_rate_total, decimals = 1) |>
+  gt_color_rows(
+    columns = exec_rate_total,
+    palette = c(clr_exec_low, clr_exec_mid, clr_exec_high),
+    domain  = c(0, 1)
+  ) |>
+  cols_align(align = "left",  columns = funcao_label) |>
+  cols_align(align = "right", columns = c(dotacao_total, executado_total, exec_rate_total)) |>
+  tab_style(
+    style     = cell_text(weight = "bold"),
+    locations = cells_column_labels()
+  ) |>
+  tab_options(
+    table.font.size                 = px(13),
+    column_labels.background.color  = "white",
+    row.striping.include_table_body = TRUE,
+    heading.title.font.size         = px(14)
+  )|>
+  grand_summary_rows(
+    fns     = list(Total = ~sum(., na.rm = TRUE)),
+    columns = c(dotacao_total, executado_total),
+    fmt     = ~ fmt_number(., suffixing = TRUE, decimals = 1)
+  ) |>
+  grand_summary_rows(
+    fns     = list(Total = ~ sum(executado_total, na.rm = TRUE) / sum(dotacao_total, na.rm = TRUE)),
+    columns = exec_rate_total,
+    fmt     = ~ fmt_percent(., decimals = 1)
+  )
+```
+
+---
+
+## Execução por Província {#sec-provincia}
+
+```{r}
+#| label: tbl-provincia
+#| tbl-cap: "Execução orçamental por província"
+
+df_prov <- df |>
+  group_by(provincia) |>
+  summarise(
+    dotacao   = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    executado = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    n_ugb     = n_distinct(ugb_id),
+    .groups   = "drop"
+  ) |>
+  mutate(exec_rate = if_else(dotacao > 0, executado / dotacao, NA_real_)) |>
+  arrange(desc(exec_rate))
+
+df_prov |>
+  gt() |>
+  tab_header(
+    title    = "Execução por Província",
+    subtitle = "Ordenado por taxa de execução (descendente)"
+  ) |>
+  cols_label(
+    provincia = "Província",
+    dotacao   = "Dotação Actualizada",
+    executado = "Despesa Paga",
+    n_ugb     = "Nº UGBs",
+    exec_rate = "Taxa de Execução"
+  ) |>
+  fmt_number(columns = c(dotacao, executado), suffixing = TRUE, decimals = 1) |>
+  fmt_percent(columns = exec_rate, decimals = 1) |>
+  gt_color_rows(
+    columns = exec_rate,
+    palette = c(clr_exec_low, clr_exec_mid, clr_exec_high),
+    domain  = c(0, 1)
+  ) |>
+  gt_plt_bar(
+    column  = dotacao,
+    color   = clr_primary,
+    scaled  = TRUE
+  ) |>
+  cols_align(align = "left",  columns = provincia) |>
+  cols_align(align = "right", columns = c(dotacao, executado, exec_rate)) |>
+  tab_style(
+    style     = cell_text(weight = "bold", color = clr_primary),
+    locations = cells_column_labels()
+  ) |>
+  tab_options(
+    table.font.size                 = px(13),
+    column_labels.background.color  = clr_background,
+    row.striping.include_table_body = TRUE
+  )
+```
+
+```{r}
+#| label: fig-provincia-bar
+#| fig-cap: "Taxa de execução por província"
+#| fig-height: 5
+
+df_prov |>
+  mutate(provincia = fct_reorder(provincia, exec_rate)) |>
+  ggplot(aes(x = exec_rate, y = provincia, fill = exec_rate)) +
+  geom_col(width = 0.7, show.legend = FALSE) +
+  geom_text(
+    aes(label = percent(exec_rate, accuracy = 0.1)),
+    hjust = -0.1, size = 3.5, fontface = "bold"
+  ) +
+  geom_vline(xintercept = 1, linetype = "dashed", colour = "grey40", linewidth = 0.5) +
+  scale_x_continuous(
+    labels = percent_format(),
+    expand = expansion(mult = c(0, 0.15))
+  ) +
+  scale_fill_gradient2(
+    low      = clr_exec_low,
+    mid      = clr_exec_mid,
+    high     = clr_exec_high,
+    midpoint = 0.7
+  ) +
+  labs(
+    title    = "Taxa de Execução por Província",
+    subtitle = glue("Período: {max(df$data_reporte, na.rm = TRUE) |> format('%B %Y')}"),
+    x        = "Taxa de Execução (%)",
+    y        = NULL,
+    caption  = "Fonte: e-SISTAFE | GIZ MEKM"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title       = element_text(face = "bold", colour = clr_primary),
+    plot.subtitle    = element_text(colour = "grey40"),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor   = element_blank()
+  )
+```
+
+---
+
+## Mapa de Calor: Província × Função {#sec-heatmap}
+
+```{r}
+#| label: fig-heatmap
+#| fig-cap: "Taxa de execução por província e função (apenas funções com dotação > 0)"
+#| fig-height: 8
+
+df_heat <- df |>
+  group_by(provincia, funcao_label) |>
+  summarise(
+    dotacao   = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    executado = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups   = "drop"
+  ) |>
+  filter(dotacao > 0) |>
+  mutate(exec_rate = executado / dotacao)
+
+# ── Order axes by overall execution ───────────────────────────────────────────
+prov_order <- df_heat |>
+  group_by(provincia) |>
+  summarise(exec = sum(executado) / sum(dotacao)) |>
+  arrange(exec) |>
+  pull(provincia)
+
+func_order <- df_heat |>
+  group_by(funcao_label) |>
+  summarise(exec = sum(executado) / sum(dotacao)) |>
+  arrange(exec) |>
+  pull(funcao_label)
+
+df_heat |>
+  mutate(
+    provincia   = factor(provincia,   levels = prov_order),
+    funcao_label = factor(funcao_label, levels = func_order),
+    exec_capped  = pmin(exec_rate, 1.5)   # cap outliers for colour scale
+  ) |>
+  ggplot(aes(x = provincia, y = funcao_label, fill = exec_capped)) +
+  geom_tile(colour = "white", linewidth = 0.4) +
+  geom_text(
+    aes(label = if_else(!is.na(exec_rate), percent(exec_rate, accuracy = 1), "")),
+    size = 2.8, fontface = "bold", colour = "white"
+  ) +
+  scale_fill_gradient2(
+    low      = clr_exec_low,
+    mid      = clr_exec_mid,
+    high     = clr_exec_high,
+    midpoint = 0.75,
+    na.value = "grey90",
+    labels   = percent_format(),
+    name     = "Execução"
+  ) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  labs(
+    title    = "Mapa de Calor: Execução por Província e Função",
+    subtitle = glue("Período: {max(df$data_reporte, na.rm = TRUE) |> format('%B %Y')}"),
+    x        = NULL,
+    y        = NULL,
+    caption  = "Fonte: e-SISTAFE | GIZ MEKM\nNota: Taxa > 100% indica suplementos orçamentais ou reclassificações"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title       = element_text(face = "bold", colour = clr_primary),
+    plot.subtitle    = element_text(colour = "grey40"),
+    legend.position  = "right",
+    panel.grid       = element_blank(),
+    axis.text.y      = element_text(size = 9)
+  )
+```
+
+---
+
+## Execução por Distrito (Top/Bottom) {#sec-distrito}
+
+```{r}
+#| label: fig-distrito
+#| fig-cap: "Top 10 e Bottom 10 distritos por taxa de execução (mínimo MZN 1M de dotação)"
+#| fig-height: 7
+
+df_dist <- df |>
+  group_by(provincia, distrito) |>
+  summarise(
+    dotacao   = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    executado = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups   = "drop"
+  ) |>
+  filter(dotacao >= 1e6) |>   # exclude tiny/zero allocations
+  mutate(
+    exec_rate = executado / dotacao,
+    label     = glue("{distrito} ({provincia})")
+  )
+
+top10 <- df_dist |> slice_max(exec_rate, n = 10) |> mutate(group = "Top 10")
+bot10 <- df_dist |> slice_min(exec_rate, n = 10) |> mutate(group = "Bottom 10")
+
+bind_rows(top10, bot10) |>
+  mutate(label = fct_reorder(label, exec_rate)) |>
+  ggplot(aes(x = exec_rate, y = label, fill = group)) +
+  geom_col(width = 0.7) +
+  geom_text(
+    aes(label = percent(exec_rate, accuracy = 0.1)),
+    hjust = -0.1, size = 3.2, fontface = "bold"
+  ) +
+  geom_vline(xintercept = 1, linetype = "dashed", colour = "grey40") +
+  scale_x_continuous(
+    labels = percent_format(),
+    expand = expansion(mult = c(0, 0.18))
+  ) +
+  scale_fill_manual(values = c("Top 10" = clr_exec_high, "Bottom 10" = clr_exec_low)) +
+  facet_wrap(~group, scales = "free_y", ncol = 2) +
+  labs(
+    title    = "Distritos com Maior e Menor Taxa de Execução",
+    subtitle = "Apenas distritos com dotação ≥ MZN 1 milhão",
+    x        = "Taxa de Execução (%)",
+    y        = NULL,
+    fill     = NULL,
+    caption  = "Fonte: e-SISTAFE | GIZ MEKM"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title      = element_text(face = "bold", colour = clr_primary),
+    plot.subtitle   = element_text(colour = "grey40"),
+    legend.position = "none",
+    panel.grid.major.y = element_blank(),
+    strip.text      = element_text(face = "bold", size = 12)
+  )
+```
+
+---
+
+## Notas Metodológicas {#sec-notas}
+
+- **Fonte de dados:** e-SISTAFE, exportado via relatório consolidado por UGB/Funcional/Programa/FR/CED.
+- **Filtro aplicado:** `data_tipo == "Valor"` (exclui percentagens já calculadas no sistema).
+- **Taxa de Execução:** calculada como `ad_fundos_desp_paga_vd_afdp / dotacao_actualizada_da`. UGBs com dotação zero são excluídas do cálculo.
+- **Notas sobre taxas > 100%:** Podem reflectir suplementos orçamentais aprovados após a dotação inicial, ou reclassificações de despesa.
+- **Período:** `r glue("{min(df$data_reporte, na.rm=TRUE) |> format('%d/%m/%Y')} – {max(df$data_reporte, na.rm=TRUE) |> format('%d/%m/%Y')}")`
+
+---
+
+*Relatório gerado automaticamente em R/Quarto · GIZ Moçambique — MEKM*

@@ -15,8 +15,8 @@ metadata_lookup <- "Documents/lookup_ugb.xlsx"
 
 # LOAD LOOKUPS ------------------------------------------------------------
 
-lookup_ugb <- read_excel(metadata_lookup,
-                         sheet = "Sheet1") %>%
+lookup_ugb <- suppressMessages(
+  read_excel(metadata_lookup, sheet = "Sheet1")) %>%
   clean_names() %>%
   select(codigo_ugb,
          provincia,
@@ -28,16 +28,16 @@ lookup_ugb <- read_excel(metadata_lookup,
   filter(!codigo_ugb == "Total")
 
 
-lookup_funcao <- read_excel(metadata_lookup,
-                            sheet = "Sheet2") %>%
+lookup_funcao <- suppressMessages(
+  read_excel(metadata_lookup, sheet = "Sheet2")) %>%
   clean_names() %>%
   select(funcao,
-         funcao_nivel =classificacao_funcional_por_nivel) %>%
+         funcao_nivel = classificacao_funcional_por_nivel) %>%
   filter(!is.na(funcao))
 
 
-lookup_programa <- read_excel(metadata_lookup,
-                              sheet = "Sheet2") %>%
+lookup_programa <- suppressMessages(
+  read_excel(metadata_lookup, sheet = "Sheet2")) %>%
   clean_names() %>%
   select(programa_esistafe = programa_e_sistafe,
          programa_educacao) %>%
@@ -52,7 +52,7 @@ df_esistafe <- processar_extracto_esistafe(
   include_percent = FALSE,
   include_file_metadata = TRUE,
   include_metrica = TRUE,
-  quiet = TRUE) %>%
+  quiet = FALSE) %>%
   left_join(lookup_ugb, by = join_by(ugb_id == codigo_ugb)) %>%
   left_join(lookup_funcao, by = join_by(funcao == funcao)) %>%
   recode_programa_tipo() %>%
@@ -72,7 +72,7 @@ df_esistafe <- processar_extracto_esistafe(
 
 # PROCESSAMENTO RAZAO CONT. & ABSA ---------------------------------------------------------
 
-path_folder_source <- "Data/razao_cont/2026_02/"
+path_folder_source <- "Data/razao_cont/2026_01/"
 
 df_razao <- processar_extracto_razao_c(source_path = path_folder_source)
 df_absa <- processar_extracto_absa(path_folder_source)
