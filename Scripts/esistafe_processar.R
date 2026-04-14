@@ -15,6 +15,7 @@ metadata_lookup <- "Documents/lookup_ugb.xlsx"
 
 # LOAD LOOKUPS ------------------------------------------------------------
 
+
 lookup_ugb <- suppressMessages(
   read_excel(metadata_lookup, sheet = "Sheet1")) %>%
   clean_names() %>%
@@ -47,7 +48,7 @@ lookup_programa <- suppressMessages(
 # PROCESSAMENTO E-SISTAFE -----------------------------------------------------
 
 df_esistafe <- processar_extracto_esistafe(
-  source_path = "Data/2025/",
+  source_path = "Data/2026/",
   df_ugb_lookup  = lookup_ugb,
   include_percent = FALSE,
   include_file_metadata = TRUE,
@@ -62,24 +63,16 @@ df_esistafe <- processar_extracto_esistafe(
            .after = ced)
 
 
-# funcao_na <- df_esistafe %>%
-#   filter(is.na(funcao_nivel)) %>%
-#   distinct(funcao, funcao_nivel)
-
-# t <- df_esistafe %>%
-#   filter(ambito == "Central")
-
-
 # PROCESSAMENTO RAZAO CONT. & ABSA ---------------------------------------------------------
 
-path_folder_source <- "Data/razao_cont/2026_01/"
+path_folder_source <- "Data/razao_cont/2026_02/"
 
 df_razao <- processar_extracto_razao_c(source_path = path_folder_source)
 df_absa <- processar_extracto_absa(path_folder_source)
 
 df_razao <- bind_rows(df_razao, df_absa)
 
-# GRAVAR -----------------------------------------------------------------
+# GRAVAR FICHEIRO DO PERIODO -----------------------------------------------------------------
 
 gravar_extracto_sistafe(df_esistafe)
 gravar_extracto_razao_c(df_razao)
@@ -89,3 +82,9 @@ rm(df_absa,
    lookup_funcao,
    lookup_programa,
    lookup_ugb)
+
+
+# COMPILAR FICHEIROS ------------------------------------------------------
+
+gravar_compilacao_sistafe()
+gravar_compilacao_razao_c()
