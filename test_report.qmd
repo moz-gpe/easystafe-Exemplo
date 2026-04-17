@@ -7,9 +7,9 @@ format:
   html:
     toc: false
     toc-location: right
-    toc-depth: 3          # How many heading levels to include (default is 3)
+    toc-depth: 3
     toc-expand: 1
-    toc-title: "Índice"   # Custom title for the TOC
+    toc-title: "Índice"
     css: styles.css
     number-sections: true
     number-depth: 3
@@ -19,7 +19,7 @@ format:
     include-before-body:
       - text: |
           <div style="text-align: center; margin-bottom: 1rem;">
-            <img src="Images/1200px-Emblem_of_Mozambique.svg-716778474.png" width="125">
+            <img src="Images/1200px-Emblem_of_Mozambique.svg-716778474.png" width="75">
           </div>
 execute:
   echo: false
@@ -37,11 +37,20 @@ library(scales)
 library(patchwork)
 library(glue)
 library(readxl)
+library(ggrepel)
 
 
 ```
 
 ```{r define-globals}
+
+provincia_order <- c(
+  "Niassa", "Cabo Delgado", "Nampula",
+  "Zambézia", "Tete", "Manica",
+  "Sofala", "Inhambane", "Gaza",
+  "Maputo Província", "Maputo Cidade",
+  "Total"
+)
 
 viz_palette <- c(
   "vermelho_escuro"  = "#8B0000",   # deep dark red
@@ -102,12 +111,11 @@ exec_color <- function(rate) {
 }
 ```
 
-
 ```{r load-data}
 #| include: false
 
 # load base data
-df_esistafe <- read_excel("Dataout/eSISTAFE_202512_20260410.xlsx")
+df_esistafe <- read_excel("Data/processed/eSISTAFE_202512.xlsx")
 
 # create analytic data set
 df <- df_esistafe |>
@@ -132,8 +140,8 @@ df <- df_esistafe |>
 
 ## Resumo Executivo {#sec-summary}
 
-```{r}
-#| label: summary-cards
+
+```{r gt-execucao-global}
 
 totals <- df |>
   summarise(
@@ -143,9 +151,6 @@ totals <- df |>
     n_ugb     = n_distinct(ugb_id),
     n_prov    = n_distinct(provincia)
   )
-```
-
-```{r kpi-table}
 
 tibble(
   Indicador = c(
@@ -168,8 +173,8 @@ tibble(
   cols_align(align = "left", columns = Indicador) |>
   cols_align(align = "right", columns = Valor) |>
   cols_width(
-    Indicador ~ px(250),
-    Valor ~ px(120)
+    Indicador ~ px(150),
+    Valor ~ px(100)
   ) |>
   tab_style(
     style = cell_text(weight = "bold"),
@@ -179,15 +184,26 @@ tibble(
     style = cell_text(weight = "bold"),
     locations = cells_column_labels()
   ) |>
+  tab_style(
+    style     = cell_borders(
+      sides  = "top",
+      color  = "black",
+      weight = px(2)
+    ),
+    locations = cells_column_labels()
+  ) |>
   tab_options(
-    table.font.size = px(14),
-    table.width = px(370),
-    table.border.top.color = "white",
-    heading.border.bottom.color = "white"
+    table.font.size                    = px(10),
+    table.width                        = px(300),
+    table.border.top.color             = "white",
+    heading.border.bottom.color        = "white",
+    heading.title.font.size            = px(14),
+    column_labels.border.top.width     = px(2),
+    column_labels.border.top.color     = "black"
   )
 ```
 
-```{r gt-fig1-pg8}
+```{r gt-tipo-reporte}
 #| echo: false
 
 df |>
@@ -213,9 +229,9 @@ df |>
     ad_fundos_desp_paga_vd_afdp = html("Despesa Paga")
   ) |>
   cols_width(
-    reporte_tipo                ~ px(160),
-    dotacao_actualizada_da      ~ px(200),
-    ad_fundos_desp_paga_vd_afdp ~ px(200)
+    reporte_tipo                ~ px(125),
+    dotacao_actualizada_da      ~ px(125),
+    ad_fundos_desp_paga_vd_afdp ~ px(125)
   ) |>
   fmt_number(
     columns  = c(dotacao_actualizada_da, ad_fundos_desp_paga_vd_afdp),
@@ -239,16 +255,98 @@ df |>
   tab_options(
     table.border.top.color            = "#FFFFFF",
     heading.background.color          = "#FFFFFF",
-    column_labels.border.bottom.width = px(2)
-  ) |> 
-  tab_options(
-    table.font.size = px(14),
-    table.width = px(500)
+    heading.title.font.size     = px(14),
+    column_labels.border.bottom.width = px(2),
+    table.font.size = px(10),
+    table.width = px(300)
   )
 
 ```
 
-```{r gt-fig2-pg8}
+```{r gt-tipo-reporte-provincia}
+
+# Step 1: Summarise and pivot
+df_peso <- df |>
+  filter(
+    data_tipo == "Valor",
+    ano       == 2025,
+    mes       == "Dezembro",
+    ambito    == "Provincial"
+  ) |>
+  group_by(provincia, reporte_tipo) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  group_by(reporte_tipo) |>
+  mutate(peso = dotacao / sum(dotacao) * 100) |>
+  ungroup() |>
+  select(provincia, reporte_tipo, peso) |>
+  pivot_wider(names_from = reporte_tipo, values_from = peso, values_fill = 0)
+
+# Step 2: Grand Total row + reorder -- now df_peso exists so bind_rows works
+df_peso <- df_peso |>
+  bind_rows(
+    summarise(df_peso,
+      provincia = "Total",
+      across(where(is.numeric), sum)
+    )
+  ) |>
+  mutate(provincia = factor(provincia, levels = provincia_order)) |>
+  arrange(provincia)
+
+# Step 3: gt table
+df_peso |>
+  gt(rowname_col = "provincia") |>
+
+  tab_header(
+    title    = "Distribuição da Dotação por Província e Tipo de Reporte"
+  ) |>
+
+  fmt_number(
+    columns  = where(is.numeric),
+    decimals = 1,
+    use_seps = FALSE
+  ) |>
+  cols_label(
+    `Funcionamento`        = "Funcionamento",
+    `Investimento Interno` = "Investimento Interno",
+    `Investimento Externo` = "Investimento Externo"
+  ) |>
+  text_transform(
+    locations = cells_body(columns = where(is.numeric)),
+    fn = function(x) paste0(x, "%")
+  ) |>
+
+  tab_style(
+    style     = cell_text(weight = "bold"),
+    locations = cells_body(rows = provincia == "Total")
+  ) |>
+  tab_style(
+    style     = cell_text(weight = "bold"),
+    locations = cells_stub(rows = provincia == "Total")
+  ) |>
+  tab_style(
+    style     = cell_text(weight = "bold"),
+    locations = list(cells_column_labels(), cells_column_spanners())
+  ) |>
+  tab_style(
+    style     = cell_text(align = "left"),
+    locations = cells_stub()
+  ) |>
+  tab_options(
+    heading.align                     = "center",
+    heading.title.font.size           = px(14),
+    column_labels.border.bottom.width = px(2),
+    table.border.top.color            = "white",
+    row.striping.background_color     = "#F7F7F7",
+    table.font.size                   = px(10),
+    stub.border.width                 = px(0)
+  )
+```
+
+
+```{r plot-pie-tipo-reporte}
 #| echo: false
 #| fig-width: 5
 #| fig-height: 3
@@ -266,16 +364,15 @@ ggplot(df_pie, aes(x = "", y = dotacao_actualizada_da, fill = reporte_tipo)) +
   coord_polar(theta = "y") +
   geom_text(
     aes(label = pct_label),
-    position = position_stack(vjust = 0.5),
-    size = 3.5,) +
-  coord_polar(theta = "y") +
-  geom_text(
-    aes(label = pct_label),
-    position = position_stack(vjust = 0.5),
-    size = 3.5,
+    position    = position_stack(vjust = 0.5),
+    size        = 3.5,
     show.legend = FALSE
   ) +
-  scale_fill_manual(values = pie_palette) +
+  scale_fill_manual(values = c(
+    "Funcionamento"        = "#F4A226",
+    "Investimento Interno" = "#70AD47",
+    "Investimento Externo" = "#4472C4"
+  )) +
   labs(
     title = glue::glue("Dotação Actualizada por Tipo de Reporte"),
     fill  = "Tipo de Reporte"
@@ -289,7 +386,7 @@ ggplot(df_pie, aes(x = "", y = dotacao_actualizada_da, fill = reporte_tipo)) +
 
 ```
 
-```{r}
+```{r gt-por-tipo-instituicao}
 #| echo: false
 #| out-width: "60%"
 #| fig-align: "center"
@@ -309,10 +406,10 @@ df_summary <- df |>
 
 df_summary |>
   bind_rows(
-    tibble(descricao = "Grand Total", dotacao = sum(df_summary$dotacao))
+    tibble(descricao = "Total", dotacao = sum(df_summary$dotacao))
   ) |>
   gt() |>
-  tab_header(title = "Dotação Actualizada por Tipo de Instituição") |>
+  tab_header(title = "Dotação Actualizada por Instituição") |>
   cols_label(
     descricao = "",
     dotacao   = html("Dotação Actualizada")
@@ -320,23 +417,23 @@ df_summary |>
   fmt_number(columns = dotacao, decimals = 0, use_seps = TRUE) |>
   tab_style(
     style     = cell_text(weight = "bold"),
-    locations = cells_body(rows = descricao == "Grand Total")
+    locations = cells_body(rows = descricao == "Total")
   ) |>
   tab_style(
     style     = cell_text(weight = "bold"),
     locations = cells_column_labels()
   ) |>
   tab_options(
-    table.font.size                   = px(14),
-    table.width                       = px(350),  # <-- comma here
+    heading.title.font.size     = px(14),
+    table.font.size                   = px(10),
+    table.width                       = px(250),
     table.border.top.color            = "white",
     column_labels.border.bottom.width = px(2)
   )
 
 ```
 
-
-```{r}
+```{r gt-tipo-report-detalhe}
 
 # Step 1: Summarise and pivot
 df_pivot <- df |>
@@ -344,7 +441,8 @@ df_pivot <- df |>
     data_tipo == "Valor",
     ano       == 2025,
     mes       == "Dezembro",
-    ambito    == "Provincial"
+    ambito    == "Provincial",
+    descricao %in% c("DPE - OGDP", "SPAS")
   ) |>
   group_by(provincia, reporte_tipo, descricao) |>
   summarise(
@@ -356,63 +454,195 @@ df_pivot <- df |>
   pivot_wider(names_from = col_key, values_from = dotacao, values_fill = 0) |>
   arrange(provincia)
 
-# Step 2: Row totals + Grand Total row
+# Step 2: Add subtotals, Peso %, Grand Total row
 df_pivot <- df_pivot |>
-  mutate(grand_total = rowSums(across(where(is.numeric)))) |>
+  mutate(
+    func_total     = `Funcionamento__DPE - OGDP`        + `Funcionamento__SPAS`,
+    inv_int_total  = `Investimento Interno__DPE - OGDP` + `Investimento Interno__SPAS`,
+    inv_ext_total  = `Investimento Externo__DPE - OGDP` + `Investimento Externo__SPAS`,
+    total_dpe_ogdp = `Funcionamento__DPE - OGDP` + `Investimento Interno__DPE - OGDP` + `Investimento Externo__DPE - OGDP`,
+    total_spas     = `Funcionamento__SPAS`        + `Investimento Interno__SPAS`       + `Investimento Externo__SPAS`,
+    grand_total    = func_total + inv_int_total + inv_ext_total
+  ) |>
+  # Peso % = group subtotal / SUM of that group's subtotal across all provinces
+  mutate(
+    func_peso    = func_total    / sum(func_total)    * 100,
+    inv_int_peso = inv_int_total / sum(inv_int_total) * 100,
+    inv_ext_peso = inv_ext_total / sum(inv_ext_total) * 100,
+    total_peso   = grand_total   / sum(grand_total)   * 100
+  ) |>
+  # Grand Total row added AFTER Peso % so sum() denominators are provincial-only
   bind_rows(
-    summarise(df_pivot, provincia = "Grand Total", across(where(is.numeric), sum))
+    summarise(df_pivot,
+      provincia = "Total",
+      across(where(is.numeric), sum)
+    ) |>
+      mutate(
+        func_total     = `Funcionamento__DPE - OGDP`        + `Funcionamento__SPAS`,
+        inv_int_total  = `Investimento Interno__DPE - OGDP` + `Investimento Interno__SPAS`,
+        inv_ext_total  = `Investimento Externo__DPE - OGDP` + `Investimento Externo__SPAS`,
+        total_dpe_ogdp = `Funcionamento__DPE - OGDP` + `Investimento Interno__DPE - OGDP` + `Investimento Externo__DPE - OGDP`,
+        total_spas     = `Funcionamento__SPAS`        + `Investimento Interno__SPAS`       + `Investimento Externo__SPAS`,
+        grand_total    = func_total + inv_int_total + inv_ext_total,
+        func_peso      = 100,
+        inv_int_peso   = 100,
+        inv_ext_peso   = 100,
+        total_peso     = 100
+      )
+  ) |>
+  select(
+    provincia,
+    `Funcionamento__DPE - OGDP`, `Funcionamento__SPAS`, func_total, func_peso,
+    `Investimento Interno__DPE - OGDP`, `Investimento Interno__SPAS`, inv_int_total, inv_int_peso,
+    `Investimento Externo__DPE - OGDP`, `Investimento Externo__SPAS`, inv_ext_total, inv_ext_peso,
+    total_dpe_ogdp, total_spas, grand_total, total_peso
   )
 
 
+# Step 3: Build gt table
 df_pivot |>
   gt(rowname_col = "provincia") |>
+  tab_header(title = "Dotação Actualizada por Tipo de Reporte e Instituição") |>
 
+  # --- Column labels ---
   cols_label(
     `Funcionamento__DPE - OGDP`        = "DPE - OGDP",
     `Funcionamento__SPAS`              = "SPAS",
-    `Funcionamento__CPED`              = "CPED",
-    `Investimento Externo__DPE - OGDP` = "DPE - OGDP",
-    `Investimento Externo__SPAS`       = "SPAS",
+    func_total                         = "Total",
+    func_peso                          = "Peso %",
     `Investimento Interno__DPE - OGDP` = "DPE - OGDP",
     `Investimento Interno__SPAS`       = "SPAS",
-    grand_total                        = "Grand Total"
+    inv_int_total                      = "Total",
+    inv_int_peso                       = "Peso %",
+    `Investimento Externo__DPE - OGDP` = "DPE - OGDP",
+    `Investimento Externo__SPAS`       = "SPAS",
+    inv_ext_total                      = "Total",
+    inv_ext_peso                       = "Peso %",
+    total_dpe_ogdp                     = "DPE - OGDP",
+    total_spas                         = "SPAS",
+    grand_total                        = "Total",
+    total_peso                         = "Peso %"
   ) |>
 
-  tab_spanner(
-    label   = "Funcionamento",
-    columns = starts_with("Funcionamento")
-  ) |>
-  tab_spanner(
-    label   = "Investimento Externo",
-    columns = starts_with("Investimento Externo")
-  ) |>
-  tab_spanner(
-    label   = "Investimento Interno",
-    columns = starts_with("Investimento Interno")
-  ) |>
+  # --- Spanners ---
+  tab_spanner(label = "Funcionamento",        columns = c(`Funcionamento__DPE - OGDP`, `Funcionamento__SPAS`, func_total, func_peso)) |>
+  tab_spanner(label = "Investimento Interno", columns = c(`Investimento Interno__DPE - OGDP`, `Investimento Interno__SPAS`, inv_int_total, inv_int_peso)) |>
+  tab_spanner(label = "Investimento Externo", columns = c(`Investimento Externo__DPE - OGDP`, `Investimento Externo__SPAS`, inv_ext_total, inv_ext_peso)) |>
+  tab_spanner(label = "Total",                columns = c(total_dpe_ogdp, total_spas, grand_total, total_peso)) |>
 
+  # --- Format numbers ---
   fmt_number(
-    columns  = where(is.numeric),
+    columns  = c(`Funcionamento__DPE - OGDP`, `Funcionamento__SPAS`, func_total,
+                 `Investimento Interno__DPE - OGDP`, `Investimento Interno__SPAS`, inv_int_total,
+                 `Investimento Externo__DPE - OGDP`, `Investimento Externo__SPAS`, inv_ext_total,
+                 total_dpe_ogdp, total_spas, grand_total),
     decimals = 0,
     use_seps = TRUE
   ) |>
-
-  tab_style(
-    style     = cell_text(weight = "bold"),
-    locations = cells_body(rows = provincia == "Grand Total")
+  fmt_number(
+    columns  = c(func_peso, inv_int_peso, inv_ext_peso, total_peso),
+    decimals = 1,
+    use_seps = FALSE
   ) |>
 
+  # --- Styling ---
+  tab_style(
+    style     = cell_text(weight = "bold"),
+    locations = cells_body(rows = provincia == "Total")
+  ) |>
+  tab_style(
+    style     = cell_text(weight = "bold"),
+    locations = cells_stub(rows = provincia == "Total")
+  ) |>
   tab_style(
     style     = cell_text(weight = "bold"),
     locations = list(cells_column_labels(), cells_column_spanners())
   ) |>
+  # Light shading on Peso % and subtotal columns to visually separate groups
+  tab_style(
+    style     = cell_borders(sides = "right", color = "#D3D3D3", weight = px(2)),
+    locations = cells_body(columns = c(func_peso, inv_int_peso, inv_ext_peso))
+  ) |>
+  tab_style(
+    style     = cell_borders(sides = "right", color = "#D3D3D3", weight = px(2)),
+    locations = cells_column_labels(columns = c(func_peso, inv_int_peso, inv_ext_peso))
+  ) |>
+  opt_row_striping() |>
+  
+  cols_width(
+    c(func_peso, inv_int_peso, inv_ext_peso, total_peso) ~ px(70)
+  ) |>
 
   tab_options(
-    table.font.size                   = px(12),
+    heading.title.font.size     = px(14),
+    table.font.size                   = px(10),
     column_labels.border.bottom.width = px(2),
-    table.border.top.color            = "white"
+    table.border.top.color            = "white",
+    row.striping.background_color     = "#F7F7F7"
+)
+```
+
+```{r plot-pie-tipo-instituicao}
+#| echo: false
+#| fig-width: 5
+#| fig-height: 3
+#| out-width: "60%"
+#| fig-align: "center"
+
+# Step 1: Summarise
+df_pie <- df |>
+  filter(
+    data_tipo == "Valor",
+    ano       == 2025,
+    mes       == "Dezembro"
+  ) |>
+  group_by(descricao) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(
+    pct       = dotacao / sum(dotacao) * 100,
+    pct_label = paste0(round(pct), "%")
+  ) |> 
+    arrange(desc(descricao)) |>
+  mutate(
+    cum_pct  = cumsum(pct),
+    mid_pct  = cum_pct - pct / 2
+  )
+
+# Step 2: Plot
+ggplot(df_pie, aes(x = "", y = dotacao, fill = descricao)) +
+  geom_col(width = 1, color = "white", linewidth = 0.5) +
+  coord_polar(theta = "y") +
+  geom_text(
+    aes(label = pct_label),
+    position    = position_stack(vjust = 0.5),
+    size        = 3,
+    color       = "black",
+    show.legend = FALSE
+  ) +
+  scale_fill_manual(values = c(
+    "SDEJT"               = "#F4A226",
+    "MEC"                 = "#4472C4",
+    "Outras Instituições"  = "#70AD47",
+    "DPE - OGDP"          = "#ED7D31",
+    "SPAS"                = "#A9D18E",
+    "CPED"                = "#9DC3E6"
+  )) +
+  labs(
+    title = "Dotação Actualizada por Tipo de Instituição",
+  ) +
+  theme_void() +
+  theme(
+    legend.position  = "right",
+    legend.title     = element_blank(),
+    legend.text      = element_text(size = 9),
+    legend.key.size  = unit(0.4, "cm"),
+    legend.spacing.y = unit(0.2, "cm")
   )
 ```
+
 
 ---
 
@@ -421,7 +651,7 @@ df_pivot |>
 Esta secção replica a tabela dinâmica Excel, mostrando dotação, despesa e taxa de execução
 por classificação funcional (`funcao`), com `reporte_tipo` como coluna.
 
-```{r}
+```{r suggested-gt-tbl}
 #| label: tbl-funcao
 #| tbl-cap: "Execução orçamental por função e tipo de reporte"
 
@@ -502,7 +732,7 @@ df_funcao_final |>
 
 ## Execução por Província {#sec-provincia}
 
-```{r}
+```{r suggested-gt-tbl2}
 #| label: tbl-provincia
 #| tbl-cap: "Execução orçamental por província"
 

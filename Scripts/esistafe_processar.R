@@ -65,7 +65,7 @@ df_esistafe <- processar_extracto_esistafe(
 
 # PROCESSAMENTO RAZAO CONT. & ABSA ---------------------------------------------------------
 
-path_folder_source <- "Data/razao_cont/2026_02/"
+path_folder_source <- "Data/razao_cont/2026_01/"
 
 df_razao <- processar_extracto_razao_c(source_path = path_folder_source)
 df_absa <- processar_extracto_absa(path_folder_source)
