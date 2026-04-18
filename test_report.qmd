@@ -221,22 +221,35 @@ df |>
       ad_fundos_desp_paga_vd_afdp = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE)
     )
   ) |>
+  mutate(
+    perc_execucao = if_else(
+      dotacao_actualizada_da > 0,
+      ad_fundos_desp_paga_vd_afdp / dotacao_actualizada_da,
+      NA_real_
+    )
+  ) |>
   gt() |>
   tab_header(title = "Dotação e Despesa por Tipo de Reporte") |>
   cols_label(
     reporte_tipo                = "Tipo de Reporte",
     dotacao_actualizada_da      = html("Dotação Actualizada"),
-    ad_fundos_desp_paga_vd_afdp = html("Despesa Paga")
+    ad_fundos_desp_paga_vd_afdp = html("Despesa Paga"),
+    perc_execucao               = html("% Execução")
   ) |>
   cols_width(
     reporte_tipo                ~ px(125),
     dotacao_actualizada_da      ~ px(125),
-    ad_fundos_desp_paga_vd_afdp ~ px(125)
+    ad_fundos_desp_paga_vd_afdp ~ px(125),
+    perc_execucao               ~ px(100)
   ) |>
   fmt_number(
     columns  = c(dotacao_actualizada_da, ad_fundos_desp_paga_vd_afdp),
     decimals = 0,
     use_seps = TRUE
+  ) |>
+  fmt_percent(
+    columns  = perc_execucao,
+    decimals = 1
   ) |>
   tab_style(
     style = list(
@@ -246,19 +259,18 @@ df |>
     locations = cells_body(rows = reporte_tipo == "Total")
   ) |>
   tab_style(
-    style    = cell_text(weight = "bold"),
+    style = cell_text(weight = "bold"),
     locations = list(
       cells_column_labels()
     )
   ) |>
-
   tab_options(
     table.border.top.color            = "#FFFFFF",
     heading.background.color          = "#FFFFFF",
-    heading.title.font.size     = px(14),
+    heading.title.font.size           = px(14),
     column_labels.border.bottom.width = px(2),
-    table.font.size = px(10),
-    table.width = px(300)
+    table.font.size                   = px(10),
+    table.width                       = px(400)
   )
 
 ```
@@ -300,7 +312,7 @@ df_peso |>
   gt(rowname_col = "provincia") |>
 
   tab_header(
-    title    = "Distribuição da Dotação por Província e Tipo de Reporte"
+    title    = "Dotação por Província e Tipo de Reporte"
   ) |>
 
   fmt_number(
@@ -344,7 +356,6 @@ df_peso |>
     stub.border.width                 = px(0)
   )
 ```
-
 
 ```{r plot-pie-tipo-reporte}
 #| echo: false
@@ -572,7 +583,7 @@ df_pivot |>
   cols_width(
     c(func_peso, inv_int_peso, inv_ext_peso, total_peso) ~ px(70)
   ) |>
-
+  
   tab_options(
     heading.title.font.size     = px(14),
     table.font.size                   = px(10),
@@ -640,6 +651,342 @@ ggplot(df_pie, aes(x = "", y = dotacao, fill = descricao)) +
     legend.text      = element_text(size = 9),
     legend.key.size  = unit(0.4, "cm"),
     legend.spacing.y = unit(0.2, "cm")
+  )
+```
+
+```{r gt-por-nivel-instituicao}
+
+# 1) Base table by descricao x reporte_tipo
+base_tbl <- df |>
+  filter(
+    data_tipo == "Valor",
+    ano == 2025,
+    mes == "Dezembro",
+    descricao %in% c("MEC", "Outras Instituições", "CPED", "DPE - OGDP", "SPAS", "SDEJT")
+  ) |>
+  group_by(descricao, reporte_tipo) |>
+  summarise(
+    orcamento = sum(dotacao_actualizada_da, na.rm = TRUE),
+    execucao  = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# 2) Aggregate rows
+central_tbl <- base_tbl |>
+  filter(descricao %in% c("MEC", "Outras Instituições")) |>
+  group_by(reporte_tipo) |>
+  summarise(
+    descricao = "Central",
+    orcamento = sum(orcamento, na.rm = TRUE),
+    execucao  = sum(execucao, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+provincial_tbl <- base_tbl |>
+  filter(descricao %in% c("CPED", "DPE - OGDP", "SPAS")) |>
+  group_by(reporte_tipo) |>
+  summarise(
+    descricao = "Provincial",
+    orcamento = sum(orcamento, na.rm = TRUE),
+    execucao  = sum(execucao, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+distrital_tbl <- base_tbl |>
+  filter(descricao %in% c("SDEJT")) |>
+  group_by(reporte_tipo) |>
+  summarise(
+    descricao = "Distrital",
+    orcamento = sum(orcamento, na.rm = TRUE),
+    execucao  = sum(execucao, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+grand_total_tbl <- base_tbl |>
+  group_by(reporte_tipo) |>
+  summarise(
+    descricao = "Grand Total",
+    orcamento = sum(orcamento, na.rm = TRUE),
+    execucao  = sum(execucao, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# 3) Combine everything
+tbl_long <- bind_rows(
+  central_tbl,
+  base_tbl |> filter(descricao %in% c("MEC", "Outras Instituições")),
+  provincial_tbl,
+  base_tbl |> filter(descricao %in% c("CPED", "DPE - OGDP", "SPAS")),
+  distrital_tbl,
+  base_tbl |> filter(descricao == "SDEJT"),
+  grand_total_tbl
+) |>
+  mutate(
+    exec_pct = if_else(orcamento > 0, execucao / orcamento, NA_real_)
+  )
+
+# 4) Pivot wide
+tbl_wide <- tbl_long |>
+  pivot_wider(
+    names_from = reporte_tipo,
+    values_from = c(orcamento, execucao, exec_pct),
+    values_fill = 0
+  ) |>
+  rename(
+    orcamento_func = orcamento_Funcionamento,
+    execucao_func  = execucao_Funcionamento,
+    exec_pct_func  = exec_pct_Funcionamento,
+
+    orcamento_int  = `orcamento_Investimento Interno`,
+    execucao_int   = `execucao_Investimento Interno`,
+    exec_pct_int   = `exec_pct_Investimento Interno`,
+
+    orcamento_ext  = `orcamento_Investimento Externo`,
+    execucao_ext   = `execucao_Investimento Externo`,
+    exec_pct_ext   = `exec_pct_Investimento Externo`
+  ) |>
+  mutate(
+    total_orcamento = coalesce(orcamento_func, 0) + coalesce(orcamento_int, 0) + coalesce(orcamento_ext, 0),
+    total_execucao  = coalesce(execucao_func, 0) + coalesce(execucao_int, 0) + coalesce(execucao_ext, 0),
+    total_exec_pct  = if_else(total_orcamento > 0, total_execucao / total_orcamento, NA_real_)
+  ) |> 
+  mutate(
+    descricao = if_else(descricao == "Grand Total", "Total", descricao)
+  )
+
+# 5) GT table
+pct_cols <- c("exec_pct_func", "exec_pct_int", "exec_pct_ext", "total_exec_pct")
+
+num_cols <- c(
+  "orcamento_func", "execucao_func",
+  "orcamento_int",  "execucao_int",
+  "orcamento_ext",  "execucao_ext",
+  "total_orcamento", "total_execucao"
+)
+
+tbl_wide |>
+  gt(rowname_col = "descricao") |>
+  tab_header(title = "Execução por Nível e Instituição") |>
+  tab_stubhead(label = "Descrição") |>
+  tab_spanner(
+    label = "Funcionamento",
+    columns = all_of(c("orcamento_func", "execucao_func", "exec_pct_func"))
+  ) |>
+  tab_spanner(
+    label = "Investimento Interno",
+    columns = all_of(c("orcamento_int", "execucao_int", "exec_pct_int"))
+  ) |>
+  tab_spanner(
+    label = "Investimento Externo",
+    columns = all_of(c("orcamento_ext", "execucao_ext", "exec_pct_ext"))
+  ) |>
+  tab_spanner(
+    label = "Total",
+    columns = all_of(c("total_orcamento", "total_execucao", "total_exec_pct"))
+  ) |>
+  cols_label(
+    orcamento_func = "Orçamento",
+    execucao_func  = "Execução",
+    exec_pct_func  = "%",
+    orcamento_int  = "Orçamento",
+    execucao_int   = "Execução",
+    exec_pct_int   = "%",
+    orcamento_ext  = "Orçamento",
+    execucao_ext   = "Execução",
+    exec_pct_ext   = "%",
+    total_orcamento = "Orçamento",
+    total_execucao  = "Execução",
+    total_exec_pct  = "%"
+  ) |>
+  fmt_number(
+    columns = all_of(num_cols),
+    decimals = 0,
+    use_seps = TRUE
+  ) |>
+  fmt_percent(
+    columns = all_of(pct_cols),
+    decimals = 0
+  ) |>
+  fmt_missing(
+    columns = all_of(pct_cols),
+    missing_text = "-"
+  ) |>
+  tab_style(
+    style = cell_borders(
+      sides  = "right",
+      color  = "#D3D3D3",
+      weight = px(2)
+    ),
+    locations = cells_body(
+      columns = c(exec_pct_func, exec_pct_int, exec_pct_ext)
+    )
+  ) |>
+  tab_style(
+    style = cell_borders(
+      sides  = "right",
+      color  = "#D3D3D3",
+      weight = px(2)
+    ),
+    locations = cells_column_labels(
+      columns = c(exec_pct_func, exec_pct_int, exec_pct_ext)
+    )
+  ) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = list(
+      cells_stub(rows = descricao %in% c("Central", "Provincial", "Distrital", "Total")),
+      cells_body(rows = descricao %in% c("Central", "Provincial", "Distrital", "Total"))
+    )
+  ) |>
+  tab_options(
+    heading.title.font.size = px(14),
+    table.font.size = px(10),
+    stub.border.width = px(0),
+    heading.background.color = "#FFFFFF",
+    table.border.top.color = "#FFFFFF",
+    column_labels.border.bottom.width = px(1)
+  )
+```
+
+```{r}
+
+
+# --- 1) Provincial rows ---
+prov_tbl <- df |>
+  filter(
+    data_tipo == "Valor",
+    ano == 2025,
+    mes == "Dezembro",
+    descricao %in% c("CPED", "DPE - OGDP", "SPAS", "SDEJT")
+  ) |>
+  group_by(provincia) |>
+  summarise(
+    descricao = "DPE-ODGE+SPAS+SDEJT+CPED",
+    orcamento = sum(dotacao_actualizada_da, na.rm = TRUE),
+    execucao  = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(
+    exec_pct = if_else(orcamento > 0, execucao / orcamento, NA_real_)
+  )
+
+# --- 2) Provincial subtotal ---
+subtotal_tbl <- prov_tbl |>
+  summarise(
+    provincia = "Sub Total",
+    descricao = "",
+    orcamento = sum(orcamento, na.rm = TRUE),
+    execucao  = sum(execucao, na.rm = TRUE),
+    exec_pct  = if_else(sum(orcamento, na.rm = TRUE) > 0,
+                        sum(execucao, na.rm = TRUE) / sum(orcamento, na.rm = TRUE),
+                        NA_real_)
+  )
+
+# --- 3) Central rows ---
+central_tbl <- df |>
+  filter(
+    data_tipo == "Valor",
+    ano == 2025,
+    mes == "Dezembro",
+    descricao %in% c("MEC", "Outras Instituições")
+  ) |>
+  group_by(descricao) |>
+  summarise(
+    orcamento = sum(dotacao_actualizada_da, na.rm = TRUE),
+    execucao  = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(
+    provincia = c("Órgãos Centrais", ""),
+    exec_pct  = if_else(orcamento > 0, execucao / orcamento, NA_real_)
+  ) |>
+  select(provincia, descricao, orcamento, execucao, exec_pct)
+
+# --- 4) Grand total ---
+grand_total_tbl <- bind_rows(prov_tbl, central_tbl) |>
+  summarise(
+    provincia = "Grand Total",
+    descricao = "Descrição",
+    orcamento = sum(orcamento, na.rm = TRUE),
+    execucao  = sum(execucao, na.rm = TRUE),
+    exec_pct  = if_else(sum(orcamento, na.rm = TRUE) > 0,
+                        sum(execucao, na.rm = TRUE) / sum(orcamento, na.rm = TRUE),
+                        NA_real_)
+  )
+
+# --- 5) Final table ---
+tbl_final <- bind_rows(
+  prov_tbl,
+  subtotal_tbl,
+  central_tbl,
+  grand_total_tbl
+) |>
+  mutate(
+    provincia = factor(
+      provincia,
+      levels = c(
+        sort(unique(prov_tbl$provincia)),
+        "Sub Total",
+        "Órgãos Centrais",
+        "Descrição",
+        "Grand Total"
+      )
+    )
+  )
+
+# --- 6) GT table ---
+tbl_final |>
+  gt(rowname_col = "provincia") |>
+  cols_label(
+    descricao = "Descrição",
+    orcamento = "Orçamento",
+    execucao  = "Execução",
+    exec_pct  = "Exec %"
+  ) |>
+  fmt_number(
+    columns = c(orcamento, execucao),
+    decimals = 0,
+    use_seps = TRUE
+  ) |>
+  fmt_percent(
+    columns = all_of("exec_pct"),
+    decimals = 0
+  ) |> 
+  fmt_missing(
+    columns = all_of("exec_pct"),
+    missing_text = "-"
+  ) |> 
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = list(
+      cells_stub(rows = provincia %in% c("Sub Total", "Órgãos Centrais", "Grand Total")),
+      cells_body(rows = provincia %in% c("Sub Total", "Órgãos Centrais", "Grand Total"))
+    )
+  ) |>
+  tab_style(
+    style = cell_borders(sides = "top", weight = px(2)),
+    locations = cells_body(rows = provincia %in% c("Sub Total", "Grand Total"))
+  ) |>
+  tab_style(
+    style = cell_borders(sides = "top", weight = px(2)),
+    locations = cells_stub(rows = provincia %in% c("Sub Total", "Grand Total"))
+  ) |>
+  tab_style(
+    style = cell_text(align = "left"),
+    locations = cells_stub()
+  ) |>
+  cols_align(
+    align = "left",
+    columns = descricao
+  ) |>
+  tab_options(
+    table.font.size = px(10),
+    table.border.top.color = "white",
+    stub.border.width = px(0),
+    column_labels.border.bottom.width = px(1),
+    table_body.hlines.width = px(1),
+    table_body.vlines.width = px(1),
+    column_labels.vlines.width = px(1)
   )
 ```
 
