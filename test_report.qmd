@@ -897,7 +897,7 @@ central_tbl <- df |>
     .groups = "drop"
   ) |>
   mutate(
-    provincia = c("Órgãos Centrais", ""),
+    provincia = c("Órgãos Centrais", " "),
     exec_pct  = if_else(orcamento > 0, execucao / orcamento, NA_real_)
   ) |>
   select(provincia, descricao, orcamento, execucao, exec_pct)
@@ -915,6 +915,28 @@ grand_total_tbl <- bind_rows(prov_tbl, central_tbl) |>
   )
 
 # --- 5) Final table ---
+central_tbl <- df |>
+  filter(
+    data_tipo == "Valor",
+    ano == 2025,
+    mes == "Dezembro",
+    descricao %in% c("MEC", "Outras Instituições")
+  ) |>
+  group_by(descricao) |>
+  summarise(
+    orcamento = sum(dotacao_actualizada_da, na.rm = TRUE),
+    execucao  = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(
+    provincia = c("Órgãos Centrais", "\u00A0"),
+    exec_pct  = if_else(orcamento > 0, execucao / orcamento, NA_real_)
+  ) |>
+  select(provincia, descricao, orcamento, execucao, exec_pct) |> 
+   mutate(
+    provincia = if_else(is.na(provincia), "", as.character(provincia))
+  )
+
 tbl_final <- bind_rows(
   prov_tbl,
   subtotal_tbl,
@@ -928,17 +950,38 @@ tbl_final <- bind_rows(
         sort(unique(prov_tbl$provincia)),
         "Sub Total",
         "Órgãos Centrais",
-        "Descrição",
+        " ",
         "Grand Total"
       )
+    )
+  ) |> 
+  mutate(
+    provincia = if_else(is.na(provincia), "", as.character(provincia))
+  ) |> 
+  mutate(
+    provincia = case_when(
+      provincia == "Sub Total"   ~ "Sub-Total",
+      provincia == "Grand Total" ~ "Total",
+      TRUE ~ as.character(provincia)
+    )
+  ) |> 
+    mutate(
+    descricao = if_else(
+      provincia == "Total",
+      "",
+      descricao
     )
   )
 
 # --- 6) GT table ---
 tbl_final |>
+  
   gt(rowname_col = "provincia") |>
+  
+  tab_header(title = "Dotação Actualizada por Instituição por Nível") |>
+  
   cols_label(
-    descricao = "Descrição",
+    descricao = "Instituição",
     orcamento = "Orçamento",
     execucao  = "Execução",
     exec_pct  = "Exec %"
@@ -959,17 +1002,17 @@ tbl_final |>
   tab_style(
     style = cell_text(weight = "bold"),
     locations = list(
-      cells_stub(rows = provincia %in% c("Sub Total", "Órgãos Centrais", "Grand Total")),
-      cells_body(rows = provincia %in% c("Sub Total", "Órgãos Centrais", "Grand Total"))
+      cells_stub(rows = provincia %in% c("Sub-Total", "Órgãos Centrais", "Total")),
+      cells_body(rows = provincia %in% c("Sub-Total", "Órgãos Centrais", "Total"))
     )
   ) |>
   tab_style(
     style = cell_borders(sides = "top", weight = px(2)),
-    locations = cells_body(rows = provincia %in% c("Sub Total", "Grand Total"))
+    locations = cells_body(rows = provincia %in% c("Sub-Total", "Total"))
   ) |>
   tab_style(
     style = cell_borders(sides = "top", weight = px(2)),
-    locations = cells_stub(rows = provincia %in% c("Sub Total", "Grand Total"))
+    locations = cells_stub(rows = provincia %in% c("Sub-Total", "Total"))
   ) |>
   tab_style(
     style = cell_text(align = "left"),
@@ -980,6 +1023,7 @@ tbl_final |>
     columns = descricao
   ) |>
   tab_options(
+    heading.title.font.size = px(14),
     table.font.size = px(10),
     table.border.top.color = "white",
     stub.border.width = px(0),
