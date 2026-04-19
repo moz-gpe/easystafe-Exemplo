@@ -848,7 +848,7 @@ tbl_wide |>
   )
 ```
 
-```{r}
+```{r gt-por-nivel-instituicao2}
 
 
 # --- 1) Provincial rows ---
@@ -1032,6 +1032,162 @@ tbl_final |>
     table_body.vlines.width = px(1),
     column_labels.vlines.width = px(1)
   )
+```
+
+```{r execução-por-funcao}
+
+# Filter for Valor data type
+df_valor <- df |>
+  filter(data_tipo == "Valor")
+
+# Summarize and calculate Exec%
+df_summary <- df_valor |>
+  group_by(funcao_nivel, reporte_tipo) |>
+  summarise(
+    dotacao_actualizada_da = sum(dotacao_actualizada_da, na.rm = TRUE),
+    ad_fundos_desp_paga_vd_afdp = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(exec_pct = ad_fundos_desp_paga_vd_afdp / dotacao_actualizada_da)
+
+# Pivot wider so reporte_tipo becomes columns
+df_wide <- df_summary |>
+  pivot_wider(
+    names_from = reporte_tipo,
+    values_from = c(dotacao_actualizada_da, ad_fundos_desp_paga_vd_afdp, exec_pct),
+    names_glue = "{reporte_tipo}_{.value}"
+  ) |> 
+  select(funcao_nivel,
+         starts_with('Funcionamento_'),
+         starts_with('Investimento Interno'),
+         starts_with('Investimento Externo')
+         )
+
+# Get unique reporte_tipo values from your data
+reporte_tipos <- unique(df_summary$reporte_tipo)
+
+# Build the gt table
+df_wide |>
+  gt(rowname_col = "funcao_nivel") |>
+  tab_header(
+    title = "Execução Orçamental por Função"
+  ) |>
+  cols_width(
+    funcao_nivel ~ px(150)
+  ) |>
+  tab_spanner(
+    label = "Funcionamento",
+    columns = starts_with("Funcionamento")
+  ) |>
+  tab_spanner(
+    label = "Investimento Interno",
+    columns = starts_with("Investimento Interno")
+  ) |>
+  tab_spanner(
+    label = "Investimento Externo",
+    columns = starts_with("Investimento Externo")
+  ) |>
+  cols_label(
+    ends_with("dotacao_actualizada_da") ~ "Dotação Actualizada",
+    ends_with("ad_fundos_desp_paga_vd_afdp") ~ "Despesa Paga",
+    ends_with("exec_pct") ~ "% Execução"
+  ) |> 
+  fmt_number(
+    columns = contains(c("dotacao", "ad_fundos")),
+    decimals = 0,
+    sep_mark = ","
+  ) |>
+  fmt_percent(
+    columns = contains("exec_pct"),
+    decimals = 1
+  ) |>
+  sub_missing(
+    columns = where(is.numeric),
+    missing_text = "-"
+  ) |> 
+  tab_stubhead(label = "Função / Nível"
+  ) |>
+  tab_options(
+    heading.title.font.size = px(14),
+    table.font.size = px(10),
+    table.border.top.color = "white",
+    stub.border.width = px(0),
+    column_labels.border.bottom.width = px(1),
+    table_body.hlines.width = px(1),
+    table_body.vlines.width = px(1),
+    column_labels.vlines.width = px(1)
+  )
+
+
+```
+
+```{r}
+# Filter and summarize
+# df_ambito <- df |>
+#   filter(
+#     data_tipo == "Valor",
+#     reporte_tipo == "Investimento Interno"
+#   ) |>
+#   group_by(`Nome CED Agregado`, ambito) |>
+#   summarise(
+#     dotacao_actualizada_da = sum(dotacao_actualizada_da, na.rm = TRUE),
+#     ad_fundos_desp_paga_vd_afdp = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+#     .groups = "drop"
+#   ) |>
+#   mutate(exec_pct = ad_fundos_desp_paga_vd_afdp / dotacao_actualizada_da) |>
+#   filter(!is.na(`Nome CED Agregado`))
+
+# Pivot wider
+# df_ambito_wide <- df_ambito |>
+#   pivot_wider(
+#     names_from = ambito,
+#     values_from = c(dotacao_actualizada_da, ad_fundos_desp_paga_vd_afdp, exec_pct),
+#     names_glue = "{ambito}_{.value}"
+#   )
+# 
+# # Build gt table
+# df_ambito_wide |>
+#   gt(rowname_col = "Nome CED Agregado") |>
+#   tab_header(
+#     title = "Execução Orçamental por CED",
+#     subtitle = "Investimento Interno | Data Tipo: Valor"
+#   ) |>
+#   cols_width(
+#     stub() ~ px(250)
+#   ) |>
+#   tab_spanner(
+#     label = "Central",
+#     columns = starts_with("Central")
+#   ) |>
+#   tab_spanner(
+#     label = "Provincial",
+#     columns = starts_with("Provincial")
+#   ) |>
+#   tab_spanner(
+#     label = "Distrital",
+#     columns = starts_with("Distrital")
+#   ) |>
+#   fmt_number(
+#     columns = contains(c("dotacao", "ad_fundos")),
+#     decimals = 0,
+#     sep_mark = ","
+#   ) |>
+#   fmt_percent(
+#     columns = contains("exec_pct"),
+#     decimals = 1
+#   ) |>
+#   sub_missing(
+#     columns = where(is.numeric),
+#     missing_text = "-"
+#   ) |>
+#   tab_stubhead(label = "Nome CED Agregado") |>
+#   cols_label(
+#     ends_with("dotacao_actualizada_da") ~ "Dotação Actualizada",
+#     ends_with("ad_fundos_desp_paga_vd_afdp") ~ "Fundos Pagos",
+#     ends_with("exec_pct") ~ "Exec %"
+#   )
+
+
 ```
 
 
