@@ -346,6 +346,10 @@ df_peso |>
     style     = cell_text(align = "left"),
     locations = cells_stub()
   ) |>
+  tab_style(
+    style     = cell_text(align = "center"),
+    locations = cells_title(groups = "title")
+  ) |> 
   tab_options(
     heading.align                     = "center",
     heading.title.font.size           = px(14),
@@ -1022,6 +1026,10 @@ tbl_final |>
     align = "left",
     columns = descricao
   ) |>
+  tab_style(
+    style     = cell_text(align = "center"),
+    locations = cells_title(groups = "title")
+  ) |> 
   tab_options(
     heading.title.font.size = px(14),
     table.font.size = px(10),
@@ -1190,6 +1198,82 @@ df_wide |>
 
 ```
 
+```{r}
+df |>
+  filter(
+    data_tipo    == "Valor",
+    reporte_tipo == "Investimento Interno",
+    ambito       == "Central",
+    descricao    == "MEC",
+    ano          == 2025
+  ) |>
+  group_by(programa_tipo, fr) |>
+  summarise(
+    orcamento = sum(dotacao_actualizada_da,       na.rm = TRUE),
+    despesa   = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups   = "drop"
+  ) |>
+  mutate(
+    exec = case_when(
+      orcamento == 0 & despesa == 0 ~ NA_real_,
+      orcamento == 0                ~ NA_real_,
+      TRUE                          ~ despesa / orcamento * 100
+    )
+  ) |>
+  gt(rowname_col = "programa_tipo") |>
+  tab_header(
+    title = "Investimento Interno; Central (MEC)"
+  ) |>
+  cols_label(
+    fr        = "Fonte de Recursos",
+    orcamento = "Orçamento",
+    despesa   = "Despesa",
+    exec      = "% Execução"
+  ) |>
+  fmt_number(
+    columns  = c(orcamento, despesa),
+    decimals = 0,
+    use_seps = TRUE
+  ) |>
+  fmt_number(
+    columns  = exec,
+    decimals = 1,
+    use_seps = FALSE
+  ) |>
+  text_transform(
+    locations = cells_body(columns = exec),
+    fn = function(x) case_when(
+      is.na(x) | x == "NA" ~ "-",
+      TRUE                  ~ paste0(x, "%")
+    )
+  ) |>
+  text_transform(
+    locations = cells_body(columns = exec),
+    fn        = function(x) if_else(x == "-", "-", paste0(x, "%"))
+  ) |>
+  tab_style(
+    style     = cell_text(weight = "bold"),
+    locations = list(cells_column_labels())
+  ) |>
+  tab_style(
+    style     = cell_text(align = "left"),
+    locations = cells_stub()
+  ) |>
+  tab_style(
+    style     = cell_text(align = "center"),
+    locations = cells_title(groups = "title")
+  ) |> 
+  tab_options(
+    heading.align                     = "center",
+    heading.title.font.size           = px(14),
+    column_labels.border.bottom.width = px(2),
+    table.border.top.color            = "white",
+    row.striping.background_color     = "#F7F7F7",
+    table.font.size                   = px(10),
+    stub.border.width                 = px(0)
+  ) |>
+  opt_align_table_header(align = "center")
+```
 
 ---
 
