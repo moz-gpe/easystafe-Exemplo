@@ -87,10 +87,6 @@ rm(df_absa,
 
 # COMPILAR FICHEIROS ------------------------------------------------------
 
-# Save in Excel (existing) and also in Parquet format to the same folder.
-# gravar_compilacao_*() returns the Excel file path invisibly, which we use
-# to derive the parquet filename and read back the compiled data.
-
 path_sistafe <- gravar_compilacao_sistafe()
 read_xlsx(path_sistafe) |>
   write_parquet(sub("\\.xlsx$", ".parquet", path_sistafe),

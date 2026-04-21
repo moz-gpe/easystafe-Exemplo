@@ -35,6 +35,10 @@ body {
   border-bottom: 1px solid #dddddd;
 }
 
+.quarto-title-meta {
+  margin-bottom: 2rem !important;
+}
+
 
 /* Main title text */
 .quarto-title-block h1.title {
