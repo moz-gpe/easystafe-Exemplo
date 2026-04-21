@@ -141,7 +141,8 @@ df <- df_esistafe |>
 ## Resumo Executivo {#sec-summary}
 
 
-```{r gt-execucao-global}
+```{r totals-compute}
+#| include: false
 
 totals <- df |>
   summarise(
@@ -149,8 +150,17 @@ totals <- df |>
     executado = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
     exec_pct  = executado / dotacao,
     n_ugb     = n_distinct(ugb_id),
-    n_prov    = n_distinct(provincia)
+    n_prov    = n_distinct(provincia[provincia != "-"])
   )
+```
+
+Este relatório foi elaborado com base nos dados do ano de **`r max(df$ano)`**, exportados do sistema e-SISTAFE a **`r format(max(df$data_extraido), '%d de %B de %Y')`**. Os dados cobrem `r scales::comma(totals$n_ugb)` Unidades Gestoras Beneficiárias (UGBs) distribuídas pelas `r totals$n_prov` províncias do país.
+
+O relatório apresenta uma análise da execução orçamental do sector da educação e cultura, organizada em torno das seguintes dimensões: (i) a execução global do orçamento, por tipo de reporte (Funcionamento, Investimento Interno e Investimento Externo); (ii) a distribuição da dotação e da execução financeira por província; (iii) a análise por instituição e nível administrativo (central, provincial e distrital); e (iv) a execução por função orçamental e fonte de recursos. Todos os valores referem-se à dotação actualizada (DA) e à despesa paga (AFDP), calculados a partir dos registos do tipo *Valor*.
+
+A 31 de Dezembro de **`r max(df$ano)`**, o sector registou uma dotação actualizada total de **`r fmt_mzn_m(totals$dotacao)`**, com uma despesa paga de **`r fmt_mzn_m(totals$executado)`**, correspondendo a uma taxa de execução global de **`r percent(totals$exec_pct, accuracy = 0.1)`**. Ver tabela abaixo.
+
+```{r gt-execucao-global}
 
 tibble(
   Indicador = c(
@@ -202,6 +212,72 @@ tibble(
     column_labels.border.top.color     = "black"
   )
 ```
+
+```{r tipo-reporte-compute}
+#| include: false
+
+df_reporte_stats <- df |>
+  group_by(reporte_tipo) |>
+  summarise(
+    dotacao  = sum(dotacao_actualizada_da,       na.rm = TRUE),
+    execucao = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups  = "drop"
+  ) |>
+  mutate(
+    exec_pct    = execucao / dotacao,
+    pct_dotacao = dotacao / sum(dotacao)
+  )
+
+func_pct  <- df_reporte_stats |> filter(reporte_tipo == "Funcionamento")       |> pull(pct_dotacao)
+int_pct   <- df_reporte_stats |> filter(reporte_tipo == "Investimento Interno") |> pull(pct_dotacao)
+ext_pct   <- df_reporte_stats |> filter(reporte_tipo == "Investimento Externo") |> pull(pct_dotacao)
+func_exec <- df_reporte_stats |> filter(reporte_tipo == "Funcionamento")       |> pull(exec_pct)
+int_exec  <- df_reporte_stats |> filter(reporte_tipo == "Investimento Interno") |> pull(exec_pct)
+ext_exec  <- df_reporte_stats |> filter(reporte_tipo == "Investimento Externo") |> pull(exec_pct)
+```
+
+A figura abaixo ilustra a distribuição da dotação actualizada por tipo de reporte. O **Funcionamento** representa **`r percent(func_pct, accuracy = 0.1)`** do total, o **Investimento Externo** **`r percent(ext_pct, accuracy = 0.1)`** e o **Investimento Interno** **`r percent(int_pct, accuracy = 0.1)`**. Ver figura abaixo.
+
+```{r plot-pie-tipo-reporte}
+#| echo: false
+#| fig-width: 5
+#| fig-height: 3
+#| out-width: "60%"
+#| fig-align: "center"
+
+df_pie <- df |>
+  group_by(reporte_tipo) |>
+  summarise(dotacao_actualizada_da = sum(dotacao_actualizada_da, na.rm = TRUE), .groups = "drop") |>
+  mutate(pct = dotacao_actualizada_da / sum(dotacao_actualizada_da),
+         pct_label = paste0(round(pct * 100, 0), "%"))
+
+ggplot(df_pie, aes(x = "", y = dotacao_actualizada_da, fill = reporte_tipo)) +
+  geom_col(width = 1, color = "white") +
+  coord_polar(theta = "y") +
+  geom_text(
+    aes(label = pct_label),
+    position    = position_stack(vjust = 0.5),
+    size        = 3.5,
+    show.legend = FALSE
+  ) +
+  scale_fill_manual(values = c(
+    "Funcionamento"        = "#F4A226",
+    "Investimento Interno" = "#70AD47",
+    "Investimento Externo" = "#4472C4"
+  )) +
+  labs(
+    title = "Dotação Actualizada por Tipo de Reporte",
+    fill  = "Tipo de Reporte"
+  ) +
+  theme_void() +
+  theme(
+    plot.title          = element_text(hjust = 0.5, size = 10, face = "plain"),
+    plot.title.position = "plot",
+    legend.position     = "right"
+  )
+```
+
+O orçamento do sector distribui-se por três tipos de reporte: Funcionamento, Investimento Interno e Investimento Externo. O **Funcionamento** representa a maior parcela da dotação total, com **`r percent(func_pct, accuracy = 0.1)`**, seguido do **Investimento Externo** com **`r percent(ext_pct, accuracy = 0.1)`** e do **Investimento Interno** com **`r percent(int_pct, accuracy = 0.1)`**. Em termos de execução financeira, o Funcionamento registou a taxa mais elevada (**`r percent(func_exec, accuracy = 0.1)`**), enquanto o Investimento Interno e o Investimento Externo apresentaram taxas de **`r percent(int_exec, accuracy = 0.1)`** e **`r percent(ext_exec, accuracy = 0.1)`**, respectivamente, reflectindo os desafios típicos associados à execução de projectos de investimento. Ver tabela abaixo.
 
 ```{r gt-tipo-reporte}
 #| echo: false
@@ -274,6 +350,37 @@ df |>
   )
 
 ```
+
+```{r tipo-reporte-provincia-compute}
+#| include: false
+
+df_prov_peso_stats <- df |>
+  filter(
+    data_tipo == "Valor",
+    ano       == 2025,
+    mes       == "Dezembro",
+    ambito    == "Provincial"
+  ) |>
+  group_by(provincia, reporte_tipo) |>
+  summarise(dotacao = sum(dotacao_actualizada_da, na.rm = TRUE), .groups = "drop") |>
+  group_by(reporte_tipo) |>
+  mutate(peso = dotacao / sum(dotacao) * 100) |>
+  ungroup()
+
+top_func <- df_prov_peso_stats |>
+  filter(reporte_tipo == "Funcionamento") |>
+  slice_max(peso, n = 1)
+
+top_int  <- df_prov_peso_stats |>
+  filter(reporte_tipo == "Investimento Interno") |>
+  slice_max(peso, n = 1)
+
+top_ext  <- df_prov_peso_stats |>
+  filter(reporte_tipo == "Investimento Externo") |>
+  slice_max(peso, n = 1)
+```
+
+A tabela abaixo apresenta o peso relativo (%) da dotação provincial por tipo de reporte, permitindo identificar a distribuição territorial dos recursos alocados ao sector. No âmbito do **Funcionamento**, a província de **`r top_func$provincia`** concentra a maior parcela, com **`r round(top_func$peso, 1)`%** do total provincial. No que respeita ao **Investimento Interno**, **`r top_int$provincia`** apresenta o maior peso com **`r round(top_int$peso, 1)`%**, enquanto no **Investimento Externo**, **`r top_ext$provincia`** lidera com **`r round(top_ext$peso, 1)`%**. Ver tabela abaixo.
 
 ```{r gt-tipo-reporte-provincia}
 
@@ -361,45 +468,24 @@ df_peso |>
   )
 ```
 
-```{r plot-pie-tipo-reporte}
-#| echo: false
-#| fig-width: 5
-#| fig-height: 3
-#| out-width: "60%"
-#| fig-align: "center"
+```{r inst-dotacao-compute}
+#| include: false
 
-df_pie <- df |>
-  group_by(reporte_tipo) |>
-  summarise(dotacao_actualizada_da = sum(dotacao_actualizada_da, na.rm = TRUE), .groups = "drop") |>
-  mutate(pct = dotacao_actualizada_da / sum(dotacao_actualizada_da),
-         pct_label = paste0(round(pct * 100, 0), "%"))
+df_inst_stats <- df |>
+  filter(data_tipo == "Valor", ano == 2025, mes == "Dezembro") |>
+  group_by(descricao) |>
+  summarise(dotacao = sum(dotacao_actualizada_da, na.rm = TRUE), .groups = "drop") |>
+  arrange(desc(dotacao)) |>
+  mutate(pct = dotacao / sum(dotacao) * 100)
 
-ggplot(df_pie, aes(x = "", y = dotacao_actualizada_da, fill = reporte_tipo)) +
-  geom_col(width = 1, color = "white") +
-  coord_polar(theta = "y") +
-  geom_text(
-    aes(label = pct_label),
-    position    = position_stack(vjust = 0.5),
-    size        = 3.5,
-    show.legend = FALSE
-  ) +
-  scale_fill_manual(values = c(
-    "Funcionamento"        = "#F4A226",
-    "Investimento Interno" = "#70AD47",
-    "Investimento Externo" = "#4472C4"
-  )) +
-  labs(
-    title = glue::glue("Dotação Actualizada por Tipo de Reporte"),
-    fill  = "Tipo de Reporte"
-  ) +
-  theme_void() +
-  theme(
-    plot.title          = element_text(hjust = 0.5, size = 12, color = viz_palette[["cinzento_escuro"]]),
-    plot.title.position = "plot",
-    legend.position     = "right"
-  )
-
+top_inst_da    <- df_inst_stats |> slice(1)
+second_inst_da <- df_inst_stats |> slice(2)
+third_inst_da  <- df_inst_stats |> slice(3)
+n_inst         <- nrow(df_inst_stats)
+top3_pct       <- sum(df_inst_stats$pct[1:3])
 ```
+
+A tabela abaixo apresenta a dotação actualizada por tipo de instituição, ordenada de forma decrescente. O sector conta com **`r n_inst`** tipos de instituição, sendo **`r top_inst_da$descricao`** a que absorve a maior parcela orçamental (**`r round(top_inst_da$pct, 1)`%**), seguida de **`r second_inst_da$descricao`** (**`r round(second_inst_da$pct, 1)`%**) e **`r third_inst_da$descricao`** (**`r round(third_inst_da$pct, 1)`%**). Em conjunto, estas três categorias representam **`r round(top3_pct, 1)`%** da dotação total do sector. Ver tabela abaixo.
 
 ```{r gt-por-tipo-instituicao}
 #| echo: false
@@ -446,6 +532,70 @@ df_summary |>
     column_labels.border.bottom.width = px(2)
   )
 
+```
+
+```{r pie-instituicao-compute}
+#| include: false
+
+df_pie_inst <- df |>
+  filter(data_tipo == "Valor", ano == 2025, mes == "Dezembro") |>
+  group_by(descricao) |>
+  summarise(dotacao = sum(dotacao_actualizada_da, na.rm = TRUE), .groups = "drop") |>
+  mutate(pct = dotacao / sum(dotacao) * 100) |>
+  arrange(desc(dotacao))
+
+top_inst    <- df_pie_inst |> slice(1)
+second_inst <- df_pie_inst |> slice(2)
+```
+
+A figura abaixo ilustra a distribuição da dotação actualizada do sector por tipo de instituição. A instituição com maior peso orçamental é **`r top_inst$descricao`**, que concentra **`r round(top_inst$pct, 1)`%** da dotação total, seguida de **`r second_inst$descricao`** com **`r round(second_inst$pct, 1)`%**. Esta distribuição reflecte a estrutura administrativa do sector, onde o nível provincial e distrital absorve a maior parte dos recursos destinados à prestação directa de serviços de educação. Ver figura abaixo.
+
+```{r plot-pie-tipo-instituicao}
+#| echo: false
+#| fig-width: 5
+#| fig-height: 3
+#| out-width: "60%"
+#| fig-align: "center"
+
+df_pie <- df |>
+  filter(data_tipo == "Valor", ano == 2025, mes == "Dezembro") |>
+  group_by(descricao) |>
+  summarise(dotacao = sum(dotacao_actualizada_da, na.rm = TRUE), .groups = "drop") |>
+  mutate(
+    pct       = dotacao / sum(dotacao) * 100,
+    pct_label = paste0(round(pct), "%")
+  ) |>
+  arrange(desc(descricao)) |>
+  mutate(cum_pct = cumsum(pct), mid_pct = cum_pct - pct / 2)
+
+ggplot(df_pie, aes(x = "", y = dotacao, fill = descricao)) +
+  geom_col(width = 1, color = "white", linewidth = 0.5) +
+  coord_polar(theta = "y") +
+  geom_text(
+    aes(label = pct_label),
+    position    = position_stack(vjust = 0.5),
+    size        = 3,
+    color       = "black",
+    show.legend = FALSE
+  ) +
+  scale_fill_manual(values = c(
+    "SDEJT"               = "#F4A226",
+    "MEC"                 = "#4472C4",
+    "Outras Instituições"  = "#70AD47",
+    "DPE - OGDP"          = "#ED7D31",
+    "SPAS"                = "#A9D18E",
+    "CPED"                = "#9DC3E6"
+  )) +
+  labs(title = "Dotação Actualizada por Tipo de Instituição") +
+  theme_void() +
+  theme(
+    plot.title       = element_text(size = 10, face = "plain"),
+    legend.position  = "right",
+    legend.title     = element_blank(),
+    legend.text      = element_text(size = 9),
+    legend.key.size  = unit(0.4, "cm"),
+    legend.spacing.y = unit(0.2, "cm")
+  )
 ```
 
 ```{r gt-tipo-report-detalhe}
@@ -595,67 +745,6 @@ df_pivot |>
     table.border.top.color            = "white",
     row.striping.background_color     = "#F7F7F7"
 )
-```
-
-```{r plot-pie-tipo-instituicao}
-#| echo: false
-#| fig-width: 5
-#| fig-height: 3
-#| out-width: "60%"
-#| fig-align: "center"
-
-# Step 1: Summarise
-df_pie <- df |>
-  filter(
-    data_tipo == "Valor",
-    ano       == 2025,
-    mes       == "Dezembro"
-  ) |>
-  group_by(descricao) |>
-  summarise(
-    dotacao = sum(dotacao_actualizada_da, na.rm = TRUE),
-    .groups = "drop"
-  ) |>
-  mutate(
-    pct       = dotacao / sum(dotacao) * 100,
-    pct_label = paste0(round(pct), "%")
-  ) |> 
-    arrange(desc(descricao)) |>
-  mutate(
-    cum_pct  = cumsum(pct),
-    mid_pct  = cum_pct - pct / 2
-  )
-
-# Step 2: Plot
-ggplot(df_pie, aes(x = "", y = dotacao, fill = descricao)) +
-  geom_col(width = 1, color = "white", linewidth = 0.5) +
-  coord_polar(theta = "y") +
-  geom_text(
-    aes(label = pct_label),
-    position    = position_stack(vjust = 0.5),
-    size        = 3,
-    color       = "black",
-    show.legend = FALSE
-  ) +
-  scale_fill_manual(values = c(
-    "SDEJT"               = "#F4A226",
-    "MEC"                 = "#4472C4",
-    "Outras Instituições"  = "#70AD47",
-    "DPE - OGDP"          = "#ED7D31",
-    "SPAS"                = "#A9D18E",
-    "CPED"                = "#9DC3E6"
-  )) +
-  labs(
-    title = "Dotação Actualizada por Tipo de Instituição",
-  ) +
-  theme_void() +
-  theme(
-    legend.position  = "right",
-    legend.title     = element_blank(),
-    legend.text      = element_text(size = 9),
-    legend.key.size  = unit(0.4, "cm"),
-    legend.spacing.y = unit(0.2, "cm")
-  )
 ```
 
 ```{r gt-por-nivel-instituicao}
@@ -1206,6 +1295,101 @@ df |>
   opt_align_table_header(align = "center")
 ```
 
+```{r investimento-interno-provincial}
+
+# ── Detail rows: programa_tipo x fr ───────────────────────────────────────────
+df_detail <- df |>
+  filter(
+    data_tipo    == "Valor",
+    reporte_tipo == "Investimento Interno",
+    ambito       == "Provincial"
+  ) |>
+  group_by(programa_tipo, fr) |>
+  summarise(
+    orcamento = sum(dotacao_actualizada_da,       na.rm = TRUE),
+    execucao  = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups   = "drop"
+  ) |>
+  mutate(
+    exec_pct = case_when(
+      orcamento == 0 ~ NA_real_,
+      TRUE           ~ execucao / orcamento
+    )
+  )
+
+# Pre-compute grand total exec_pct for injection into summary row
+total_exec_pct <- sum(df_detail$execucao,  na.rm = TRUE) /
+                  sum(df_detail$orcamento, na.rm = TRUE)
+
+# ── Build gt table ─────────────────────────────────────────────────────────────
+df_detail |>
+  gt(rowname_col = "fr", groupname_col = "programa_tipo") |>
+  tab_header(
+    title = "Investimento Interno por Tipo de Programa e Fonte de Recursos (Âmbito Provincial)"
+  ) |>
+  cols_label(
+    orcamento = "Dotação Actualizada",
+    execucao  = "Despesa Paga",
+    exec_pct  = "% Execução"
+  ) |>
+  fmt_number(
+    columns  = c(orcamento, execucao),
+    decimals = 0,
+    use_seps = TRUE
+  ) |>
+  fmt_percent(
+    columns  = exec_pct,
+    decimals = 0
+  ) |>
+  sub_missing(
+    columns      = exec_pct,
+    missing_text = "-"
+  ) |>
+  # ── Grand summary (Total) row ────────────────────────────────────────────────
+  grand_summary_rows(
+    columns = c(orcamento, execucao),
+    fns     = list(Total = ~sum(., na.rm = TRUE)),
+    fmt     = list(~fmt_number(., decimals = 0, use_seps = TRUE))
+  ) |>
+  grand_summary_rows(
+    columns = exec_pct,
+    fns     = list(Total = ~total_exec_pct),
+    fmt     = list(~fmt_percent(., decimals = 0))
+  ) |>
+  # ── Styling ──────────────────────────────────────────────────────────────────
+  tab_style(
+    style     = cell_text(weight = "bold"),
+    locations = cells_row_groups()
+  ) |>
+  tab_style(
+    style     = cell_text(weight = "bold"),
+    locations = list(cells_grand_summary(), cells_stub_grand_summary())
+  ) |>
+  tab_style(
+    style     = cell_borders(sides = "top", color = "black", weight = px(2)),
+    locations = list(cells_grand_summary(), cells_stub_grand_summary())
+  ) |>
+  tab_style(
+    style     = cell_text(weight = "bold"),
+    locations = cells_column_labels()
+  ) |>
+  tab_style(
+    style     = cell_text(align = "left"),
+    locations = cells_stub()
+  ) |>
+  cols_align(align = "right", columns = c(orcamento, execucao, exec_pct)) |>
+  #opt_row_striping() |>
+  tab_options(
+    heading.title.font.size           = px(14),
+    table.font.size                   = px(10),
+    table.border.top.color            = "white",
+    stub.border.width                 = px(0),
+    column_labels.border.bottom.width = px(2),
+    row.striping.background_color     = "#F2F2F2",
+    row_group.background.color        = "#F2F2F2"
+  )
+```
+
 ## Notas Metodológicas {#sec-notas}
 
 - **Fonte de dados:** e-SISTAFE, exportado via relatório consolidado por UGB/Funcional/Programa/FR/CED.
@@ -1216,4 +1400,4 @@ df |>
 
 ---
 
-*Relatório gerado automaticamente em R/Quarto · GIZ Moçambique — MEKM*
+*Relatório gerado automaticamente em R/Quarto · GIZ Moçambique �
