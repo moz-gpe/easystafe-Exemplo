@@ -1,5 +1,14 @@
-pak::pak("moz-gpe/easystafe")
+
+# DOCUMENTACAO DO PACOTE 'easystafe' DISPONIVEL ABAIXO
 # https://github.com/moz-gpe/easystafe
+
+# CORRER CODIGOS ABAIXO PARA ACTUALIZAR O PACOTE
+# pak::pak("moz-gpe/easystafe")
+
+# CORRER CODIGOS ABAIXO LINHA POR LINHA NA JANELA 'TERMINAL' PARA ALINHAR SCRIPT COM GITHUB
+# git fetch origin
+# git reset --hard origin/main
+# git clean -fd
 
 library(tidyverse)
 library(readxl)
