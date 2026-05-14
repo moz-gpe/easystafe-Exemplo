@@ -47,14 +47,14 @@ lookups <- list(
     filter(!codigo_ugb == "Total"),
 
   funcao = suppressMessages(
-    read_excel(metadata_lookup, sheet = "metadados")) %>%
+    read_excel(metadata_lookup, sheet = "funcao")) %>%
     clean_names() %>%
     select(funcao,
            funcao_nivel = classificacao_funcional_por_nivel) %>%
     filter(!is.na(funcao)),
 
   programa = suppressMessages(
-    read_excel(metadata_lookup, sheet = "programa_tipo")) %>%
+    read_excel(metadata_lookup, sheet = "programa")) %>%
     clean_names() %>%
     select(programa,
            programa_tipo) %>%
