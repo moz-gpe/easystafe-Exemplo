@@ -23,8 +23,12 @@ library(easystafe)
 metadata_lookup <- "Documents/lookup.xlsx"
 
 paths_esistafe <- c(
-  "Data/2025/",
-  "Data/2026/"
+  "Data/202503",
+  "Data/202504",
+  "Data/202601",
+  "Data/202602",
+  "Data/202603",
+  "Data/202604"
 )
 
 #path_razao_contabalistica <- "Data/razao_cont/2026_01/"
@@ -73,7 +77,9 @@ df_esistafe <- paths_esistafe %>%
     include_metrica        = TRUE,
     correct_negatives      = TRUE,
     quiet                  = FALSE
-  )) %>%
+  ) %>%
+    mutate(conjunto = basename(path))
+  ) %>%
   bind_rows() %>%
   left_join(lookups$ugb, by = join_by(ugb_id == codigo_ugb)) %>%
   left_join(lookups$funcao, by = join_by(funcao == funcao)) %>%
@@ -81,7 +87,8 @@ df_esistafe <- paths_esistafe %>%
   relocate(funcao_nivel, .after = funcao) %>%
   relocate(provincia, distrito, ambito, adm2020_24, adm2025_29,
            nivel_da_instituicao, descricao, programa_tipo,
-           .after = ced)
+           .after = ced) |>
+  relocate(conjunto, .before = everything())
 
 gravar_esistafe(df_esistafe,
                 output_folder = "Dataout/",
