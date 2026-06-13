@@ -36,6 +36,10 @@
 *.shp
 *.dbf
 
+#quarto build output
+*.html
+*_files/
+
 #nothing from these folders
 AI/*
 GIS/*
