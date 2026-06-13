@@ -1,0 +1,3715 @@
+---
+title: "Relatório de Execução Orçamental Referente ao Exercício Económico "
+number-sections: true
+format:
+  html:
+    include-in-header:
+      text: |
+        <style>
+        figcaption.figure-caption { text-align: center; }
+        </style>
+execute:
+  warning: false
+  message: false
+  error: false
+language:
+  crossref-tbl-title: "Tabela"
+  crossref-fig-title: "Figura"
+---
+
+```{r setup}
+#| include: false
+
+library(tidyverse)
+library(gt)
+library(gtExtras)
+library(scales)
+library(patchwork)
+library(glue)
+library(arrow)
+library(ggrepel)
+library(pins)
+library(flextable)
+
+board <- board_folder(
+  "C:/Users/Joe/Documents/R/moz-data-pins/Data",
+  versioned = TRUE
+)
+
+df <- pin_read(board, "demostrativo_consolidado_compilado")
+
+pin_mod <- format(as.Date(pin_meta(board, "demostrativo_consolidado_compilado")$created), "%d/%m/%Y")
+
+fmt_mil <- function(x, digits = 0)
+  format(round(x, digits), big.mark = ".", decimal.mark = ",", nsmall = digits, scientific = FALSE)
+
+pull1 <- function(df, ...) { x <- pull(df, ...); if (length(x) == 0) NA_real_ else x }
+
+```
+
+```{r data-prep}
+#| include: false
+
+financial_cols <- c(
+  "dotacao_inicial", "dotacao_revista", "dotacao_actualizada_da",
+  "dotacao_disponivel", "dotacao_cabimentada_dc", "ad_fundos_concedidos_af",
+  "despesa_paga_via_directa_dp", "ad_fundos_desp_paga_vd_afdp",
+  "ad_fundos_liquidados_laf", "despesa_liquidada_via_directa_lvd",
+  "liq_ad_fundos_via_directa_lafvd"
+)
+
+df <- df |>
+  filter(data_tipo == "Valor") |>
+  mutate(
+    across(all_of(financial_cols), \(x) round(x / 1000, 0)),
+    exec_rate = if_else(
+      dotacao_actualizada_da > 0,
+      ad_fundos_desp_paga_vd_afdp / dotacao_actualizada_da,
+      NA_real_
+    ),
+    funcao_label = str_trim(str_remove(funcao, "^\\d+ - "))
+  )
+
+provincia_order <- c(
+  "Niassa", "Cabo Delgado", "Nampula",
+  "Zambézia", "Tete", "Manica",
+  "Sofala", "Inhambane", "Gaza",
+  "Maputo Província", "Maputo Cidade",
+  "Total"
+)
+
+mes_order <- c(
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+)
+
+latest_ano <- max(df$ano)
+latest_mes <- df |>
+  filter(ano == latest_ano) |>
+  pull(mes) |>
+  unique() |>
+  (\(m) m[which.max(match(m, mes_order))])()
+
+years  <- sort(unique(df$ano))
+latest <- max(years)
+prev   <- years[length(years) - 1]
+
+latest_mes_num <- match(latest_mes, mes_order)
+ultimo_dia     <- lubridate::days_in_month(
+  as.Date(paste(latest, latest_mes_num, "01", sep = "-"))
+)
+```
+
+## Introdução
+
+O presente Relatório diz respeito a execução do Orçamento do Estado do sector da Educação, referente as actividades realizadas durante o mês findo a `r ultimo_dia` de `r latest_mes`, de acordo com os registos captados através do e-Sistafe, nos termos estabelecidos na Lei nº 9/2002, de 12 de Fevereiro que cria o Sistema de Administração Financeira do Estado, e na Lei nº 14/2020 de 23 de Abril que revoga a Lei n.º 9/2002, com a excepção do número 1 do artigo 1º, relativo à criação do SISTAFE,  e pelo Decreto nº 26/2021 de 3 de Maio que revoga o Decreto nº 23/2004, de 20 de Agosto atinente a  aprovação do Regulamento do SISTAFE.
+
+O exercício económico de `r latest`, constituiu o segundo ano de operacionalização do PQG 2025-2029 tem como objectivo acelerar o crescimento económico inclusivo e sustentável, com foco na diversificação da economia, criação de empregos, modernização de infra-estruturas e gestão racional dos recursos naturais, visando a redução da pobreza e das desigualdades sociais e espaciais e o estabelecimento dos alicerces para a independência económica do País.
+
+O PESOE `r latest` orienta a alocação criteriosa e estratégica dos recursos públicos, assegurando o cumprimento das metas do PQG. As prioridades incidem sobre a estabilidade macroeconómica, a eficiência na despesa pública e a promoção da transparência e da prestação de contas. A alocação de recursos para `r latest`, centra-se no investimento em infra-estruturas produtivas, logísticas e sociais, com destaque para transportes, digitalização, estradas, educação e saúde.
+
+
+## Orçamento do Sector da Educação
+
+```{r narrative-tbl1}
+#| include: false
+
+n1_data <- df |>
+  group_by(ano) |>
+  filter(match(mes, mes_order) == max(match(mes, mes_order), na.rm = TRUE)) |>
+  ungroup() |>
+  group_by(reporte_tipo, ano) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  pivot_wider(names_from = ano, values_from = c(dotacao, paga), names_glue = "{.value}_{ano}") |>
+  mutate(
+    dotacao_abs_diff = .data[[paste0("dotacao_", latest)]] - .data[[paste0("dotacao_", prev)]],
+    dotacao_pct      = round(if_else(.data[[paste0("dotacao_", prev)]] != 0,
+                               dotacao_abs_diff / abs(.data[[paste0("dotacao_", prev)]]) * 100,
+                               NA_real_), 1),
+    paga_abs_diff    = .data[[paste0("paga_", latest)]] - .data[[paste0("paga_", prev)]],
+    paga_pct         = round(if_else(.data[[paste0("paga_", prev)]] != 0,
+                               paga_abs_diff / abs(.data[[paste0("paga_", prev)]]) * 100,
+                               NA_real_), 1)
+  )
+
+# Grand totals
+n1_tot_dot_prev <- sum(n1_data[[paste0("dotacao_", prev)]])
+n1_tot_dot_lat  <- sum(n1_data[[paste0("dotacao_", latest)]])
+n1_tot_dot_diff <- n1_tot_dot_lat - n1_tot_dot_prev
+n1_tot_dot_pct  <- round(n1_tot_dot_diff / abs(n1_tot_dot_prev) * 100, 1)
+
+n1_tot_pag_prev <- sum(n1_data[[paste0("paga_", prev)]])
+n1_tot_pag_lat  <- sum(n1_data[[paste0("paga_", latest)]])
+n1_tot_pag_diff <- n1_tot_pag_lat - n1_tot_pag_prev
+n1_tot_pag_pct  <- round(n1_tot_pag_diff / abs(n1_tot_pag_prev) * 100, 1)
+
+# Reporte_tipo with largest and smallest allocation change
+n1_max_dot      <- n1_data |> slice_max(dotacao_pct, n = 1, with_ties = FALSE)
+n1_max_dot_name <- n1_max_dot$reporte_tipo
+n1_max_dot_pct  <- n1_max_dot$dotacao_pct
+n1_max_dot_diff <- n1_max_dot$dotacao_abs_diff
+
+n1_min_dot      <- n1_data |> slice_min(dotacao_pct, n = 1, with_ties = FALSE)
+n1_min_dot_name <- n1_min_dot$reporte_tipo
+n1_min_dot_pct  <- n1_min_dot$dotacao_pct
+n1_min_dot_diff <- n1_min_dot$dotacao_abs_diff
+
+# Reporte_tipo with largest and smallest despesa change
+n1_max_pag      <- n1_data |> slice_max(paga_pct, n = 1, with_ties = FALSE)
+n1_max_pag_name <- n1_max_pag$reporte_tipo
+n1_max_pag_pct  <- n1_max_pag$paga_pct
+n1_max_pag_diff <- n1_max_pag$paga_abs_diff
+
+n1_min_pag      <- n1_data |> slice_min(paga_pct, n = 1, with_ties = FALSE)
+n1_min_pag_name <- n1_min_pag$reporte_tipo
+n1_min_pag_pct  <- n1_min_pag$paga_pct
+n1_min_pag_diff <- n1_min_pag$paga_abs_diff
+```
+
+O orçamento total do Sector da Educação passou de `r fmt_mil(n1_tot_dot_prev)` milhões de Mts. em `r prev` para `r fmt_mil(n1_tot_dot_lat)` milhões de Mts. em `r latest`, uma variação absoluta de `r fmt_mil(abs(n1_tot_dot_diff))` milhões de Mts. (`r n1_tot_dot_pct`%). Por tipo de reporte, `r n1_max_dot_name` registou o maior crescimento orçamental, com uma variação de `r fmt_mil(abs(n1_max_dot_diff))` milhões de Mts. (`r n1_max_dot_pct`%), enquanto `r n1_min_dot_name` apresentou a menor variação, de `r fmt_mil(abs(n1_min_dot_diff))` milhões de Mts. (`r n1_min_dot_pct`%).
+
+No que respeita à despesa paga, o total evoluiu de `r fmt_mil(n1_tot_pag_prev)` para `r fmt_mil(n1_tot_pag_lat)` milhões de Mts., correspondendo a uma variação de `r fmt_mil(abs(n1_tot_pag_diff))` milhões de Mts. (`r n1_tot_pag_pct`%). `r n1_max_pag_name` registou o maior crescimento na despesa (`r n1_max_pag_pct`%), ao passo que `r n1_min_pag_name` apresentou a menor variação (`r n1_min_pag_pct`%). O detalhe comparativo por tipo de reporte encontra-se na tabela seguinte:
+
+```{r tbl-1}
+#| echo: false
+#| tbl-cap: !expr glue("Mapa Comparativo do Orçamento ({latest_mes}, {prev}/{latest %% 100})")
+
+dotacao_cols <- paste0("dotacao_", years)
+paga_cols    <- paste0("paga_", years)
+
+tbl_data <- df |>
+  group_by(ano) |>
+  filter(match(mes, mes_order) == max(match(mes, mes_order), na.rm = TRUE)) |>
+  ungroup() |>
+  group_by(reporte_tipo, ano) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  pivot_wider(
+    names_from  = ano,
+    values_from = c(dotacao, paga),
+    names_glue  = "{.value}_{ano}"
+  ) |>
+  mutate(
+    dotacao_pct = if_else(
+      .data[[paste0("dotacao_", prev)]] != 0,
+      (.data[[paste0("dotacao_", latest)]] - .data[[paste0("dotacao_", prev)]]) /
+        abs(.data[[paste0("dotacao_", prev)]]) * 100,
+      NA_real_
+    ),
+    paga_pct = if_else(
+      .data[[paste0("paga_", prev)]] != 0,
+      (.data[[paste0("paga_", latest)]] - .data[[paste0("paga_", prev)]]) /
+        abs(.data[[paste0("paga_", prev)]]) * 100,
+      NA_real_
+    )
+  ) |>
+  select(reporte_tipo, all_of(dotacao_cols), dotacao_pct, all_of(paga_cols), paga_pct)
+
+# total row
+total_row <- tbl_data |>
+  summarise(across(where(is.numeric), sum, na.rm = TRUE)) |>
+  mutate(
+    reporte_tipo = "Total",
+    dotacao_pct = if_else(
+      .data[[paste0("dotacao_", prev)]] != 0,
+      (.data[[paste0("dotacao_", latest)]] - .data[[paste0("dotacao_", prev)]]) /
+        abs(.data[[paste0("dotacao_", prev)]]) * 100,
+      NA_real_
+    ),
+    paga_pct = if_else(
+      .data[[paste0("paga_", prev)]] != 0,
+      (.data[[paste0("paga_", latest)]] - .data[[paste0("paga_", prev)]]) /
+        abs(.data[[paste0("paga_", prev)]]) * 100,
+      NA_real_
+    )
+  )
+
+tbl_data <- bind_rows(tbl_data, total_row)
+
+typology <- data.frame(
+  col_keys = c("reporte_tipo", dotacao_cols, "dotacao_pct", paga_cols, "paga_pct"),
+  spanner  = c("Tipo de Reporte", rep("Orçamento", length(years) + 1), rep("Despesa", length(years) + 1)),
+  label    = c("Tipo de Reporte", as.character(years), "Dif. %", as.character(years), "Dif. %"),
+  stringsAsFactors = FALSE
+)
+
+flextable(tbl_data) |>
+  set_header_df(mapping = typology, key = "col_keys") |>
+  merge_h(part = "header") |>
+  merge_v(part = "header") |>
+  theme_vanilla() |>
+  bg(i = seq(1, nrow(tbl_data), 2), bg = "#f5f5f5", part = "body") |>
+  align(part = "header", align = "center") |>
+  align(j = 1, part = "all", align = "left") |>
+
+  colformat_num(
+    j            = c(dotacao_cols, paga_cols),
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = c("dotacao_pct", "paga_pct"),
+    digits = 1,
+    suffix = "%"
+  ) |>
+  bold(i = nrow(tbl_data), part = "body") |>
+  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+```{r narrative-fig1}
+#| include: false
+
+nf1_data <- df |>
+  filter(ano == latest_ano, mes == latest_mes) |>
+  group_by(reporte_tipo) |>
+  summarise(dotacao = sum(dotacao_actualizada_da, na.rm = TRUE), .groups = "drop") |>
+  mutate(pct = round(dotacao / sum(dotacao) * 100, 1))
+
+nf1_total   <- sum(nf1_data$dotacao)
+nf1_dominant <- nf1_data |> slice_max(dotacao, n = 1, with_ties = FALSE)
+nf1_second   <- nf1_data |> arrange(desc(dotacao)) |> slice(2)
+nf1_smallest <- nf1_data |> slice_min(dotacao, n = 1, with_ties = FALSE)
+```
+
+O orçamento total do Sector da Educação em `r latest_ano` ascendeu a `r fmt_mil(nf1_total)` milhões de Mts., distribuído por três componentes. `r nf1_dominant$reporte_tipo` representa a maior fatia, com `r fmt_mil(nf1_dominant$dotacao)` milhões de Mts. (`r nf1_dominant$pct`% do total), seguido de `r nf1_second$reporte_tipo` com `r fmt_mil(nf1_second$dotacao)` milhões de Mts. (`r nf1_second$pct`%). `r nf1_smallest$reporte_tipo` corresponde à menor componente, com `r fmt_mil(nf1_smallest$dotacao)` milhões de Mts. (`r nf1_smallest$pct`%), conforme ilustrado na figura seguinte:
+
+```{r fig-1}
+#| echo: false
+#| fig-cap: !expr glue("Divisão do Orçamento do Sector da Educação por Componentes ({latest_mes}, {latest})")
+#| fig-width: 5
+#| fig-height: 3
+
+fig1_data <- df |>
+  filter(ano == latest_ano, mes == latest_mes) |>
+  group_by(reporte_tipo) |>
+  summarise(dotacao = sum(dotacao_actualizada_da, na.rm = TRUE), .groups = "drop") |>
+  arrange(reporte_tipo) |>
+  mutate(pct = round(dotacao / sum(dotacao) * 100, 1))
+
+ggplot(fig1_data, aes(x = 0.5, y = dotacao, fill = reporte_tipo)) +
+  geom_col(width = 1, color = "white", linewidth = 0.8) +
+  coord_polar(theta = "y", start = 0, clip = "off") +
+  scale_x_continuous(limits = c(0, 1.0)) +
+  scale_fill_grey(start = 0.3, end = 0.85) +
+  labs(caption = glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) +
+  theme_void() +
+  theme(
+    legend.position  = "right",
+    legend.title     = element_blank(),
+    legend.text      = element_text(size = 11),
+    plot.caption     = element_blank()
+  )
+```
+
+```{r narrative-fig2}
+#| include: false
+
+nf2_data <- df |>
+  filter(ano == latest_ano, mes == latest_mes, !is.na(descricao)) |>
+  group_by(descricao) |>
+  summarise(dotacao = sum(dotacao_actualizada_da, na.rm = TRUE), .groups = "drop") |>
+  filter(dotacao > 0) |>
+  arrange(desc(dotacao))
+
+nf2_total   <- sum(nf2_data$dotacao)
+nf2_n       <- nrow(nf2_data)
+nf2_max     <- nf2_data |> slice(1)
+nf2_min     <- nf2_data |> slice(nf2_n)
+nf2_max_pct <- round(nf2_max$dotacao / nf2_total * 100, 1)
+nf2_min_pct <- round(nf2_min$dotacao / nf2_total * 100, 1)
+```
+
+Em `r latest_ano`, o orçamento do Sector da Educação está distribuído por `r nf2_n` descrições institucionais. `r nf2_max$descricao` concentra a maior alocação, com `r fmt_mil(nf2_max$dotacao)` milhões de Mts. (`r nf2_max_pct`% do total de `r fmt_mil(nf2_total)` milhões de Mts.), enquanto `r nf2_min$descricao` regista a menor, com `r fmt_mil(nf2_min$dotacao)` milhões de Mts. (`r nf2_min_pct`%), conforme ilustrado na figura seguinte:
+
+```{r fig-2}
+#| echo: false
+#| fig-cap: !expr glue("Divisão do Orçamento do Sector da Educação por Descrição Institucional ({latest_mes}, {latest})")
+#| fig-width: 6
+#| fig-height: 5
+
+fig2_data <- df |>
+  filter(ano == latest_ano, mes == latest_mes, !is.na(descricao)) |>
+  group_by(descricao) |>
+  summarise(dotacao = sum(dotacao_actualizada_da, na.rm = TRUE), .groups = "drop") |>
+  filter(dotacao > 0) |>
+  mutate(
+    pct       = round(dotacao / sum(dotacao) * 100, 1),
+    bar_label = paste0(
+      scales::number(dotacao, big.mark = ".", decimal.mark = ",", accuracy = 1),
+      " (", pct, "%)"
+    )
+  )
+
+ggplot(fig2_data, aes(x = dotacao, y = reorder(descricao, dotacao))) +
+  geom_col(width = 0.65, fill = "grey30") +
+  geom_text(
+    aes(label = bar_label),
+    hjust   = -0.1,
+    size    = 3.5,
+    color   = "grey30"
+  ) +
+  scale_x_continuous(
+    labels = scales::label_number(big.mark = ".", decimal.mark = ",", scale = 1),
+    expand = expansion(mult = c(0, 0.45))
+  ) +
+  labs(
+    x       = "Orçamento (milhões de Mts.)",
+    y       = NULL
+  ) +
+  theme_minimal(base_size = 9) +
+  theme(
+    legend.position    = "none",
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor   = element_blank(),
+    axis.text.y        = element_text(size = 11),
+    axis.text.x        = element_text(size = 10),
+    axis.title.x       = element_text(margin = margin(t = 10), size = 11),
+    plot.caption       = element_blank(),
+  )
+```
+
+```{r narrative-fig3}
+#| include: false
+
+fig3_data <- df |>
+  filter(ano == latest_ano) |>
+  group_by(mes, reporte_tipo) |>
+  summarise(dotacao = sum(dotacao_actualizada_da, na.rm = TRUE), .groups = "drop") |>
+  mutate(
+    mes_num   = match(mes, mes_order),
+    mes_label = sprintf("%02d-%d", mes_num, latest_ano)
+  ) |>
+  filter(!is.na(mes_num)) |>
+  arrange(mes_num) |>
+  mutate(mes_label = fct_inorder(mes_label))
+
+fig3_last_points  <- fig3_data |>
+  group_by(reporte_tipo) |>
+  slice_max(mes_num, n = 1, with_ties = FALSE)
+
+fig3_first_points <- fig3_data |>
+  group_by(reporte_tipo) |>
+  slice_min(mes_num, n = 1, with_ties = FALSE)
+
+nf3_yr2         <- substr(as.character(latest_ano), 3, 4)
+nf3_first_label <- paste0(fig3_first_points$mes[1], " '", nf3_yr2)
+nf3_last_label  <- paste0(fig3_last_points$mes[1],  " '", nf3_yr2)
+
+nf3_total_first <- sum(fig3_first_points$dotacao)
+nf3_total_last  <- sum(fig3_last_points$dotacao)
+nf3_total_diff  <- nf3_total_last - nf3_total_first
+nf3_total_pct   <- round(nf3_total_diff / abs(nf3_total_first) * 100, 1)
+
+nf3_max_rt <- fig3_last_points |> slice_max(dotacao, n = 1, with_ties = FALSE)
+nf3_min_rt <- fig3_last_points |> slice_min(dotacao, n = 1, with_ties = FALSE)
+```
+
+A figura seguinte ilustra a evolução mensal do orçamento por tipo de reporte ao longo de `r latest_ano`. Em `r nf3_last_label`, a dotação total ascendeu a `r fmt_mil(nf3_total_last)` milhões de Mts., face a `r fmt_mil(nf3_total_first)` milhões de Mts. registados em `r nf3_first_label`, representando uma variação de `r fmt_mil(abs(nf3_total_diff))` milhões de Mts. (`r nf3_total_pct`%). `r nf3_max_rt$reporte_tipo` manteve a maior dotação no período, com `r fmt_mil(nf3_max_rt$dotacao)` milhões de Mts. em `r nf3_last_label`, enquanto `r nf3_min_rt$reporte_tipo` registou a menor componente, com `r fmt_mil(nf3_min_rt$dotacao)` milhões de Mts.:
+
+```{r fig-3}
+#| echo: false
+#| fig-cap: !expr glue::glue("Variação do Orçamento ({latest_ano})")
+#| fig-width: 8
+#| fig-height: 4
+
+ggplot(fig3_data, aes(x = mes_label, y = dotacao, color = reporte_tipo, group = reporte_tipo)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2.5) +
+  geom_text(
+    data    = fig3_last_points,
+    aes(label = scales::number(dotacao, big.mark = ".", decimal.mark = ",", accuracy = 1)),
+    hjust   = -0.15,
+    size    = 3,
+    show.legend = FALSE
+  ) +
+  scale_color_grey(start = 0.1, end = 0.7) +
+  scale_y_continuous(
+    labels = scales::label_number(big.mark = ".", decimal.mark = ",", scale = 1),
+    expand = expansion(mult = c(0.08, 0.12))
+  ) +
+  scale_x_discrete(expand = expansion(add = c(0.5, 1))) +
+  labs(
+    x     = NULL,
+    y     = "Dotação (milhões de Mts.)",
+    color = NULL
+  ) +
+  theme_minimal(base_size = 9) +
+  theme(
+    legend.position  = "right",
+    legend.text      = element_text(size = 11),
+    panel.grid.minor = element_blank(),
+    axis.text.x      = element_text(size = 10, angle = 45, hjust = 1),
+    axis.text.y      = element_text(size = 10),
+    axis.title.y     = element_text(margin = margin(r = 10), size = 11),
+    plot.caption     = element_blank()
+  )
+```
+
+```{r narrative-tbl2}
+#| include: false
+
+n2_reporte_order <- c("Funcionamento", "Investimento Interno", "Investimento Externo")
+
+# Province totals across all reporte_tipo — mirrors tbl-2 filters
+n2_prov <- df |>
+  filter(
+    ano == latest_ano, mes == latest_mes, ambito == "Provincial",
+    reporte_tipo %in% n2_reporte_order,
+    descricao == "DPE - OGDP"
+  ) |>
+  group_by(provincia) |>
+  summarise(dotacao = sum(dotacao_actualizada_da, na.rm = TRUE), .groups = "drop") |>
+  filter(dotacao > 0) |>
+  mutate(peso = round(dotacao / sum(dotacao) * 100, 1))
+
+n2_grand_total  <- sum(n2_prov$dotacao)
+n2_n_prov       <- nrow(n2_prov)
+
+n2_max_prov      <- n2_prov |> slice_max(dotacao, n = 1, with_ties = FALSE)
+n2_max_prov_name <- n2_max_prov$provincia
+n2_max_prov_val  <- n2_max_prov$dotacao
+n2_max_prov_peso <- n2_max_prov$peso
+
+n2_min_prov      <- n2_prov |> slice_min(dotacao, n = 1, with_ties = FALSE)
+n2_min_prov_name <- n2_min_prov$provincia
+n2_min_prov_val  <- n2_min_prov$dotacao
+n2_min_prov_peso <- n2_min_prov$peso
+
+# Breakdown by reporte_tipo for context
+n2_by_rt <- df |>
+  filter(
+    ano == latest_ano, mes == latest_mes, ambito == "Provincial",
+    reporte_tipo %in% n2_reporte_order,
+    descricao == "DPE - OGDP"
+  ) |>
+  group_by(reporte_tipo) |>
+  summarise(dotacao = sum(dotacao_actualizada_da, na.rm = TRUE), .groups = "drop") |>
+  mutate(peso = round(dotacao / sum(dotacao) * 100, 1))
+
+n2_dominant_rt      <- n2_by_rt |> slice_max(dotacao, n = 1, with_ties = FALSE)
+n2_dominant_rt_name <- n2_dominant_rt$reporte_tipo
+n2_dominant_rt_val  <- n2_dominant_rt$dotacao
+n2_dominant_rt_peso <- n2_dominant_rt$peso
+```
+
+Em `r latest_mes` de `r latest_ano`, a dotação provincial das DPEs (OGDP) do Sector da Educação totalizou `r fmt_mil(n2_grand_total)` milhões de Mts., distribuída por `r n2_n_prov` províncias. `r n2_dominant_rt_name` representou o maior bloco orçamental, com `r fmt_mil(n2_dominant_rt_val)` milhões de Mts. (`r n2_dominant_rt_peso`% do total). Em termos provinciais, `r n2_max_prov_name` concentrou a maior dotação, com `r fmt_mil(n2_max_prov_val)` milhões de Mts. (`r n2_max_prov_peso`% do total), enquanto `r n2_min_prov_name` registou a menor, com `r fmt_mil(n2_min_prov_val)` milhões de Mts. (`r n2_min_prov_peso`%). O detalhe por província e tipo de reporte encontra-se na tabela seguinte:
+
+```{r tbl-2}
+#| echo: false
+#| tbl-cap: !expr glue("Divisão e Distribuição do Orçamento a Nível Provincial ({latest_mes}, {latest})")
+
+# Nível de Execução do Sector da Educação; pg. 14
+
+reporte_order <- c("Funcionamento", "Investimento Interno", "Investimento Externo")
+desc_keep     <- c("DPE - OGDP")
+
+tbl2_raw <- df |>
+  filter(
+    ano == latest_ano, mes == latest_mes, ambito == "Provincial",
+    reporte_tipo %in% reporte_order,
+    descricao    %in% desc_keep
+  ) |>
+  group_by(provincia, reporte_tipo, descricao) |>
+  summarise(dotacao = sum(dotacao_actualizada_da, na.rm = TRUE), .groups = "drop") |>
+  mutate(
+    provincia    = factor(provincia,    levels = provincia_order),
+    reporte_tipo = factor(reporte_tipo, levels = reporte_order),
+    descricao    = factor(descricao,    levels = desc_keep)
+  ) |>
+  arrange(provincia, reporte_tipo, descricao)
+
+# national total per reporte_tipo — denominator for Peso %
+nat_totals <- tbl2_raw |>
+  group_by(reporte_tipo) |>
+  summarise(nat_total = sum(dotacao), .groups = "drop")
+
+# province share per reporte_tipo
+peso_data <- tbl2_raw |>
+  group_by(provincia, reporte_tipo) |>
+  summarise(subtotal = sum(dotacao), .groups = "drop") |>
+  left_join(nat_totals, by = "reporte_tipo") |>
+  mutate(peso = if_else(nat_total > 0, subtotal / nat_total * 100, NA_real_)) |>
+  select(provincia, reporte_tipo, peso)
+
+# pivot dotacao wide
+wide_dotacao <- tbl2_raw |>
+  mutate(across(c(provincia, reporte_tipo, descricao), as.character)) |>
+  pivot_wider(
+    names_from  = c(reporte_tipo, descricao),
+    values_from = dotacao,
+    names_sep   = "__SEP__",
+    values_fill = 0
+  )
+
+# pivot peso wide
+wide_peso <- peso_data |>
+  mutate(across(c(provincia, reporte_tipo), as.character)) |>
+  pivot_wider(
+    names_from  = reporte_tipo,
+    values_from = peso,
+    names_prefix = "PESO__SEP__"
+  )
+
+all_provincias <- tibble(provincia = setdiff(provincia_order, "Total"))
+
+wide_dotacao <- all_provincias |>
+  left_join(wide_dotacao, by = "provincia") |>
+  mutate(across(where(is.numeric), \(x) replace_na(x, 0)))
+
+wide_peso <- all_provincias |>
+  left_join(wide_peso, by = "provincia") |>
+  mutate(across(where(is.numeric), \(x) replace_na(x, 0)))
+
+tbl2_joined <- wide_dotacao |>
+  left_join(wide_peso, by = "provincia")
+
+# Total block: sum all dotacao columns, then compute province share of grand total
+tbl2_dot_keys <- names(tbl2_joined)[
+  names(tbl2_joined) != "provincia" & !str_starts(names(tbl2_joined), "PESO__SEP__")
+]
+grand_total2 <- sum(rowSums(tbl2_joined[tbl2_dot_keys], na.rm = TRUE))
+
+tbl2_joined <- tbl2_joined |>
+  mutate(
+    `Total__SEP__DPE - OGDP` = rowSums(across(all_of(tbl2_dot_keys)), na.rm = TRUE),
+    `PESO__SEP__Total`        = `Total__SEP__DPE - OGDP` / grand_total2 * 100
+  )
+
+# build ordered_cols from what actually exists after the join
+ordered_cols <- c(
+  map(reporte_order, \(rt) {
+    candidates <- c(paste0(rt, "__SEP__", desc_keep), paste0("PESO__SEP__", rt))
+    candidates[candidates %in% names(tbl2_joined)]
+  }) |> unlist(),
+  "Total__SEP__DPE - OGDP", "PESO__SEP__Total"
+)
+
+tbl2_data <- tbl2_joined |>
+  mutate(provincia = factor(provincia, levels = setdiff(provincia_order, "Total"))) |>
+  arrange(provincia) |>
+  mutate(provincia = as.character(provincia)) |>
+  select(provincia, all_of(ordered_cols))
+
+# total row — Peso % = 100 % by definition
+total_row <- tbl2_data |>
+  summarise(across(where(is.numeric), sum, na.rm = TRUE)) |>
+  mutate(
+    provincia = "Total",
+    across(starts_with("PESO__SEP__"), \(x) 100)
+  )
+
+tbl2_data <- bind_rows(tbl2_data, total_row)
+
+# two-row typology
+col_meta <- tibble(col_key = ordered_cols) |>
+  mutate(
+    is_peso   = str_starts(col_key, "PESO__SEP__"),
+    spanner   = if_else(is_peso,
+                        str_remove(col_key, "PESO__SEP__"),
+                        str_remove(col_key, "__SEP__.*$")),
+    sub_label = if_else(is_peso, "Peso %", str_remove(col_key, "^.*__SEP__"))
+  )
+
+typology2 <- data.frame(
+  col_keys = c("provincia", ordered_cols),
+  spanner  = c("Província", col_meta$spanner),
+  label    = c("Província", col_meta$sub_label),
+  stringsAsFactors = FALSE
+)
+
+dotacao_cols2 <- ordered_cols[!str_starts(ordered_cols, "PESO__SEP__")]
+peso_cols2    <- ordered_cols[str_starts(ordered_cols, "PESO__SEP__")]
+
+flextable(tbl2_data) |>
+  set_header_df(mapping = typology2, key = "col_keys") |>
+  merge_h(part = "header") |>
+  merge_v(part = "header") |>
+  theme_vanilla() |>
+  bg(i = seq(1, nrow(tbl2_data), 2), bg = "#f5f5f5", part = "body") |>
+  align(part = "header", align = "center") |>
+  align(j = 1, part = "all", align = "left") |>
+  colformat_num(
+    j            = dotacao_cols2,
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = peso_cols2,
+    digits = 1,
+    suffix = "%"
+  ) |>
+  bold(i = nrow(tbl2_data), part = "body") |>
+  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+## Execução do Orçamento
+
+```{r narrative-tbl3}
+#| include: false
+
+tbl3_raw <- df |>
+  filter(mes == latest_mes) |>
+  group_by(reporte_tipo, ano) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(exec_pct = if_else(dotacao > 0, paga / dotacao * 100, NA_real_))
+
+years3 <- sort(unique(tbl3_raw$ano))
+
+ordered_cols3 <- map(as.character(years3), \(yr) {
+  c(paste0("dotacao__", yr), paste0("paga__", yr), paste0("exec_pct__", yr))
+}) |> unlist()
+
+tbl3_wide <- tbl3_raw |>
+  pivot_wider(
+    names_from  = ano,
+    values_from = c(dotacao, paga, exec_pct),
+    names_glue  = "{.value}__{ano}"
+  ) |>
+  select(reporte_tipo, all_of(ordered_cols3))
+
+# total row computed from raw aggregates so exec_pct is correct
+total_row3 <- df |>
+  filter(mes == latest_mes) |>
+  group_by(ano) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(
+    exec_pct     = if_else(dotacao > 0, paga / dotacao * 100, NA_real_),
+    reporte_tipo = "Total"
+  ) |>
+  pivot_wider(
+    names_from  = ano,
+    values_from = c(dotacao, paga, exec_pct),
+    names_glue  = "{.value}__{ano}"
+  ) |>
+  select(reporte_tipo, all_of(ordered_cols3))
+
+tbl3_data <- bind_rows(tbl3_wide, total_row3)
+
+typology3 <- data.frame(
+  col_keys = c("reporte_tipo", ordered_cols3),
+  spanner  = c("Tipo de Reporte", rep(as.character(years3), each = 3)),
+  label    = c("Tipo de Reporte", rep(c("Orçamento", "Despesa", "Exec%"), length(years3))),
+  stringsAsFactors = FALSE
+)
+
+dotacao_cols3  <- ordered_cols3[str_starts(ordered_cols3, "dotacao__")]
+paga_cols3     <- ordered_cols3[str_starts(ordered_cols3, "paga__")]
+exec_pct_cols3 <- ordered_cols3[str_starts(ordered_cols3, "exec_pct__")]
+
+n3_mes_num    <- match(latest_mes, mes_order)
+
+safe_exec3 <- function(yr) {
+  val <- total_row3[[paste0("exec_pct__", yr)]]
+  if (is.null(val)) NA_real_ else round(val, 0)
+}
+n3_exec_total <- safe_exec3(latest)
+n3_exec_prev  <- safe_exec3(prev)
+
+get_exec3 <- function(rt, yr) {
+  x <- tbl3_raw |> filter(reporte_tipo == rt, ano == yr) |> pull(exec_pct)
+  if (length(x) == 0) NA_real_ else round(x, 0)
+}
+
+pp_fmt3 <- function(rt) {
+  d <- get_exec3(rt, latest) - get_exec3(rt, prev)
+  if (is.na(d)) return("N/D")
+  if (d < 0) paste0("diminuição de ", abs(d), "pp") else paste0("aumento de ", d, "pp")
+}
+
+n3_pp_func <- pp_fmt3("Funcionamento")
+n3_pp_ii   <- pp_fmt3("Investimento Interno")
+n3_pp_ie   <- pp_fmt3("Investimento Externo")
+```
+
+O nível de execução geral do sector da educação relativo aos `r n3_mes_num` `r if(n3_mes_num == 1) "mês" else "meses"` do exercício económico de `r latest` foi de `r n3_exec_total`%, registando-se uma cifra `r if(isTRUE(n3_exec_total == n3_exec_prev)) "igual" else if(is.na(n3_exec_prev)) "N/D" else paste0("de ", n3_exec_prev, "%")` em relação à percentagem de execução colhida no período homólogo anterior, em que se detecta uma `r n3_pp_func` a nível do Orçamento de Funcionamento, `r n3_pp_ii` no Investimento Interno e `r n3_pp_ie` no Investimento Externo, conforme o quadro:
+
+```{r tbl-3}
+#| echo: false
+#| tbl-cap: !expr glue("Nível de Execução do Sector da Educação ({latest_mes}, {prev}/{latest %% 100})")
+
+# Nível de Execução do Sector da Educação; pg. 14
+
+flextable(tbl3_data) |>
+  set_header_df(mapping = typology3, key = "col_keys") |>
+  merge_h(part = "header") |>
+  merge_v(part = "header") |>
+  theme_vanilla() |>
+  bg(i = seq(1, nrow(tbl3_data), 2), bg = "#f5f5f5", part = "body") |>
+  align(part = "header", align = "center") |>
+  align(j = 1, part = "all", align = "left") |>
+  colformat_num(
+    j            = c(dotacao_cols3, paga_cols3),
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = exec_pct_cols3,
+    digits = 1,
+    suffix = "%"
+  ) |>
+  bold(i = nrow(tbl3_data), part = "body") |>
+  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+```{r narrative-fig6}
+#| include: false
+
+fig6_data <- df |>
+  filter(ano == latest_ano) |>
+  group_by(mes, reporte_tipo) |>
+  summarise(paga = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE), .groups = "drop") |>
+  mutate(
+    mes_num   = match(mes, mes_order),
+    mes_label = sprintf("%02d-%d", mes_num, latest_ano)
+  ) |>
+  filter(!is.na(mes_num)) |>
+  arrange(mes_num) |>
+  mutate(mes_label = fct_inorder(mes_label))
+
+fig6_last_points  <- fig6_data |>
+  group_by(reporte_tipo) |>
+  slice_max(mes_num, n = 1, with_ties = FALSE)
+
+fig6_first_points <- fig6_data |>
+  group_by(reporte_tipo) |>
+  slice_min(mes_num, n = 1, with_ties = FALSE)
+
+nf6_yr2         <- substr(as.character(latest_ano), 3, 4)
+nf6_first_label <- paste0(fig6_first_points$mes[1], " '", nf6_yr2)
+nf6_last_label  <- paste0(fig6_last_points$mes[1],  " '", nf6_yr2)
+
+nf6_total_first <- sum(fig6_first_points$paga)
+nf6_total_last  <- sum(fig6_last_points$paga)
+nf6_total_diff  <- nf6_total_last - nf6_total_first
+nf6_total_pct   <- round(nf6_total_diff / abs(nf6_total_first) * 100, 1)
+
+nf6_max_rt <- fig6_last_points |> slice_max(paga, n = 1, with_ties = FALSE)
+nf6_min_rt <- fig6_last_points |> slice_min(paga, n = 1, with_ties = FALSE)
+```
+
+A figura seguinte ilustra a evolução mensal da despesa paga por tipo de reporte ao longo de `r latest_ano`, de `r nf6_first_label` a `r nf6_last_label`. Em `r nf6_last_label`, a despesa total ascendeu a `r fmt_mil(nf6_total_last)` milhões de Mts., face a `r fmt_mil(nf6_total_first)` milhões de Mts. registados em `r nf6_first_label`, representando uma variação de `r fmt_mil(abs(nf6_total_diff))` milhões de Mts. (`r nf6_total_pct`%). `r nf6_max_rt$reporte_tipo` registou a maior despesa paga no período, com `r fmt_mil(nf6_max_rt$paga)` milhões de Mts. em `r nf6_last_label`, enquanto `r nf6_min_rt$reporte_tipo` registou a menor componente, com `r fmt_mil(nf6_min_rt$paga)` milhões de Mts.:
+
+```{r fig-6}
+#| echo: false
+#| fig-cap: !expr glue::glue("Nível de Execução Mensal do Orçamento ({latest_ano})")
+#| fig-width: 8
+#| fig-height: 4
+
+ggplot(fig6_data, aes(x = mes_label, y = paga, color = reporte_tipo, group = reporte_tipo)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2.5) +
+  geom_text(
+    data        = fig6_last_points,
+    aes(label   = scales::number(paga, big.mark = ".", decimal.mark = ",", accuracy = 1)),
+    hjust       = -0.15,
+    size        = 3,
+    show.legend = FALSE
+  ) +
+  scale_color_grey(start = 0.1, end = 0.7) +
+  scale_y_continuous(
+    labels = scales::label_number(big.mark = ".", decimal.mark = ",", scale = 1),
+    expand = expansion(mult = c(0.08, 0.18))
+  ) +
+  scale_x_discrete(expand = expansion(add = c(0.5, 1))) +
+  labs(
+    x     = NULL,
+    y     = "Despesa Paga (milhões de Mts.)",
+    color = NULL
+  ) +
+  theme_minimal(base_size = 9) +
+  theme(
+    legend.position  = "right",
+    legend.text      = element_text(size = 11),
+    panel.grid.minor = element_blank(),
+    axis.text.x      = element_text(size = 10, angle = 45, hjust = 1),
+    axis.text.y      = element_text(size = 10),
+    axis.title.y     = element_text(margin = margin(r = 10), size = 11),
+    plot.caption     = element_blank()
+  )
+```
+
+
+```{r narrative-tbl4}
+#| include: false
+
+n4_reporte_order <- c("Funcionamento", "Investimento Interno", "Investimento Externo")
+
+ambito_exec4 <- df |>
+  filter(ano == latest_ano, mes == latest_mes,
+         reporte_tipo %in% n4_reporte_order) |>
+  group_by(ambito) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 0))
+
+get_exec4 <- function(ab)
+  ambito_exec4 |> filter(ambito == ab) |> pull(exec_pct)
+
+n4_exec_distrital  <- get_exec4("Distrital")
+n4_exec_provincial <- get_exec4("Provincial")
+n4_exec_central    <- get_exec4("Central")
+```
+
+Analisada a execução geral do sector, verifica-se que os SDEJT apresentam o maior nível de execução, com `r n4_exec_distrital`%, contra `r n4_exec_provincial`% das entidades provinciais e `r n4_exec_central`% do nível Central. Para melhor apreciação, apresenta-se o quadro a seguir, com o Resumo geral da Execução do Orçamento do sector da educação, por componentes:
+
+```{r tbl-4}
+#| echo: false
+#| tbl-cap: !expr glue::glue("Resumo da Execução do Orçamento do Sector da Educação ({latest_mes}, {latest_ano})")
+
+reporte_order4 <- c("Funcionamento", "Investimento Interno", "Investimento Externo")
+ambito_order4  <- c("Central", "Provincial", "Distrital")
+
+tbl4_raw <- df |>
+  filter(ano == latest_ano, mes == latest_mes, reporte_tipo %in% reporte_order4) |>
+  group_by(ambito, descricao, reporte_tipo) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  pivot_wider(
+    names_from  = reporte_tipo,
+    values_from = c(dotacao, paga),
+    names_glue  = "{.value}__{reporte_tipo}",
+    values_fill = 0
+  )
+
+for (rt in reporte_order4) {
+  d <- paste0("dotacao__", rt); p <- paste0("paga__", rt); e <- paste0("exec_pct__", rt)
+  if (d %in% names(tbl4_raw))
+    tbl4_raw[[e]] <- if_else(tbl4_raw[[d]] > 0, tbl4_raw[[p]] / tbl4_raw[[d]] * 100, NA_real_)
+}
+
+tbl4_raw <- tbl4_raw |>
+  mutate(
+    dotacao__Total  = rowSums(across(starts_with("dotacao__")), na.rm = TRUE),
+    paga__Total     = rowSums(across(starts_with("paga__")),    na.rm = TRUE),
+    exec_pct__Total = if_else(dotacao__Total > 0, paga__Total / dotacao__Total * 100, NA_real_)
+  )
+
+ordered_cols4 <- map(reporte_order4, \(rt)
+  c(paste0("dotacao__", rt), paste0("paga__", rt), paste0("exec_pct__", rt))
+) |> unlist() |> (\(x) x[x %in% names(tbl4_raw)])()
+ordered_cols4 <- c(ordered_cols4, c("dotacao__Total", "paga__Total", "exec_pct__Total"))
+
+# sort by ambito order then descricao; insert group subtitle rows
+tbl4_sorted <- tbl4_raw |>
+  mutate(ambito = factor(ambito, levels = ambito_order4)) |>
+  arrange(ambito, descricao) |>
+  select(ambito, descricao, all_of(ordered_cols4))
+
+tbl4_grouped <- tbl4_sorted |>
+  group_by(ambito) |>
+  group_modify(\(data, key) {
+    subtitle <- data[1, ] |>
+      mutate(descricao = as.character(key$ambito))
+    for (rt in reporte_order4) {
+      d <- paste0("dotacao__", rt); p <- paste0("paga__", rt); e <- paste0("exec_pct__", rt)
+      if (d %in% names(data)) {
+        subtitle[[d]] <- sum(data[[d]], na.rm = TRUE)
+        subtitle[[p]] <- sum(data[[p]], na.rm = TRUE)
+        subtitle[[e]] <- if_else(subtitle[[d]] > 0, subtitle[[p]] / subtitle[[d]] * 100, NA_real_)
+      }
+    }
+    subtitle[["dotacao__Total"]]  <- sum(data[["dotacao__Total"]],  na.rm = TRUE)
+    subtitle[["paga__Total"]]     <- sum(data[["paga__Total"]],     na.rm = TRUE)
+    subtitle[["exec_pct__Total"]] <- if_else(subtitle[["dotacao__Total"]] > 0, subtitle[["paga__Total"]] / subtitle[["dotacao__Total"]] * 100, NA_real_)
+    bind_rows(subtitle, data)
+  }) |>
+  ungroup() |>
+  select(descricao, all_of(ordered_cols4))
+
+# total row
+total_row4 <- df |>
+  filter(ano == latest_ano, mes == latest_mes, reporte_tipo %in% reporte_order4) |>
+  group_by(reporte_tipo) |>
+  summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+            paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+            .groups = "drop") |>
+  pivot_wider(names_from = reporte_tipo, values_from = c(dotacao, paga),
+              names_glue = "{.value}__{reporte_tipo}", values_fill = 0)
+
+for (rt in reporte_order4) {
+  d <- paste0("dotacao__", rt); p <- paste0("paga__", rt); e <- paste0("exec_pct__", rt)
+  if (d %in% names(total_row4))
+    total_row4[[e]] <- if_else(total_row4[[d]] > 0, total_row4[[p]] / total_row4[[d]] * 100, NA_real_)
+}
+
+total_row4 <- total_row4 |>
+  mutate(
+    dotacao__Total  = rowSums(across(starts_with("dotacao__")), na.rm = TRUE),
+    paga__Total     = rowSums(across(starts_with("paga__")),    na.rm = TRUE),
+    exec_pct__Total = if_else(dotacao__Total > 0, paga__Total / dotacao__Total * 100, NA_real_),
+    descricao       = "Total"
+  ) |>
+  select(descricao, all_of(ordered_cols4))
+
+tbl4_data <- bind_rows(tbl4_grouped, total_row4)
+
+# rows that are ambito subtitles vs data rows vs total
+subtitle_idx <- which(tbl4_data$descricao %in% ambito_order4)
+data_rows    <- setdiff(seq_len(nrow(tbl4_data) - 1), subtitle_idx)
+total_idx    <- nrow(tbl4_data)
+
+col_meta4 <- tibble(col_key = ordered_cols4) |>
+  separate(col_key, into = c("metric", "reporte"), sep = "__", extra = "merge", remove = FALSE) |>
+  mutate(sub_label = case_when(
+    metric == "dotacao"  ~ "Orçamento",
+    metric == "paga"     ~ "Despesa",
+    metric == "exec_pct" ~ "Exec%"
+  ))
+
+typology4 <- data.frame(
+  col_keys = c("descricao", ordered_cols4),
+  spanner  = c("", col_meta4$reporte),
+  label    = c("", col_meta4$sub_label),
+  stringsAsFactors = FALSE
+)
+
+dotacao_cols4  <- ordered_cols4[str_starts(ordered_cols4, "dotacao__")]
+paga_cols4     <- ordered_cols4[str_starts(ordered_cols4, "paga__")]
+exec_pct_cols4 <- ordered_cols4[str_starts(ordered_cols4, "exec_pct__")]
+
+flextable(tbl4_data) |>
+  set_header_df(mapping = typology4, key = "col_keys") |>
+  merge_h(part = "header") |>
+  merge_v(part = "header") |>
+  theme_vanilla() |>
+  fontsize(size = 8, part = "all") |>
+  bg(i = subtitle_idx, bg = "#f5f5f5", part = "body") |>
+  align(part = "header", align = "center") |>
+  align(j = 1, part = "all", align = "left") |>
+  bold(i = c(subtitle_idx, total_idx), part = "body") |>
+  colformat_num(
+    j            = c(dotacao_cols4, paga_cols4),
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = exec_pct_cols4,
+    digits = 1,
+    suffix = "%"
+  ) |>
+  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+```{r narrative-tbl5}
+#| include: false
+
+# Provincial exec% per province, latest year
+prov_exec5 <- df |>
+  filter(mes == latest_mes, ano == latest_ano, ambito == "Provincial") |>
+  group_by(provincia) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 0)) |>
+  filter(!is.na(exec_pct))
+
+# Provincial subtotal exec%
+n5_exec_prov <- prov_exec5 |>
+  summarise(dotacao = sum(dotacao), paga = sum(paga)) |>
+  mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 0)) |>
+  pull(exec_pct)
+
+# Central subtotal exec%
+n5_exec_central <- df |>
+  filter(mes == latest_mes, ano == latest_ano, ambito == "Central", !is.na(descricao)) |>
+  summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+            paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE)) |>
+  mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 0)) |>
+  pull(exec_pct)
+
+# Grand total exec%
+n5_exec_total <- df |>
+  filter(mes == latest_mes, ano == latest_ano, ambito %in% c("Provincial", "Central"), !is.na(descricao)) |>
+  summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+            paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE)) |>
+  mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 0)) |>
+  pull(exec_pct)
+
+# Province with min and max exec%
+n5_prov_min <- prov_exec5 |> slice_min(exec_pct, n = 1, with_ties = FALSE)
+n5_prov_max <- prov_exec5 |> slice_max(exec_pct, n = 1, with_ties = FALSE)
+
+n5_prov_min_name <- n5_prov_min$provincia
+n5_prov_min_pct  <- n5_prov_min$exec_pct
+n5_prov_max_name <- n5_prov_max$provincia
+n5_prov_max_pct  <- n5_prov_max$exec_pct
+
+n5_spread_low  <- n5_exec_prov - n5_prov_min_pct
+n5_spread_high <- n5_prov_max_pct - n5_exec_prov
+```
+
+Verificando a execução orçamental de acordo com a classificação territorial, o nível Central apresenta uma execução de `r n5_exec_central`%, enquanto o nível Provincial (associado aos respectivos SDEJT) regista uma média de `r n5_exec_prov`%, com um intervalo que vai de `r n5_prov_min_pct`% (`r n5_prov_min_name`) a `r n5_prov_max_pct`% (`r n5_prov_max_name`), correspondendo a `r n5_spread_low`pp abaixo e `r n5_spread_high`pp acima da média provincial. A execução total do sector situou-se em `r n5_exec_total`%, conforme apresentado a seguir:
+
+```{r tbl-5}
+#| echo: false
+#| tbl-cap: !expr glue::glue("Resumo da Execução do Orçamento do Sector por Classificação Territorial ({latest_mes}, {prev}/{latest %% 100})")
+
+
+# Provincial rows: use provincia as label
+tbl5_prov <- df |>
+  filter(mes == latest_mes, ambito == "Provincial") |>
+  group_by(provincia, ano) |>
+  summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+            paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+            .groups = "drop")
+
+# Central rows: use descricao as label, drop NA descricao
+tbl5_other <- df |>
+  filter(mes == latest_mes, ambito == "Central", !is.na(descricao)) |>
+  group_by(descricao, ano) |>
+  summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+            paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+            .groups = "drop") |>
+  rename(provincia = descricao)
+
+# Subtotals in long format
+central_total5 <- tbl5_other |>
+  group_by(ano) |>
+  summarise(dotacao = sum(dotacao, na.rm = TRUE),
+            paga    = sum(paga,    na.rm = TRUE),
+            .groups = "drop") |>
+  mutate(provincia = "Nível Central")
+
+prov_total5 <- tbl5_prov |>
+  group_by(ano) |>
+  summarise(dotacao = sum(dotacao, na.rm = TRUE),
+            paga    = sum(paga,    na.rm = TRUE),
+            .groups = "drop") |>
+  mutate(provincia = "Nível Decentralizado")
+
+# Determine row order before binding
+prov_levels    <- setdiff(provincia_order, "Total")
+central_labels <- sort(setdiff(unique(tbl5_other$provincia), prov_levels))
+row_order      <- c(central_labels, "Nível Central", prov_levels, "Nível Decentralizado")
+
+# combine in display order, pivot wide, add exec_pct
+tbl5_raw <- bind_rows(tbl5_other, central_total5, tbl5_prov, prov_total5) |>
+  pivot_wider(
+    names_from  = ano,
+    values_from = c(dotacao, paga),
+    names_glue  = "{.value}__{ano}",
+    values_fill = 0
+  )
+
+years5 <- names(tbl5_raw) |>
+  str_subset("^dotacao__") |>
+  str_remove("dotacao__") |>
+  as.numeric() |>
+  sort()
+
+for (yr in as.character(years5)) {
+  d <- paste0("dotacao__", yr); p <- paste0("paga__", yr); e <- paste0("exec_pct__", yr)
+  if (d %in% names(tbl5_raw))
+    tbl5_raw[[e]] <- if_else(tbl5_raw[[d]] > 0, tbl5_raw[[p]] / tbl5_raw[[d]] * 100, NA_real_)
+}
+
+ordered_cols5 <- map(as.character(years5), \(yr)
+  c(paste0("dotacao__", yr), paste0("paga__", yr), paste0("exec_pct__", yr))
+) |> unlist() |> (\(x) x[x %in% names(tbl5_raw)])()
+
+tbl5_data <- tbl5_raw |>
+  mutate(provincia = factor(provincia, levels = row_order)) |>
+  arrange(provincia) |>
+  mutate(provincia = as.character(provincia)) |>
+  select(provincia, all_of(ordered_cols5))
+
+# Grand total: aggregate across both ambitos
+total_row5 <- bind_rows(tbl5_prov, tbl5_other) |>
+  group_by(ano) |>
+  summarise(dotacao = sum(dotacao, na.rm = TRUE),
+            paga    = sum(paga,    na.rm = TRUE),
+            .groups = "drop") |>
+  pivot_wider(names_from = ano, values_from = c(dotacao, paga),
+              names_glue = "{.value}__{ano}", values_fill = 0)
+
+for (yr in as.character(years5)) {
+  d <- paste0("dotacao__", yr); p <- paste0("paga__", yr); e <- paste0("exec_pct__", yr)
+  if (d %in% names(total_row5))
+    total_row5[[e]] <- if_else(total_row5[[d]] > 0, total_row5[[p]] / total_row5[[d]] * 100, NA_real_)
+}
+
+total_row5 <- total_row5 |>
+  mutate(provincia = "Total") |>
+  select(provincia, all_of(ordered_cols5))
+
+tbl5_data <- bind_rows(tbl5_data, total_row5)
+
+central_sub_idx  <- which(tbl5_data$provincia == "Nível Central")
+prov_sub_idx     <- which(tbl5_data$provincia == "Nível Decentralizado")
+bold_rows5       <- c(central_sub_idx, prov_sub_idx, nrow(tbl5_data))
+
+col_meta5 <- tibble(col_key = ordered_cols5) |>
+  separate(col_key, into = c("metric", "year"), sep = "__", extra = "merge", remove = FALSE) |>
+  mutate(sub_label = case_when(
+    metric == "dotacao"  ~ "Orçamento",
+    metric == "paga"     ~ "Despesa",
+    metric == "exec_pct" ~ "Exec%"
+  ))
+
+typology5 <- data.frame(
+  col_keys = c("provincia", ordered_cols5),
+  spanner  = c("", col_meta5$year),
+  label    = c("", col_meta5$sub_label),
+  stringsAsFactors = FALSE
+)
+
+dotacao_cols5  <- ordered_cols5[str_starts(ordered_cols5, "dotacao__")]
+paga_cols5     <- ordered_cols5[str_starts(ordered_cols5, "paga__")]
+exec_pct_cols5 <- ordered_cols5[str_starts(ordered_cols5, "exec_pct__")]
+
+flextable(tbl5_data) |>
+  set_header_df(mapping = typology5, key = "col_keys") |>
+  merge_h(part = "header") |>
+  merge_v(part = "header") |>
+  theme_vanilla() |>
+  bg(i = seq(1, nrow(tbl5_data), 2), bg = "#f5f5f5", part = "body") |>
+  hline(
+    i      = central_sub_idx,
+    border = officer::fp_border(width = 2.5, color = "grey10"),
+    part   = "body"
+  ) |>
+  hline(
+    i      = prov_sub_idx,
+    border = officer::fp_border(width = 2.5, color = "grey10"),
+    part   = "body"
+  ) |>
+  align(part = "header", align = "center") |>
+  align(j = 1, part = "all", align = "left") |>
+  bold(i = bold_rows5, part = "body") |>
+  colformat_num(
+    j            = c(dotacao_cols5, paga_cols5),
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = exec_pct_cols5,
+    digits = 1,
+    suffix = "%"
+  ) |>
+  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+```{r narrative-tbl6}
+#| include: false
+
+reporte_order6_n <- c("Funcionamento", "Investimento Interno", "Investimento Externo")
+
+funcao_exec6 <- df |>
+  filter(ano == latest_ano, mes == latest_mes,
+         reporte_tipo %in% reporte_order6_n) |>
+  group_by(funcao_nivel) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 0))
+
+grand6 <- funcao_exec6 |>
+  summarise(dotacao_total = sum(dotacao), paga_total = sum(paga))
+
+funcao_exec6 <- funcao_exec6 |>
+  mutate(
+    dotacao_share = round(dotacao / grand6$dotacao_total * 100, 0),
+    paga_share    = round(paga    / grand6$paga_total    * 100, 0)
+  ) |>
+  filter(!is.na(exec_pct))
+
+# Funcao with largest spending volume (paga share)
+n6_dom              <- funcao_exec6 |> slice_max(paga_share,  n = 1, with_ties = FALSE)
+n6_dom_name         <- n6_dom$funcao_nivel
+n6_dom_paga_share   <- n6_dom$paga_share
+n6_dom_dotacao_share <- n6_dom$dotacao_share
+n6_dom_exec         <- n6_dom$exec_pct
+
+# Funcao with highest and lowest exec%
+n6_max <- funcao_exec6 |> slice_max(exec_pct, n = 1, with_ties = FALSE)
+n6_min <- funcao_exec6 |> slice_min(exec_pct, n = 1, with_ties = FALSE)
+
+n6_max_name <- n6_max$funcao_nivel
+n6_max_pct  <- n6_max$exec_pct
+n6_min_name <- n6_min$funcao_nivel
+n6_min_pct  <- n6_min$exec_pct
+```
+
+Tendo-se efectuado a planificação e tendo decorrido a execução orçamental por níveis de ensino, apresenta-se a seguir o resumo da respectiva execução. Destaca-se que `r n6_dom_paga_share`% do volume de execução do período está imputado ao `r n6_dom_name`, que tem um peso orçamental de `r n6_dom_dotacao_share`% e apresenta uma execução de `r n6_dom_exec`%. Em termos de taxa de execução, o `r n6_max_name` regista o nível mais elevado com `r n6_max_pct`%, enquanto o `r n6_min_name` apresenta a execução mais baixa, com `r n6_min_pct`%, conforme o quadro a seguir:
+
+```{r tbl-6}
+#| echo: false
+#| tbl-cap: !expr glue::glue("Resumo da Execução do Orçamento do Sector da Educação por Classif. Funcional ({latest_mes}, {latest_ano})")
+
+reporte_order6 <- c("Funcionamento", "Investimento Interno", "Investimento Externo")
+
+tbl6_raw <- df |>
+  filter(ano == latest_ano, mes == latest_mes, reporte_tipo %in% reporte_order6) |>
+  group_by(funcao_nivel, reporte_tipo) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  pivot_wider(
+    names_from  = reporte_tipo,
+    values_from = c(dotacao, paga),
+    names_glue  = "{.value}__{reporte_tipo}",
+    values_fill = 0
+  )
+
+for (rt in reporte_order6) {
+  d <- paste0("dotacao__", rt); p <- paste0("paga__", rt); e <- paste0("exec_pct__", rt)
+  if (d %in% names(tbl6_raw))
+    tbl6_raw[[e]] <- if_else(tbl6_raw[[d]] > 0, tbl6_raw[[p]] / tbl6_raw[[d]] * 100, NA_real_)
+}
+
+ordered_cols6 <- map(reporte_order6, \(rt)
+  c(paste0("dotacao__", rt), paste0("paga__", rt), paste0("exec_pct__", rt))
+) |> unlist() |> (\(x) x[x %in% names(tbl6_raw)])()
+
+# aggregate "Total" block across all reporte_tipo per funcao_nivel
+tbl6_agg <- df |>
+  filter(ano == latest_ano, mes == latest_mes, reporte_tipo %in% reporte_order6) |>
+  group_by(funcao_nivel) |>
+  summarise(
+    `dotacao__Total`   = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    `paga__Total`      = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(
+    `exec_pct__Total` = if_else(`dotacao__Total` > 0,
+                                `paga__Total` / `dotacao__Total` * 100,
+                                NA_real_)
+  )
+
+agg_cols6     <- c("dotacao__Total", "paga__Total", "exec_pct__Total")
+ordered_cols6 <- c(ordered_cols6, agg_cols6)
+
+tbl6_wide <- tbl6_raw |>
+  left_join(tbl6_agg, by = "funcao_nivel") |>
+  arrange(funcao_nivel == "Outros", desc(`dotacao__Total`)) |>
+  select(funcao_nivel, all_of(ordered_cols6))
+
+# grand total row
+total_row6 <- df |>
+  filter(ano == latest_ano, mes == latest_mes, reporte_tipo %in% reporte_order6) |>
+  group_by(reporte_tipo) |>
+  summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+            paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+            .groups = "drop") |>
+  pivot_wider(names_from = reporte_tipo, values_from = c(dotacao, paga),
+              names_glue = "{.value}__{reporte_tipo}", values_fill = 0)
+
+for (rt in reporte_order6) {
+  d <- paste0("dotacao__", rt); p <- paste0("paga__", rt); e <- paste0("exec_pct__", rt)
+  if (d %in% names(total_row6))
+    total_row6[[e]] <- if_else(total_row6[[d]] > 0, total_row6[[p]] / total_row6[[d]] * 100, NA_real_)
+}
+
+grand_agg6 <- df |>
+  filter(ano == latest_ano, mes == latest_mes, reporte_tipo %in% reporte_order6) |>
+  summarise(
+    `dotacao__Total` = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    `paga__Total`    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE)
+  ) |>
+  mutate(`exec_pct__Total` = if_else(`dotacao__Total` > 0,
+                                     `paga__Total` / `dotacao__Total` * 100,
+                                     NA_real_))
+
+total_row6 <- total_row6 |>
+  mutate(funcao_nivel = "Total") |>
+  bind_cols(grand_agg6) |>
+  select(funcao_nivel, all_of(ordered_cols6))
+
+tbl6_data <- bind_rows(tbl6_wide, total_row6)
+
+col_meta6 <- tibble(col_key = ordered_cols6) |>
+  separate(col_key, into = c("metric", "reporte"), sep = "__", extra = "merge", remove = FALSE) |>
+  mutate(
+    reporte   = if_else(reporte == "Total", "Total", reporte),
+    sub_label = case_when(
+      metric == "dotacao"  ~ "Orçamento",
+      metric == "paga"     ~ "Despesa",
+      metric == "exec_pct" ~ "Exec%"
+    )
+  )
+
+typology6 <- data.frame(
+  col_keys = c("funcao_nivel", ordered_cols6),
+  spanner  = c("Função", col_meta6$reporte),
+  label    = c("Função", col_meta6$sub_label),
+  stringsAsFactors = FALSE
+)
+
+dotacao_cols6  <- ordered_cols6[str_starts(ordered_cols6, "dotacao__")]
+paga_cols6     <- ordered_cols6[str_starts(ordered_cols6, "paga__")]
+exec_pct_cols6 <- ordered_cols6[str_starts(ordered_cols6, "exec_pct__")]
+
+flextable(tbl6_data) |>
+  set_header_df(mapping = typology6, key = "col_keys") |>
+  merge_h(part = "header") |>
+  merge_v(part = "header") |>
+  theme_vanilla() |>
+  fontsize(size = 8, part = "all") |>
+  bg(i = seq(1, nrow(tbl6_data), 2), bg = "#f5f5f5", part = "body") |>
+  align(part = "header", align = "center") |>
+  align(j = 1, part = "all", align = "left") |>
+  bold(i = nrow(tbl6_data), part = "body") |>
+  colformat_num(
+    j            = c(dotacao_cols6, paga_cols6),
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = exec_pct_cols6,
+    digits = 1,
+    suffix = "%"
+  ) |>
+  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+### Orçamento de Funcionamento
+
+```{r narrative-tbl7}
+#| include: false
+
+pp_dir <- function(x) {
+  if (is.na(x) || length(x) == 0) return("N/D")
+  if (x >= 0) paste0("mais ", abs(x), "pp") else paste0("menos ", abs(x), "pp")
+}
+
+# Totals by year: mirrors tbl-7 filters exactly
+func_totals7 <- bind_rows(
+  df |> filter(mes == latest_mes, ambito == "Provincial", reporte_tipo == "Funcionamento"),
+  df |> filter(mes == latest_mes, ambito == "Central",    !is.na(descricao))
+) |>
+  group_by(ano) |>
+  summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+            paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+            .groups = "drop") |>
+  mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 0))
+
+n7_dotacao_latest <- func_totals7 |> filter(ano == latest) |> pull1(dotacao)
+n7_dotacao_prev   <- func_totals7 |> filter(ano == prev)   |> pull1(dotacao)
+n7_paga_latest    <- func_totals7 |> filter(ano == latest) |> pull1(paga)
+n7_paga_prev      <- func_totals7 |> filter(ano == prev)   |> pull1(paga)
+n7_exec_latest    <- func_totals7 |> filter(ano == latest) |> pull1(exec_pct)
+n7_exec_prev      <- func_totals7 |> filter(ano == prev)   |> pull1(exec_pct)
+n7_pp_diff        <- n7_exec_latest - n7_exec_prev
+n7_paga_diff      <- n7_paga_latest - n7_paga_prev
+
+# Provincial exec% per province, latest year
+prov_exec7 <- df |>
+  filter(mes == latest_mes, ano == latest, ambito == "Provincial", reporte_tipo == "Funcionamento") |>
+  group_by(provincia) |>
+  summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+            paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+            .groups = "drop") |>
+  mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 0)) |>
+  filter(!is.na(exec_pct))
+
+n7_exec_prov_mean <- prov_exec7 |>
+  summarise(d = sum(dotacao), p = sum(paga)) |>
+  mutate(e = round(p / d * 100, 0)) |> pull(e)
+
+n7_min_prov     <- prov_exec7 |> slice_min(exec_pct, n = 1, with_ties = FALSE)
+n7_min_prov_name <- n7_min_prov$provincia
+n7_min_prov_pct  <- n7_min_prov$exec_pct
+n7_min_pp_diff   <- n7_min_prov_pct - n7_exec_prov_mean
+
+# Dominant Central institution (highest dotacao, latest year)
+central_inst7 <- df |>
+  filter(mes == latest_mes, ambito == "Central", !is.na(descricao)) |>
+  group_by(descricao, ano) |>
+  summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+            paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+            .groups = "drop") |>
+  mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 0))
+
+n7_mec_name        <- central_inst7 |> filter(ano == latest) |> slice_max(dotacao, n = 1, with_ties = FALSE) |> pull1(descricao)
+n7_mec_exec_latest <- central_inst7 |> filter(ano == latest, descricao == n7_mec_name) |> pull1(exec_pct)
+n7_mec_exec_prev   <- central_inst7 |> filter(ano == prev,   descricao == n7_mec_name) |> pull1(exec_pct)
+```
+
+O valor actualizado do Orçamento de Funcionamento, até final do mês de `r latest_mes` de `r latest`, estava estimado em `r fmt_mil(n7_dotacao_latest)` milhões de Mts., contra `r fmt_mil(n7_dotacao_prev)` milhões de Mts. do período homólogo anterior. O nível de execução foi de `r n7_exec_latest`%, `r pp_dir(n7_pp_diff)` relativamente à execução registada até ao mês de `r latest_mes` de `r prev`, correspondendo a uma variação de `r fmt_mil(abs(n7_paga_diff))` milhões de Mts. na despesa paga.
+
+A Província de `r n7_min_prov_name` apresenta o nível de execução mais baixo, com `r n7_min_prov_pct`%, face à média provincial estimada em `r n7_exec_prov_mean`%, representando um diferencial de `r abs(n7_min_pp_diff)`pp abaixo da média. `r n7_mec_name` apresenta um nível de execução correspondente a `r n7_mec_exec_latest`% do seu valor orçamental, contra os `r n7_mec_exec_prev`% registados em igual período do ano anterior. Os movimentos referentes ao período em análise podem ser visualizados na tabela seguinte:
+
+```{r tbl-7}
+#| echo: false
+#| tbl-cap: !expr glue::glue("Resumo da Execução Orçamental do Funcionamento ({latest_mes}, {prev}/{latest %% 100})")
+
+# Provincial rows: use provincia as label
+tbl5_prov <- df |>
+  filter(mes == latest_mes,
+         ambito == "Provincial",
+         reporte_tipo == "Funcionamento") |>
+  group_by(provincia, ano) |>
+  summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+            paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+            .groups = "drop")
+
+# Central rows: use descricao as label, drop NA descricao
+tbl5_other <- df |>
+  filter(mes == latest_mes,
+        ambito == "Central",
+        reporte_tipo == "Funcionamento",
+        !is.na(descricao)) |>
+  group_by(descricao, ano) |>
+  summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+            paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+            .groups = "drop") |>
+  rename(provincia = descricao)
+
+# Subtotals in long format
+central_total5 <- tbl5_other |>
+  group_by(ano) |>
+  summarise(dotacao = sum(dotacao, na.rm = TRUE),
+            paga    = sum(paga,    na.rm = TRUE),
+            .groups = "drop") |>
+  mutate(provincia = "Nível Central")
+
+prov_total5 <- tbl5_prov |>
+  group_by(ano) |>
+  summarise(dotacao = sum(dotacao, na.rm = TRUE),
+            paga    = sum(paga,    na.rm = TRUE),
+            .groups = "drop") |>
+  mutate(provincia = "Nível Decentralizado")
+
+# Determine row order before binding
+prov_levels    <- setdiff(provincia_order, "Total")
+central_labels <- sort(setdiff(unique(tbl5_other$provincia), prov_levels))
+row_order      <- c(central_labels, "Nível Central", prov_levels, "Nível Decentralizado")
+
+# combine in display order, pivot wide, add exec_pct
+tbl5_raw <- bind_rows(tbl5_other, central_total5, tbl5_prov, prov_total5) |>
+  pivot_wider(
+    names_from  = ano,
+    values_from = c(dotacao, paga),
+    names_glue  = "{.value}__{ano}",
+    values_fill = 0
+  )
+
+years5 <- names(tbl5_raw) |>
+  str_subset("^dotacao__") |>
+  str_remove("dotacao__") |>
+  as.numeric() |>
+  sort()
+
+for (yr in as.character(years5)) {
+  d <- paste0("dotacao__", yr); p <- paste0("paga__", yr); e <- paste0("exec_pct__", yr)
+  if (d %in% names(tbl5_raw))
+    tbl5_raw[[e]] <- if_else(tbl5_raw[[d]] > 0, tbl5_raw[[p]] / tbl5_raw[[d]] * 100, NA_real_)
+}
+
+ordered_cols5 <- map(as.character(years5), \(yr)
+  c(paste0("dotacao__", yr), paste0("paga__", yr), paste0("exec_pct__", yr))
+) |> unlist() |> (\(x) x[x %in% names(tbl5_raw)])()
+
+tbl5_data <- tbl5_raw |>
+  mutate(provincia = factor(provincia, levels = row_order)) |>
+  arrange(provincia) |>
+  mutate(provincia = as.character(provincia)) |>
+  select(provincia, all_of(ordered_cols5))
+
+# Grand total: aggregate across both ambitos
+total_row5 <- bind_rows(tbl5_prov, tbl5_other) |>
+  group_by(ano) |>
+  summarise(dotacao = sum(dotacao, na.rm = TRUE),
+            paga    = sum(paga,    na.rm = TRUE),
+            .groups = "drop") |>
+  pivot_wider(names_from = ano, values_from = c(dotacao, paga),
+              names_glue = "{.value}__{ano}", values_fill = 0)
+
+for (yr in as.character(years5)) {
+  d <- paste0("dotacao__", yr); p <- paste0("paga__", yr); e <- paste0("exec_pct__", yr)
+  if (d %in% names(total_row5))
+    total_row5[[e]] <- if_else(total_row5[[d]] > 0, total_row5[[p]] / total_row5[[d]] * 100, NA_real_)
+}
+
+total_row5 <- total_row5 |>
+  mutate(provincia = "Total") |>
+  select(provincia, all_of(ordered_cols5))
+
+tbl5_data <- bind_rows(tbl5_data, total_row5)
+
+central_sub_idx <- which(tbl5_data$provincia == "Nível Central")
+prov_sub_idx    <- which(tbl5_data$provincia == "Nível Decentralizado")
+bold_rows5      <- c(central_sub_idx, prov_sub_idx, nrow(tbl5_data))
+
+col_meta5 <- tibble(col_key = ordered_cols5) |>
+  separate(col_key, into = c("metric", "year"), sep = "__", extra = "merge", remove = FALSE) |>
+  mutate(sub_label = case_when(
+    metric == "dotacao"  ~ "Orçamento",
+    metric == "paga"     ~ "Despesa",
+    metric == "exec_pct" ~ "Exec%"
+  ))
+
+typology5 <- data.frame(
+  col_keys = c("provincia", ordered_cols5),
+  spanner  = c("", col_meta5$year),
+  label    = c("", col_meta5$sub_label),
+  stringsAsFactors = FALSE
+)
+
+dotacao_cols5  <- ordered_cols5[str_starts(ordered_cols5, "dotacao__")]
+paga_cols5     <- ordered_cols5[str_starts(ordered_cols5, "paga__")]
+exec_pct_cols5 <- ordered_cols5[str_starts(ordered_cols5, "exec_pct__")]
+
+flextable(tbl5_data) |>
+  set_header_df(mapping = typology5, key = "col_keys") |>
+  merge_h(part = "header") |>
+  merge_v(part = "header") |>
+  theme_vanilla() |>
+  bg(i = seq(1, nrow(tbl5_data), 2), bg = "#f5f5f5", part = "body") |>
+  hline(
+    i      = central_sub_idx,
+    border = officer::fp_border(width = 2.5, color = "grey10"),
+    part   = "body"
+  ) |>
+  hline(
+    i      = prov_sub_idx,
+    border = officer::fp_border(width = 2.5, color = "grey10"),
+    part   = "body"
+  ) |>
+  align(part = "header", align = "center") |>
+  align(j = 1, part = "all", align = "left") |>
+  bold(i = bold_rows5, part = "body") |>
+  colformat_num(
+    j            = c(dotacao_cols5, paga_cols5),
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = exec_pct_cols5,
+    digits = 1,
+    suffix = "%"
+  ) |>
+  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+```{r narrative-tbl8}
+#| include: false
+
+# Per-CED totals across all ambitos — same filter as tbl8_raw
+ced_exec8 <- df |>
+  filter(ano == latest_ano, reporte_tipo == "Funcionamento", !is.na(ced_nome)) |>
+  group_by(ced_nome) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 1)) |>
+  filter(dotacao > 0)
+
+n8_n_ced      <- nrow(ced_exec8)
+n8_total_dot  <- sum(ced_exec8$dotacao)
+n8_total_pag  <- sum(ced_exec8$paga)
+n8_exec_total <- round(if_else(n8_total_dot > 0, n8_total_pag / n8_total_dot * 100, NA_real_), 1)
+
+n8_max_dot       <- ced_exec8 |> slice_max(dotacao,   n = 1, with_ties = FALSE)
+n8_max_dot_name  <- n8_max_dot$ced_nome
+n8_max_dot_val   <- n8_max_dot$dotacao
+
+n8_min_dot       <- ced_exec8 |> slice_min(dotacao,   n = 1, with_ties = FALSE)
+n8_min_dot_name  <- n8_min_dot$ced_nome
+n8_min_dot_val   <- n8_min_dot$dotacao
+
+n8_max_ced       <- ced_exec8 |> filter(!is.na(exec_pct)) |> slice_max(exec_pct, n = 1, with_ties = FALSE)
+n8_max_ced_name  <- n8_max_ced$ced_nome
+n8_max_ced_pct   <- n8_max_ced$exec_pct
+
+n8_min_ced       <- ced_exec8 |> filter(!is.na(exec_pct)) |> slice_min(exec_pct, n = 1, with_ties = FALSE)
+n8_min_ced_name  <- n8_min_ced$ced_nome
+n8_min_ced_pct   <- n8_min_ced$exec_pct
+
+n8_spread        <- round(n8_max_ced_pct - n8_min_ced_pct, 1)
+```
+
+Em `r latest_mes` de `r latest_ano`, `r n8_n_ced` CEDs receberam dotação de Funcionamento, totalizando `r fmt_mil(n8_total_dot)` milhões de Mts., com uma taxa de execução global de `r n8_exec_total`%. Em termos de alocação, `r n8_max_dot_name` registou a maior dotação, com `r fmt_mil(n8_max_dot_val)` milhões de Mts., enquanto `r n8_min_dot_name` recebeu a menor, com `r fmt_mil(n8_min_dot_val)` milhões de Mts. No que respeita à execução, `r n8_max_ced_name` apresentou a taxa mais elevada, com `r n8_max_ced_pct`%, ao passo que `r n8_min_ced_name` registou a taxa mais baixa, com `r n8_min_ced_pct`%, representando uma amplitude de `r n8_spread`pp entre os dois extremos. O detalhe por CED e âmbito encontra-se na tabela seguinte:
+
+```{r tbl-8}
+#| echo: false
+#| tbl-cap: !expr glue::glue("Resumo da Execução do Orçamento de Funcionamento do Sector da Educação por CED ({latest_mes}, {latest_ano})")
+
+ambito_order8 <- c("Central", "Provincial", "Distrital")
+
+tbl8_raw <- df |>
+  filter(ano == latest_ano,
+        mes == latest_mes,
+        reporte_tipo == "Funcionamento") |>
+  group_by(ced_nome, ambito) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  pivot_wider(
+    names_from  = ambito,
+    values_from = c(dotacao, paga),
+    names_glue  = "{.value}__{ambito}",
+    values_fill = 0
+  )
+
+for (ab in ambito_order8) {
+  d <- paste0("dotacao__", ab); p <- paste0("paga__", ab); e <- paste0("exec_pct__", ab)
+  if (d %in% names(tbl8_raw))
+    tbl8_raw[[e]] <- if_else(tbl8_raw[[d]] > 0, tbl8_raw[[p]] / tbl8_raw[[d]] * 100, NA_real_)
+}
+
+tbl8_raw <- tbl8_raw |>
+  mutate(
+    `dotacao__Total`  = rowSums(across(starts_with("dotacao__")), na.rm = TRUE),
+    `paga__Total`     = rowSums(across(starts_with("paga__")),    na.rm = TRUE),
+    `exec_pct__Total` = if_else(`dotacao__Total` > 0, `paga__Total` / `dotacao__Total` * 100, NA_real_)
+  )
+
+ordered_cols8 <- c(
+  map(ambito_order8, \(ab)
+    c(paste0("dotacao__", ab), paste0("paga__", ab), paste0("exec_pct__", ab))
+  ) |> unlist() |> (\(x) x[x %in% names(tbl8_raw)])(),
+  "dotacao__Total", "paga__Total", "exec_pct__Total"
+)
+
+tbl8_wide <- tbl8_raw |>
+  arrange(ced_nome == "Outros", desc(`dotacao__Total`)) |>
+  select(ced_nome, all_of(ordered_cols8))
+
+total_row8 <- df |>
+  filter(ano == latest_ano,
+        mes == latest_mes,
+        reporte_tipo == "Funcionamento") |>
+  group_by(ambito) |>
+  summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+            paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+            .groups = "drop") |>
+  pivot_wider(names_from = ambito, values_from = c(dotacao, paga),
+              names_glue = "{.value}__{ambito}", values_fill = 0)
+
+for (ab in ambito_order8) {
+  d <- paste0("dotacao__", ab); p <- paste0("paga__", ab); e <- paste0("exec_pct__", ab)
+  if (d %in% names(total_row8))
+    total_row8[[e]] <- if_else(total_row8[[d]] > 0, total_row8[[p]] / total_row8[[d]] * 100, NA_real_)
+}
+
+total_row8 <- total_row8 |>
+  mutate(
+    `dotacao__Total`  = rowSums(across(starts_with("dotacao__")), na.rm = TRUE),
+    `paga__Total`     = rowSums(across(starts_with("paga__")),    na.rm = TRUE),
+    `exec_pct__Total` = if_else(`dotacao__Total` > 0, `paga__Total` / `dotacao__Total` * 100, NA_real_)
+  )
+
+total_row8 <- total_row8 |>
+  mutate(ced_nome = "Total") |>
+  select(ced_nome, all_of(ordered_cols8))
+
+tbl8_data <- bind_rows(tbl8_wide, total_row8)
+
+col_meta8 <- tibble(col_key = ordered_cols8) |>
+  separate(col_key, into = c("metric", "ambito_label"), sep = "__", extra = "merge", remove = FALSE) |>
+  mutate(sub_label = case_when(
+    metric == "dotacao"  ~ "Orçamento",
+    metric == "paga"     ~ "Despesa",
+    metric == "exec_pct" ~ "Exec%"
+  ))
+
+typology8 <- data.frame(
+  col_keys = c("ced_nome", ordered_cols8),
+  spanner  = c("Descrição", col_meta8$ambito_label),
+  label    = c("Descrição", col_meta8$sub_label),
+  stringsAsFactors = FALSE
+)
+
+dotacao_cols8  <- ordered_cols8[str_starts(ordered_cols8, "dotacao__")]
+paga_cols8     <- ordered_cols8[str_starts(ordered_cols8, "paga__")]
+exec_pct_cols8 <- ordered_cols8[str_starts(ordered_cols8, "exec_pct__")]
+
+flextable(tbl8_data) |>
+  set_header_df(mapping = typology8, key = "col_keys") |>
+  merge_h(part = "header") |>
+  merge_v(part = "header") |>
+  theme_vanilla() |>
+  fontsize(size = 8, part = "all") |>
+  bg(i = seq(1, nrow(tbl8_data), 2), bg = "#f5f5f5", part = "body") |>
+  align(part = "header", align = "center") |>
+  align(j = 1, part = "all", align = "left") |>
+  bold(i = nrow(tbl8_data), part = "body") |>
+  colformat_num(
+    j            = c(dotacao_cols8, paga_cols8),
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = exec_pct_cols8,
+    digits = 1,
+    suffix = "%"
+  ) |>
+  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+
+[!!!MISSING - Tabela 11. Resumo da Execução orçamental por Rúbricas, do MEC]{style="color: red;"}
+
+### Orçamento de Investimento Interno
+
+```{r narrative-tbl10}
+#| include: false
+
+pp_dir <- function(x) {
+  if (is.na(x) || length(x) == 0) return("N/D")
+  if (x >= 0) paste0("mais ", abs(x), "pp") else paste0("menos ", abs(x), "pp")
+}
+
+# Totals by year: mirrors tbl-10 filters exactly
+func_totals10 <- bind_rows(
+  df |> filter(mes == latest_mes, reporte_tipo == "Investimento Interno"),
+  df |> filter(mes == latest_mes, ambito == "Central", !is.na(descricao))
+) |>
+  group_by(ano) |>
+  summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+            paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+            .groups = "drop") |>
+  mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 0))
+
+n10_dotacao_latest <- func_totals10 |> filter(ano == latest) |> pull1(dotacao)
+n10_dotacao_prev   <- func_totals10 |> filter(ano == prev)   |> pull1(dotacao)
+n10_paga_latest    <- func_totals10 |> filter(ano == latest) |> pull1(paga)
+n10_paga_prev      <- func_totals10 |> filter(ano == prev)   |> pull1(paga)
+n10_exec_latest    <- func_totals10 |> filter(ano == latest) |> pull1(exec_pct)
+n10_exec_prev      <- func_totals10 |> filter(ano == prev)   |> pull1(exec_pct)
+n10_pp_diff        <- n10_exec_latest - n10_exec_prev
+n10_paga_diff      <- n10_paga_latest - n10_paga_prev
+
+# Provincial exec% per province, latest year (mirrors tbl10_prov filter)
+prov_exec10 <- df |>
+  filter(mes == latest_mes, ano == latest, reporte_tipo == "Investimento Interno") |>
+  group_by(provincia) |>
+  summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+            paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+            .groups = "drop") |>
+  mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 0)) |>
+  filter(!is.na(exec_pct))
+
+n10_exec_prov_mean <- prov_exec10 |>
+  summarise(d = sum(dotacao), p = sum(paga)) |>
+  mutate(e = round(p / d * 100, 0)) |> pull(e)
+
+n10_min_prov      <- prov_exec10 |> slice_min(exec_pct, n = 1, with_ties = FALSE)
+n10_min_prov_name <- n10_min_prov$provincia
+n10_min_prov_pct  <- n10_min_prov$exec_pct
+n10_min_pp_diff   <- n10_min_prov_pct - n10_exec_prov_mean
+
+# Dominant Central institution (highest dotacao, latest year)
+central_inst10 <- df |>
+  filter(mes == latest_mes, ambito == "Central", !is.na(descricao)) |>
+  group_by(descricao, ano) |>
+  summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+            paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+            .groups = "drop") |>
+  mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 0))
+
+n10_mec_name        <- central_inst10 |> filter(ano == latest) |> slice_max(dotacao, n = 1, with_ties = FALSE) |> pull1(descricao)
+n10_mec_exec_latest <- central_inst10 |> filter(ano == latest, descricao == n10_mec_name) |> pull1(exec_pct)
+n10_mec_exec_prev   <- central_inst10 |> filter(ano == prev,   descricao == n10_mec_name) |> pull1(exec_pct)
+```
+
+O valor actualizado do Orçamento de Investimento Interno, até final do mês de `r latest_mes` de `r latest`, estava estimado em `r fmt_mil(n10_dotacao_latest)` milhões de Mts., contra `r fmt_mil(n10_dotacao_prev)` milhões de Mts. do período homólogo anterior. O nível de execução foi de `r n10_exec_latest`%, `r pp_dir(n10_pp_diff)` relativamente à execução registada até ao mês de `r latest_mes` de `r prev`, correspondendo a uma variação de `r fmt_mil(abs(n10_paga_diff))` milhões de Mts. na despesa paga.
+
+A Província de `r n10_min_prov_name` apresenta o nível de execução mais baixo, com `r n10_min_prov_pct`%, face à média provincial estimada em `r n10_exec_prov_mean`%, representando um diferencial de `r abs(n10_min_pp_diff)`pp abaixo da média. `r n10_mec_name` apresenta um nível de execução correspondente a `r n10_mec_exec_latest`% do seu valor orçamental, contra os `r n10_mec_exec_prev`% registados em igual período do ano anterior. Os movimentos referentes ao período em análise podem ser visualizados na tabela seguinte:
+
+```{r tbl-10}
+#| echo: false
+#| tbl-cap: !expr glue::glue("Resumo da Execução do Orçamento por Classificação Territorial ({latest_mes}, {prev}/{latest %% 100})")
+
+# Provincial rows: use provincia as label (restrict to known provinces to exclude
+# Central rows where provincia is a placeholder like "-")
+tbl10_prov <- df |>
+  filter(mes == latest_mes,
+         reporte_tipo == "Investimento Interno",
+         provincia %in% setdiff(provincia_order, "Total")) |>
+  group_by(provincia, ano) |>
+  summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+            paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+            .groups = "drop")
+
+# Central rows: use descricao as label, drop NA descricao
+tbl10_other <- df |>
+  filter(mes == latest_mes,
+reporte_tipo == "Investimento Interno",
+  ambito == "Central",
+  !is.na(descricao)) |>
+  group_by(descricao, ano) |>
+  summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+            paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+            .groups = "drop") |>
+  rename(provincia = descricao)
+
+# Subtotals in long format
+central_total10 <- tbl10_other |>
+  group_by(ano) |>
+  summarise(dotacao = sum(dotacao, na.rm = TRUE),
+            paga    = sum(paga,    na.rm = TRUE),
+            .groups = "drop") |>
+  mutate(provincia = "Nível Central")
+
+prov_total10 <- tbl10_prov |>
+  group_by(ano) |>
+  summarise(dotacao = sum(dotacao, na.rm = TRUE),
+            paga    = sum(paga,    na.rm = TRUE),
+            .groups = "drop") |>
+  mutate(provincia = "Nível Decentralizado")
+
+# Determine row order before binding
+prov_levels     <- setdiff(provincia_order, "Total")
+central_labels10 <- sort(setdiff(unique(tbl10_other$provincia), prov_levels))
+row_order        <- c(central_labels10, "Nível Central", prov_levels, "Nível Decentralizado")
+
+# combine in display order, pivot wide, add exec_pct
+tbl10_raw <- bind_rows(tbl10_other, central_total10, tbl10_prov, prov_total10) |>
+  pivot_wider(
+    names_from  = ano,
+    values_from = c(dotacao, paga),
+    names_glue  = "{.value}__{ano}",
+    values_fill = 0
+  )
+
+years10 <- names(tbl10_raw) |>
+  str_subset("^dotacao__") |>
+  str_remove("dotacao__") |>
+  as.numeric() |>
+  sort()
+
+for (yr in as.character(years10)) {
+  d <- paste0("dotacao__", yr); p <- paste0("paga__", yr); e <- paste0("exec_pct__", yr)
+  if (d %in% names(tbl10_raw))
+    tbl10_raw[[e]] <- if_else(tbl10_raw[[d]] > 0, tbl10_raw[[p]] / tbl10_raw[[d]] * 100, NA_real_)
+}
+
+ordered_cols10 <- map(as.character(years10), \(yr)
+  c(paste0("dotacao__", yr), paste0("paga__", yr), paste0("exec_pct__", yr))
+) |> unlist() |> (\(x) x[x %in% names(tbl10_raw)])()
+
+tbl10_data <- tbl10_raw |>
+  mutate(provincia = factor(provincia, levels = row_order)) |>
+  arrange(provincia) |>
+  mutate(provincia = as.character(provincia)) |>
+  select(provincia, all_of(ordered_cols10))
+
+# Grand total: aggregate across both groups
+total_row10 <- bind_rows(tbl10_prov, tbl10_other) |>
+  group_by(ano) |>
+  summarise(dotacao = sum(dotacao, na.rm = TRUE),
+            paga    = sum(paga,    na.rm = TRUE),
+            .groups = "drop") |>
+  pivot_wider(names_from = ano, values_from = c(dotacao, paga),
+              names_glue = "{.value}__{ano}", values_fill = 0)
+
+for (yr in as.character(years10)) {
+  d <- paste0("dotacao__", yr); p <- paste0("paga__", yr); e <- paste0("exec_pct__", yr)
+  if (d %in% names(total_row10))
+    total_row10[[e]] <- if_else(total_row10[[d]] > 0, total_row10[[p]] / total_row10[[d]] * 100, NA_real_)
+}
+
+total_row10 <- total_row10 |>
+  mutate(provincia = "Total") |>
+  select(provincia, all_of(ordered_cols10))
+
+tbl10_data <- bind_rows(tbl10_data, total_row10)
+
+central_sub_idx10 <- which(tbl10_data$provincia == "Nível Central")
+prov_sub_idx10    <- which(tbl10_data$provincia == "Nível Decentralizado")
+bold_rows10       <- c(central_sub_idx10, prov_sub_idx10, nrow(tbl10_data))
+
+col_meta10 <- tibble(col_key = ordered_cols10) |>
+  separate(col_key, into = c("metric", "year"), sep = "__", extra = "merge", remove = FALSE) |>
+  mutate(sub_label = case_when(
+    metric == "dotacao"  ~ "Orçamento",
+    metric == "paga"     ~ "Despesa",
+    metric == "exec_pct" ~ "Exec%"
+  ))
+
+typology10 <- data.frame(
+  col_keys = c("provincia", ordered_cols10),
+  spanner  = c("", col_meta10$year),
+  label    = c("", col_meta10$sub_label),
+  stringsAsFactors = FALSE
+)
+
+dotacao_cols10  <- ordered_cols10[str_starts(ordered_cols10, "dotacao__")]
+paga_cols10     <- ordered_cols10[str_starts(ordered_cols10, "paga__")]
+exec_pct_cols10 <- ordered_cols10[str_starts(ordered_cols10, "exec_pct__")]
+
+flextable(tbl10_data) |>
+  set_header_df(mapping = typology10, key = "col_keys") |>
+  merge_h(part = "header") |>
+  merge_v(part = "header") |>
+  theme_vanilla() |>
+  bg(i = seq(1, nrow(tbl10_data), 2), bg = "#f5f5f5", part = "body") |>
+  hline(
+    i      = central_sub_idx10,
+    border = officer::fp_border(width = 2.5, color = "grey10"),
+    part   = "body"
+  ) |>
+  hline(
+    i      = prov_sub_idx10,
+    border = officer::fp_border(width = 2.5, color = "grey10"),
+    part   = "body"
+  ) |>
+  align(part = "header", align = "center") |>
+  align(j = 1, part = "all", align = "left") |>
+  bold(i = bold_rows10, part = "body") |>
+  colformat_num(
+    j            = c(dotacao_cols10, paga_cols10),
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = exec_pct_cols10,
+    digits = 1,
+    suffix = "%"
+  ) |>
+  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+```{r narrative-tbl11}
+#| include: false
+
+inst11 <- df |>
+  filter(ano == latest_ano, reporte_tipo == "Investimento Interno") |>
+  group_by(ced_nome) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 1)) |>
+  filter(dotacao > 0)
+
+n11_n_ced     <- nrow(inst11)
+n11_total_dot <- sum(inst11$dotacao)
+n11_total_pag <- sum(inst11$paga)
+n11_total_exc <- round(if_else(n11_total_dot > 0, n11_total_pag / n11_total_dot * 100, NA_real_), 1)
+
+n11_max_dot      <- inst11 |> slice_max(dotacao,   n = 1, with_ties = FALSE)
+n11_max_dot_name <- n11_max_dot$ced_nome
+n11_max_dot_val  <- n11_max_dot$dotacao
+
+n11_min_dot      <- inst11 |> slice_min(dotacao,   n = 1, with_ties = FALSE)
+n11_min_dot_name <- n11_min_dot$ced_nome
+n11_min_dot_val  <- n11_min_dot$dotacao
+
+n11_max_exec      <- inst11 |> filter(!is.na(exec_pct)) |> slice_max(exec_pct, n = 1, with_ties = FALSE)
+n11_max_exec_name <- n11_max_exec$ced_nome
+n11_max_exec_pct  <- n11_max_exec$exec_pct
+
+n11_min_exec      <- inst11 |> filter(!is.na(exec_pct)) |> slice_min(exec_pct, n = 1, with_ties = FALSE)
+n11_min_exec_name <- n11_min_exec$ced_nome
+n11_min_exec_pct  <- n11_min_exec$exec_pct
+```
+
+Em `r latest_mes` de `r latest_ano`, `r n11_n_ced` CEDs receberam dotação de Investimento Interno, totalizando `r fmt_mil(n11_total_dot)` milhões de Mts., com uma taxa de execução global de `r n11_total_exc`%. Em termos de alocação, `r n11_max_dot_name` registou a maior dotação, com `r fmt_mil(n11_max_dot_val)` milhões de Mts., enquanto `r n11_min_dot_name` recebeu a menor alocação, com `r fmt_mil(n11_min_dot_val)` milhões de Mts. No que respeita à execução, `r n11_max_exec_name` apresentou a taxa mais elevada, com `r n11_max_exec_pct`%, ao passo que `r n11_min_exec_name` registou a taxa mais baixa, com `r n11_min_exec_pct`%. O detalhe por CED e âmbito encontra-se na tabela seguinte:
+
+```{r tbl-11}
+#| echo: false
+#| tbl-cap: !expr glue::glue("Resumo da Execução do orçamento de Invest. Interno do Sector da Educação por CED ({latest_mes}, {latest})")
+
+ambito_order11 <- c("Central", "Provincial", "Distrital")
+
+  tbl11_raw <- df |>
+  filter(ano == latest_ano,
+        mes == latest_mes,
+        reporte_tipo == "Investimento Interno") |>
+  group_by(ced_nome, ambito) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  pivot_wider(
+    names_from  = ambito,
+    values_from = c(dotacao, paga),
+    names_glue  = "{.value}__{ambito}",
+    values_fill = 0
+  )
+
+for (ab in ambito_order11) {
+  d <- paste0("dotacao__", ab); p <- paste0("paga__", ab); e <- paste0("exec_pct__", ab)
+  if (d %in% names(tbl11_raw))
+    tbl11_raw[[e]] <- if_else(tbl11_raw[[d]] > 0, tbl11_raw[[p]] / tbl11_raw[[d]] * 100, NA_real_)
+}
+
+tbl11_raw <- tbl11_raw |>
+  mutate(
+    `dotacao__Total`  = rowSums(across(starts_with("dotacao__")), na.rm = TRUE),
+    `paga__Total`     = rowSums(across(starts_with("paga__")),    na.rm = TRUE),
+    `exec_pct__Total` = if_else(`dotacao__Total` > 0, `paga__Total` / `dotacao__Total` * 100, NA_real_)
+  )
+
+ordered_cols11 <- c(
+  map(ambito_order11, \(ab)
+    c(paste0("dotacao__", ab), paste0("paga__", ab), paste0("exec_pct__", ab))
+  ) |> unlist() |> (\(x) x[x %in% names(tbl11_raw)])(),
+  "dotacao__Total", "paga__Total", "exec_pct__Total"
+)
+
+tbl11_wide <- tbl11_raw |>
+  arrange(ced_nome == "Outros", desc(`dotacao__Total`)) |>
+  select(ced_nome, all_of(ordered_cols11))
+
+total_row11 <- df |>
+  filter(ano == latest_ano,
+        mes == latest_mes,
+        reporte_tipo == "Investimento Interno") |>
+  group_by(ambito) |>
+  summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+            paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+            .groups = "drop") |>
+  pivot_wider(names_from = ambito, values_from = c(dotacao, paga),
+              names_glue = "{.value}__{ambito}", values_fill = 0)
+
+for (ab in ambito_order11) {
+  d <- paste0("dotacao__", ab); p <- paste0("paga__", ab); e <- paste0("exec_pct__", ab)
+  if (d %in% names(total_row11))
+    total_row11[[e]] <- if_else(total_row11[[d]] > 0, total_row11[[p]] / total_row11[[d]] * 100, NA_real_)
+}
+
+total_row11 <- total_row11 |>
+  mutate(
+    `dotacao__Total`  = rowSums(across(starts_with("dotacao__")), na.rm = TRUE),
+    `paga__Total`     = rowSums(across(starts_with("paga__")),    na.rm = TRUE),
+    `exec_pct__Total` = if_else(`dotacao__Total` > 0, `paga__Total` / `dotacao__Total` * 100, NA_real_)
+  )
+
+total_row11 <- total_row11 |>
+  mutate(ced_nome = "Total") |>
+  select(ced_nome, all_of(ordered_cols11))
+
+tbl11_data <- bind_rows(tbl11_wide, total_row11)
+
+col_meta11 <- tibble(col_key = ordered_cols11) |>
+  separate(col_key, into = c("metric", "ambito_label"), sep = "__", extra = "merge", remove = FALSE) |>
+  mutate(sub_label = case_when(
+    metric == "dotacao"  ~ "Orçamento",
+    metric == "paga"     ~ "Despesa",
+    metric == "exec_pct" ~ "Exec%"
+  ))
+
+typology11 <- data.frame(
+  col_keys = c("ced_nome", ordered_cols11),
+  spanner  = c("CED", col_meta11$ambito_label),
+  label    = c("CED", col_meta11$sub_label),
+  stringsAsFactors = FALSE
+)
+
+dotacao_cols11  <- ordered_cols11[str_starts(ordered_cols11, "dotacao__")]
+paga_cols11     <- ordered_cols11[str_starts(ordered_cols11, "paga__")]
+exec_pct_cols11 <- ordered_cols11[str_starts(ordered_cols11, "exec_pct__")]
+
+flextable(tbl11_data) |>
+  set_header_df(mapping = typology11, key = "col_keys") |>
+  merge_h(part = "header") |>
+  merge_v(part = "header") |>
+  theme_vanilla() |>
+  fontsize(size = 8, part = "all") |>
+  bg(i = seq(1, nrow(tbl11_data), 2), bg = "#f5f5f5", part = "body") |>
+  align(part = "header", align = "center") |>
+  align(j = 1, part = "all", align = "left") |>
+  bold(i = nrow(tbl11_data), part = "body") |>
+  colformat_num(
+    j            = c(dotacao_cols11, paga_cols11),
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = exec_pct_cols11,
+    digits = 1,
+    suffix = "%"
+  ) |>
+  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+```{r narrative-tbl12}
+#| include: false
+
+inst9 <- df |>
+  filter(ano == latest, mes == latest_mes, descricao == "Outras Instituições") |>
+  group_by(ugb) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(
+    ugb      = str_to_title(str_remove(ugb, "^.*?- ")),
+    exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 1)
+  ) |>
+  filter(dotacao > 0)
+
+n9_n_inst <- nrow(inst9)
+
+n9_total_dot  <- sum(inst9$dotacao)
+n9_total_paga <- sum(inst9$paga)
+n9_total_exec <- round(if_else(n9_total_dot > 0, n9_total_paga / n9_total_dot * 100, NA_real_), 1)
+
+n9_max_dot       <- inst9 |> slice_max(dotacao,   n = 1, with_ties = FALSE)
+n9_max_dot_name  <- n9_max_dot$ugb
+n9_max_dot_val   <- n9_max_dot$dotacao
+
+n9_min_dot       <- inst9 |> slice_min(dotacao,   n = 1, with_ties = FALSE)
+n9_min_dot_name  <- n9_min_dot$ugb
+n9_min_dot_val   <- n9_min_dot$dotacao
+
+n9_max_exec      <- inst9 |> filter(!is.na(exec_pct)) |> slice_max(exec_pct, n = 1, with_ties = FALSE)
+n9_max_exec_name <- n9_max_exec$ugb
+n9_max_exec_pct  <- n9_max_exec$exec_pct
+
+n9_min_exec      <- inst9 |> filter(!is.na(exec_pct)) |> slice_min(exec_pct, n = 1, with_ties = FALSE)
+n9_min_exec_name <- n9_min_exec$ugb
+n9_min_exec_pct  <- n9_min_exec$exec_pct
+```
+
+Em `r latest_mes` de `r latest`, `r n9_n_inst` instituições centrais tuteladas e subordinadas pelo MEC receberam dotação orçamental, totalizando `r fmt_mil(n9_total_dot)` milhões de Mts., com uma taxa de execução global de `r n9_total_exec`%. Em termos de alocação, `r n9_max_dot_name` registou a maior dotação, com `r fmt_mil(n9_max_dot_val)` milhões de Mts., enquanto `r n9_min_dot_name` recebeu a menor alocação, com `r fmt_mil(n9_min_dot_val)` milhões de Mts. No que respeita à execução, `r n9_max_exec_name` apresentou a taxa mais elevada, com `r n9_max_exec_pct`%, ao passo que `r n9_min_exec_name` registou a taxa mais baixa, com `r n9_min_exec_pct`%. O detalhe por instituição encontra-se na tabela seguinte:
+
+```{r tbl-12}
+#| echo: false
+#| tbl-cap: !expr glue::glue("Execução Orcamental das Instituicoes centrais Tuteladas e Subordinadas pelo MEC ({latest_mes}, {latest_ano})")
+
+reporte_order9 <- c("Funcionamento", "Investimento Interno", "Investimento Externo")
+
+tbl9_raw <- df |>
+  filter(ano == latest,
+         mes == latest_mes,
+         descricao == "Outras Instituições") |>
+  group_by(ugb, reporte_tipo) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  pivot_wider(
+    names_from  = reporte_tipo,
+    values_from = c(dotacao, paga),
+    names_glue  = "{.value}__{reporte_tipo}",
+    values_fill = 0
+  )
+
+for (rt in reporte_order9) {
+  d <- paste0("dotacao__", rt); p <- paste0("paga__", rt); e <- paste0("exec_pct__", rt)
+  if (d %in% names(tbl9_raw))
+    tbl9_raw[[e]] <- if_else(tbl9_raw[[d]] > 0, tbl9_raw[[p]] / tbl9_raw[[d]] * 100, NA_real_)
+}
+
+tbl9_raw <- tbl9_raw |>
+  mutate(
+    `dotacao__Total`  = rowSums(across(starts_with("dotacao__")), na.rm = TRUE),
+    `paga__Total`     = rowSums(across(starts_with("paga__")),    na.rm = TRUE),
+    `exec_pct__Total` = if_else(`dotacao__Total` > 0, `paga__Total` / `dotacao__Total` * 100, NA_real_)
+  )
+
+ordered_cols9 <- c(
+  map(reporte_order9, \(rt)
+    c(paste0("dotacao__", rt), paste0("paga__", rt), paste0("exec_pct__", rt))
+  ) |> unlist() |> (\(x) x[x %in% names(tbl9_raw)])(),
+  "dotacao__Total", "paga__Total", "exec_pct__Total"
+)
+
+tbl9_data <- tbl9_raw |>
+  mutate(ugb = str_to_title(str_remove(ugb, "^.*?- "))) |>
+  arrange(desc(`dotacao__Total`)) |>
+  select(ugb, all_of(ordered_cols9))
+
+total_row9 <- df |>
+  filter(ano == 2026,
+         mes == latest_mes,
+         descricao == "Outras Instituições") |>
+  group_by(reporte_tipo) |>
+  summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+            paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+            .groups = "drop") |>
+  pivot_wider(names_from = reporte_tipo, values_from = c(dotacao, paga),
+              names_glue = "{.value}__{reporte_tipo}", values_fill = 0)
+
+for (rt in reporte_order9) {
+  d <- paste0("dotacao__", rt); p <- paste0("paga__", rt); e <- paste0("exec_pct__", rt)
+  if (d %in% names(total_row9))
+    total_row9[[e]] <- if_else(total_row9[[d]] > 0, total_row9[[p]] / total_row9[[d]] * 100, NA_real_)
+}
+
+total_row9 <- total_row9 |>
+  mutate(
+    `dotacao__Total`  = rowSums(across(starts_with("dotacao__")), na.rm = TRUE),
+    `paga__Total`     = rowSums(across(starts_with("paga__")),    na.rm = TRUE),
+    `exec_pct__Total` = if_else(`dotacao__Total` > 0, `paga__Total` / `dotacao__Total` * 100, NA_real_)
+  )
+
+total_row9 <- total_row9 |>
+  mutate(ugb = "Total") |>
+  select(ugb, all_of(ordered_cols9))
+
+tbl9_data <- bind_rows(tbl9_data, total_row9)
+
+col_meta9 <- tibble(col_key = ordered_cols9) |>
+  separate(col_key, into = c("metric", "reporte_label"), sep = "__", extra = "merge", remove = FALSE) |>
+  mutate(sub_label = case_when(
+    metric == "dotacao"  ~ "Orçamento",
+    metric == "paga"     ~ "Despesa",
+    metric == "exec_pct" ~ "Exec%"
+  ))
+
+typology9 <- data.frame(
+  col_keys = c("ugb", ordered_cols9),
+  spanner  = c("Instituição", col_meta9$reporte_label),
+  label    = c("Instituição", col_meta9$sub_label),
+  stringsAsFactors = FALSE
+)
+
+dotacao_cols9  <- ordered_cols9[str_starts(ordered_cols9, "dotacao__")]
+paga_cols9     <- ordered_cols9[str_starts(ordered_cols9, "paga__")]
+exec_pct_cols9 <- ordered_cols9[str_starts(ordered_cols9, "exec_pct__")]
+
+flextable(tbl9_data) |>
+  set_header_df(mapping = typology9, key = "col_keys") |>
+  merge_h(part = "header") |>
+  merge_v(part = "header") |>
+  theme_vanilla() |>
+  fontsize(size = 8, part = "all") |>
+  bg(i = seq(1, nrow(tbl9_data), 2), bg = "#f5f5f5", part = "body") |>
+  align(part = "header", align = "center") |>
+  align(j = 1, part = "all", align = "left") |>
+  bold(i = nrow(tbl9_data), part = "body") |>
+  colformat_num(
+    j            = c(dotacao_cols9, paga_cols9),
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = exec_pct_cols9,
+    digits = 1,
+    suffix = "%"
+  ) |>
+  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+```{r fig-12}
+#| echo: false
+#| fig-cap: !expr glue::glue("Orçamento e Taxa de Execução das Instituições Tuteladas e Subordinadas pelo MEC ({latest_mes}, {latest_ano})")
+
+fig12_data <- tbl9_data |>
+  filter(ugb != "Total") |>
+  select(ugb, dotacao = `dotacao__Total`, exec_pct = `exec_pct__Total`) |>
+  mutate(ugb = fct_reorder(ugb, exec_pct))
+
+fig12_max_dot  <- max(fig12_data$dotacao, na.rm = TRUE)
+fig12_ep_lo    <- max(0,   min(fig12_data$exec_pct, na.rm = TRUE) - 15)
+fig12_ep_hi    <- min(100, max(fig12_data$exec_pct, na.rm = TRUE) + 15)
+fig12_ep_range <- fig12_ep_hi - fig12_ep_lo
+
+# linear map: exec_pct -> primary axis position
+ep_to_x  <- function(ep) (ep - fig12_ep_lo) / fig12_ep_range * fig12_max_dot
+# inverse for sec_axis: primary position -> exec_pct
+x_to_ep  <- ~ . / fig12_max_dot * fig12_ep_range + fig12_ep_lo
+
+ggplot(fig12_data, aes(y = ugb)) +
+  geom_col(aes(x = dotacao), fill = "grey80", width = 0.65) +
+  geom_point(
+    aes(x = ep_to_x(exec_pct)),
+    color = "black", size = 3, shape = 19
+  ) +
+  geom_text(
+    aes(x = ep_to_x(exec_pct),
+        label = paste0(formatC(exec_pct, format = "f", digits = 0), "%")),
+    hjust = -0.3, size = 2.8, color = "black"
+  ) +
+  scale_x_continuous(
+    labels = scales::label_number(big.mark = ".", decimal.mark = ",", accuracy = 1),
+    sec.axis = sec_axis(
+      x_to_ep,
+      name   = "Execução %",
+      labels = scales::label_number(suffix = "%", decimal.mark = ",", accuracy = 1)
+    ),
+    expand = expansion(mult = c(0, 0.12))
+  ) +
+  labs(
+    x       = "Orçamento",
+    y       = NULL
+  ) +
+  theme_minimal(base_size = 9) +
+  theme(
+    panel.grid.major.y  = element_blank(),
+    panel.grid.minor    = element_blank(),
+    axis.text.y         = element_text(size = 9),
+    axis.text.x.bottom  = element_text(size = 8),
+    axis.text.x.top     = element_text(size = 8),
+    axis.title.x.bottom = element_text(margin = margin(t = 8), size = 9),
+    axis.title.x.top    = element_text(margin = margin(b = 8), size = 9),
+    plot.caption        = element_text(size = 7, color = "#5A6570", face = "italic")
+  )
+```
+
+### Orçamento de Investimento Externo
+
+#### ADE - Apoio Directo às Escolas
+
+```{r narrative-tbl13}
+#| include: false
+
+n13_data <- df |>
+  filter(
+    ano == latest_ano,
+    mes == latest_mes,
+    programa_tipo %in% c("ADE EP"),
+    provincia %in% setdiff(provincia_order, "Total")
+  ) |>
+  group_by(provincia) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  filter(dotacao > 0) |>
+  mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 1))
+
+n13_grand_total  <- sum(n13_data$dotacao)
+n13_total_paga   <- sum(n13_data$paga)
+n13_total_exec   <- round(if_else(n13_grand_total > 0, n13_total_paga / n13_grand_total * 100, NA_real_), 1)
+n13_n_prov       <- nrow(n13_data)
+
+n13_max_dot      <- n13_data |> slice_max(dotacao, n = 1, with_ties = FALSE)
+n13_max_dot_name <- n13_max_dot$provincia
+n13_max_dot_val  <- n13_max_dot$dotacao
+n13_max_dot_peso <- round(n13_max_dot$dotacao / n13_grand_total * 100, 1)
+
+n13_min_dot      <- n13_data |> slice_min(dotacao, n = 1, with_ties = FALSE)
+n13_min_dot_name <- n13_min_dot$provincia
+n13_min_dot_val  <- n13_min_dot$dotacao
+
+n13_max_exec      <- n13_data |> filter(!is.na(exec_pct)) |> slice_max(exec_pct, n = 1, with_ties = FALSE)
+n13_max_exec_name <- n13_max_exec$provincia
+n13_max_exec_pct  <- n13_max_exec$exec_pct
+
+n13_min_exec      <- n13_data |> filter(!is.na(exec_pct)) |> slice_min(exec_pct, n = 1, with_ties = FALSE)
+n13_min_exec_name <- n13_min_exec$provincia
+n13_min_exec_pct  <- n13_min_exec$exec_pct
+```
+
+Em `r latest_mes` de `r latest_ano`, a dotação do Programa ADE EP por província totalizou `r fmt_mil(n13_grand_total)` milhões de Mts., distribuída por `r n13_n_prov` províncias, com uma taxa de execução global de `r n13_total_exec`%. `r n13_max_dot_name` concentrou a maior alocação, com `r fmt_mil(n13_max_dot_val)` milhões de Mts. (`r n13_max_dot_peso`% do total), enquanto `r n13_min_dot_name` registou a menor, com `r fmt_mil(n13_min_dot_val)` milhões de Mts. Em termos de execução, `r n13_max_exec_name` apresentou a taxa mais elevada, com `r n13_max_exec_pct`%, ao passo que `r n13_min_exec_name` registou a taxa mais baixa, com `r n13_min_exec_pct`%, conforme a tabela seguinte:
+
+```{r tbl-13}
+#| echo: false
+#| tbl-cap: !expr glue::glue("Resumo do Ponto de Situação do ADE – Ensino Primário ({latest_mes}, {latest_ano})")
+
+tbl13_data <- tibble(provincia = setdiff(provincia_order, "Total")) |>
+  left_join(n13_data, by = "provincia") |>
+  mutate(
+    dotacao  = replace_na(dotacao, 0),
+    paga     = replace_na(paga, 0),
+    exec_pct = if_else(dotacao > 0, round(paga / dotacao * 100, 1), NA_real_)
+  ) |>
+  mutate(provincia = factor(provincia, levels = provincia_order)) |>
+  arrange(provincia) |>
+  mutate(provincia = as.character(provincia)) |>
+  select(provincia, dotacao, paga, exec_pct)
+
+total_row13 <- tbl13_data |>
+  summarise(
+    dotacao  = sum(dotacao,  na.rm = TRUE),
+    paga     = sum(paga,     na.rm = TRUE),
+    exec_pct = if_else(
+      sum(dotacao, na.rm = TRUE) > 0,
+      sum(paga, na.rm = TRUE) / sum(dotacao, na.rm = TRUE) * 100,
+      NA_real_
+    )
+  ) |>
+  mutate(provincia = "Total")
+
+tbl13_data <- bind_rows(tbl13_data, total_row13)
+
+flextable(tbl13_data) |>
+  set_header_labels(
+    provincia = "Província",
+    dotacao   = "Orçamento",
+    paga      = "Despesa",
+    exec_pct  = "Exec%"
+  ) |>
+  theme_vanilla() |>
+  bg(i = seq(1, nrow(tbl13_data), 2), bg = "#f5f5f5", part = "body") |>
+  align(part = "header", align = "center") |>
+  align(j = 1, part = "all", align = "left") |>
+  bold(i = nrow(tbl13_data), part = "body") |>
+  colformat_num(
+    j            = c("dotacao", "paga"),
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = "exec_pct",
+    digits = 1,
+    suffix = "%"
+  ) |>
+  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+```{r narrative-tbl14}
+#| include: false
+
+n14_data <- df |>
+  filter(
+    ano == latest_ano,
+    mes == latest_mes,
+    programa_tipo %in% c("ADE EB"),
+    provincia %in% setdiff(provincia_order, "Total")
+  ) |>
+  group_by(provincia) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  filter(dotacao > 0) |>
+  mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 1))
+
+n14_grand_total  <- sum(n14_data$dotacao)
+n14_total_paga   <- sum(n14_data$paga)
+n14_total_exec   <- round(if_else(n14_grand_total > 0, n14_total_paga / n14_grand_total * 100, NA_real_), 1)
+n14_n_prov       <- nrow(n14_data)
+
+n14_max_dot      <- n14_data |> slice_max(dotacao, n = 1, with_ties = FALSE)
+n14_max_dot_name <- n14_max_dot$provincia
+n14_max_dot_val  <- n14_max_dot$dotacao
+n14_max_dot_peso <- round(n14_max_dot$dotacao / n14_grand_total * 100, 1)
+
+n14_min_dot      <- n14_data |> slice_min(dotacao, n = 1, with_ties = FALSE)
+n14_min_dot_name <- n14_min_dot$provincia
+n14_min_dot_val  <- n14_min_dot$dotacao
+
+n14_max_exec      <- n14_data |> filter(!is.na(exec_pct)) |> slice_max(exec_pct, n = 1, with_ties = FALSE)
+n14_max_exec_name <- n14_max_exec$provincia
+n14_max_exec_pct  <- n14_max_exec$exec_pct
+
+n14_min_exec      <- n14_data |> filter(!is.na(exec_pct)) |> slice_min(exec_pct, n = 1, with_ties = FALSE)
+n14_min_exec_name <- n14_min_exec$provincia
+n14_min_exec_pct  <- n14_min_exec$exec_pct
+```
+
+Em `r latest_mes` de `r latest_ano`, a dotação do Programa ADE EB por província totalizou `r fmt_mil(n14_grand_total)` milhões de Mts., distribuída por `r n14_n_prov` províncias, com uma taxa de execução global de `r n14_total_exec`%. `r n14_max_dot_name` concentrou a maior alocação, com `r fmt_mil(n14_max_dot_val)` milhões de Mts. (`r n14_max_dot_peso`% do total), enquanto `r n14_min_dot_name` registou a menor, com `r fmt_mil(n14_min_dot_val)` milhões de Mts. Em termos de execução, `r n14_max_exec_name` apresentou a taxa mais elevada, com `r n14_max_exec_pct`%, ao passo que `r n14_min_exec_name` registou a taxa mais baixa, com `r n14_min_exec_pct`%, conforme a tabela seguinte:
+
+```{r tbl-14}
+#| echo: false
+#| tbl-cap: !expr glue::glue("Resumo do Ponto de Situação do ADE – Ensino Básico ({latest_mes}, {latest_ano})")
+
+tbl14_data <- tibble(provincia = setdiff(provincia_order, "Total")) |>
+  left_join(n14_data, by = "provincia") |>
+  mutate(
+    dotacao  = replace_na(dotacao, 0),
+    paga     = replace_na(paga, 0),
+    exec_pct = if_else(dotacao > 0, round(paga / dotacao * 100, 1), NA_real_)
+  ) |>
+  mutate(provincia = factor(provincia, levels = provincia_order)) |>
+  arrange(provincia) |>
+  mutate(provincia = as.character(provincia)) |>
+  select(provincia, dotacao, paga, exec_pct)
+
+total_row14 <- tbl14_data |>
+  summarise(
+    dotacao  = sum(dotacao,  na.rm = TRUE),
+    paga     = sum(paga,     na.rm = TRUE),
+    exec_pct = if_else(
+      sum(dotacao, na.rm = TRUE) > 0,
+      sum(paga, na.rm = TRUE) / sum(dotacao, na.rm = TRUE) * 100,
+      NA_real_
+    )
+  ) |>
+  mutate(provincia = "Total")
+
+tbl14_data <- bind_rows(tbl14_data, total_row14)
+
+flextable(tbl14_data) |>
+  set_header_labels(
+    provincia = "Província",
+    dotacao   = "Orçamento",
+    paga      = "Despesa",
+    exec_pct  = "Exec%"
+  ) |>
+  theme_vanilla() |>
+  bg(i = seq(1, nrow(tbl14_data), 2), bg = "#f5f5f5", part = "body") |>
+  align(part = "header", align = "center") |>
+  align(j = 1, part = "all", align = "left") |>
+  bold(i = nrow(tbl14_data), part = "body") |>
+  colformat_num(
+    j            = c("dotacao", "paga"),
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = "exec_pct",
+    digits = 1,
+    suffix = "%"
+  ) |>
+  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+```{r narrative-tbl15}
+#| include: false
+
+n15_data <- df |>
+  filter(
+    ano == latest_ano,
+    mes == latest_mes,
+    programa_tipo %in% c("ADE ESG"),
+    provincia %in% setdiff(provincia_order, "Total")
+  ) |>
+  group_by(provincia) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  filter(dotacao > 0) |>
+  mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 1))
+
+n15_grand_total  <- sum(n15_data$dotacao)
+n15_total_paga   <- sum(n15_data$paga)
+n15_total_exec   <- round(if_else(n15_grand_total > 0, n15_total_paga / n15_grand_total * 100, NA_real_), 1)
+n15_n_prov       <- nrow(n15_data)
+
+n15_max_dot      <- n15_data |> slice_max(dotacao, n = 1, with_ties = FALSE)
+n15_max_dot_name <- n15_max_dot$provincia
+n15_max_dot_val  <- n15_max_dot$dotacao
+n15_max_dot_peso <- round(n15_max_dot$dotacao / n15_grand_total * 100, 1)
+
+n15_min_dot      <- n15_data |> slice_min(dotacao, n = 1, with_ties = FALSE)
+n15_min_dot_name <- n15_min_dot$provincia
+n15_min_dot_val  <- n15_min_dot$dotacao
+
+n15_max_exec      <- n15_data |> filter(!is.na(exec_pct)) |> slice_max(exec_pct, n = 1, with_ties = FALSE)
+n15_max_exec_name <- n15_max_exec$provincia
+n15_max_exec_pct  <- n15_max_exec$exec_pct
+
+n15_min_exec      <- n15_data |> filter(!is.na(exec_pct)) |> slice_min(exec_pct, n = 1, with_ties = FALSE)
+n15_min_exec_name <- n15_min_exec$provincia
+n15_min_exec_pct  <- n15_min_exec$exec_pct
+```
+
+Em `r latest_mes` de `r latest_ano`, a dotação do Programa ADE ESG por província totalizou `r fmt_mil(n15_grand_total)` milhões de Mts., distribuída por `r n15_n_prov` províncias, com uma taxa de execução global de `r n15_total_exec`%. `r n15_max_dot_name` concentrou a maior alocação, com `r fmt_mil(n15_max_dot_val)` milhões de Mts. (`r n15_max_dot_peso`% do total), enquanto `r n15_min_dot_name` registou a menor, com `r fmt_mil(n15_min_dot_val)` milhões de Mts. Em termos de execução, `r n15_max_exec_name` apresentou a taxa mais elevada, com `r n15_max_exec_pct`%, ao passo que `r n15_min_exec_name` registou a taxa mais baixa, com `r n15_min_exec_pct`%, conforme a tabela seguinte:
+
+```{r tbl-15}
+#| echo: false
+#| tbl-cap: !expr glue::glue("Resumo do Ponto de Situação do ADE – Ensino Secundário ({latest_mes}, {latest_ano})")
+
+tbl15_data <- tibble(provincia = setdiff(provincia_order, "Total")) |>
+  left_join(n15_data, by = "provincia") |>
+  mutate(
+    dotacao  = replace_na(dotacao, 0),
+    paga     = replace_na(paga, 0),
+    exec_pct = if_else(dotacao > 0, round(paga / dotacao * 100, 1), NA_real_)
+  ) |>
+  mutate(provincia = factor(provincia, levels = provincia_order)) |>
+  arrange(provincia) |>
+  mutate(provincia = as.character(provincia)) |>
+  select(provincia, dotacao, paga, exec_pct)
+
+total_row15 <- tbl15_data |>
+  summarise(
+    dotacao  = sum(dotacao,  na.rm = TRUE),
+    paga     = sum(paga,     na.rm = TRUE),
+    exec_pct = if_else(
+      sum(dotacao, na.rm = TRUE) > 0,
+      sum(paga, na.rm = TRUE) / sum(dotacao, na.rm = TRUE) * 100,
+      NA_real_
+    )
+  ) |>
+  mutate(provincia = "Total")
+
+tbl15_data <- bind_rows(tbl15_data, total_row15)
+
+flextable(tbl15_data) |>
+  set_header_labels(
+    provincia = "Província",
+    dotacao   = "Orçamento",
+    paga      = "Despesa",
+    exec_pct  = "Exec%"
+  ) |>
+  theme_vanilla() |>
+  bg(i = seq(1, nrow(tbl15_data), 2), bg = "#f5f5f5", part = "body") |>
+  align(part = "header", align = "center") |>
+  align(j = 1, part = "all", align = "left") |>
+  bold(i = nrow(tbl15_data), part = "body") |>
+  colformat_num(
+    j            = c("dotacao", "paga"),
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = "exec_pct",
+    digits = 1,
+    suffix = "%"
+  ) |>
+  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+#### Fundo de Apoio a Supervisão Provincial
+
+```{r narrative-tbl16}
+#| include: false
+
+n16_data <- df |>
+  filter(
+    ano == latest_ano,
+    mes == latest_mes,
+    programa_tipo %in% c("Fundo de supervisão Provincial"),
+    provincia %in% setdiff(provincia_order, "Total")
+  ) |>
+  group_by(provincia) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  filter(dotacao > 0) |>
+  mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 1))
+
+n16_grand_total  <- sum(n16_data$dotacao)
+n16_total_paga   <- sum(n16_data$paga)
+n16_total_exec   <- round(if_else(n16_grand_total > 0, n16_total_paga / n16_grand_total * 100, NA_real_), 1)
+n16_n_prov       <- nrow(n16_data)
+
+n16_max_dot      <- n16_data |> slice_max(dotacao, n = 1, with_ties = FALSE)
+n16_max_dot_name <- n16_max_dot$provincia
+n16_max_dot_val  <- n16_max_dot$dotacao
+n16_max_dot_peso <- round(n16_max_dot$dotacao / n16_grand_total * 100, 1)
+
+n16_min_dot      <- n16_data |> slice_min(dotacao, n = 1, with_ties = FALSE)
+n16_min_dot_name <- n16_min_dot$provincia
+n16_min_dot_val  <- n16_min_dot$dotacao
+
+n16_max_exec      <- n16_data |> filter(!is.na(exec_pct)) |> slice_max(exec_pct, n = 1, with_ties = FALSE)
+n16_max_exec_name <- n16_max_exec$provincia
+n16_max_exec_pct  <- n16_max_exec$exec_pct
+
+n16_min_exec      <- n16_data |> filter(!is.na(exec_pct)) |> slice_min(exec_pct, n = 1, with_ties = FALSE)
+n16_min_exec_name <- n16_min_exec$provincia
+n16_min_exec_pct  <- n16_min_exec$exec_pct
+```
+
+Em `r latest_mes` de `r latest_ano`, a dotação do Fundo de Supervisão Provincial por província totalizou `r fmt_mil(n16_grand_total)` milhões de Mts., distribuída por `r n16_n_prov` províncias, com uma taxa de execução global de `r n16_total_exec`%. `r n16_max_dot_name` concentrou a maior alocação, com `r fmt_mil(n16_max_dot_val)` milhões de Mts. (`r n16_max_dot_peso`% do total), enquanto `r n16_min_dot_name` registou a menor, com `r fmt_mil(n16_min_dot_val)` milhões de Mts. Em termos de execução, `r n16_max_exec_name` apresentou a taxa mais elevada, com `r n16_max_exec_pct`%, ao passo que `r n16_min_exec_name` registou a taxa mais baixa, com `r n16_min_exec_pct`%, conforme a tabela seguinte:
+
+```{r tbl-16}
+#| echo: false
+#| tbl-cap: !expr glue::glue("Execução Orçamental do Fundo de Supervisão Provincial por Província ({latest_mes}, {latest_ano})")
+
+tbl16_data <- tibble(provincia = setdiff(provincia_order, "Total")) |>
+  left_join(n16_data, by = "provincia") |>
+  mutate(
+    dotacao  = replace_na(dotacao, 0),
+    paga     = replace_na(paga, 0),
+    exec_pct = if_else(dotacao > 0, round(paga / dotacao * 100, 1), NA_real_)
+  ) |>
+  mutate(provincia = factor(provincia, levels = provincia_order)) |>
+  arrange(provincia) |>
+  mutate(provincia = as.character(provincia)) |>
+  select(provincia, dotacao, paga, exec_pct)
+
+total_row16 <- tbl16_data |>
+  summarise(
+    dotacao  = sum(dotacao,  na.rm = TRUE),
+    paga     = sum(paga,     na.rm = TRUE),
+    exec_pct = if_else(
+      sum(dotacao, na.rm = TRUE) > 0,
+      sum(paga, na.rm = TRUE) / sum(dotacao, na.rm = TRUE) * 100,
+      NA_real_
+    )
+  ) |>
+  mutate(provincia = "Total")
+
+tbl16_data <- bind_rows(tbl16_data, total_row16)
+
+flextable(tbl16_data) |>
+  set_header_labels(
+    provincia = "Província",
+    dotacao   = "Orçamento",
+    paga      = "Despesa",
+    exec_pct  = "Exec%"
+  ) |>
+  theme_vanilla() |>
+  bg(i = seq(1, nrow(tbl16_data), 2), bg = "#f5f5f5", part = "body") |>
+  align(part = "header", align = "center") |>
+  align(j = 1, part = "all", align = "left") |>
+  bold(i = nrow(tbl16_data), part = "body") |>
+  colformat_num(
+    j            = c("dotacao", "paga"),
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = "exec_pct",
+    digits = 1,
+    suffix = "%"
+  ) |>
+  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+#### Fundo de Apoio a Supervisão Distrital
+
+```{r narrative-tbl17}
+#| include: false
+
+n17_data <- df |>
+  filter(
+    ano == latest_ano,
+    mes == latest_mes,
+    programa_tipo %in% c("Fundo de supervisão Distrital (INCLUI DISTRIBUICAO DE LIVRO)"),
+    provincia %in% setdiff(provincia_order, "Total")
+  ) |>
+  group_by(provincia) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  filter(dotacao > 0) |>
+  mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 1))
+
+n17_grand_total  <- sum(n17_data$dotacao)
+n17_total_paga   <- sum(n17_data$paga)
+n17_total_exec   <- round(if_else(n17_grand_total > 0, n17_total_paga / n17_grand_total * 100, NA_real_), 1)
+n17_n_prov       <- nrow(n17_data)
+
+n17_max_dot      <- n17_data |> slice_max(dotacao, n = 1, with_ties = FALSE)
+n17_max_dot_name <- n17_max_dot$provincia
+n17_max_dot_val  <- n17_max_dot$dotacao
+n17_max_dot_peso <- round(n17_max_dot$dotacao / n17_grand_total * 100, 1)
+
+n17_min_dot      <- n17_data |> slice_min(dotacao, n = 1, with_ties = FALSE)
+n17_min_dot_name <- n17_min_dot$provincia
+n17_min_dot_val  <- n17_min_dot$dotacao
+
+n17_max_exec      <- n17_data |> filter(!is.na(exec_pct)) |> slice_max(exec_pct, n = 1, with_ties = FALSE)
+n17_max_exec_name <- n17_max_exec$provincia
+n17_max_exec_pct  <- n17_max_exec$exec_pct
+
+n17_min_exec      <- n17_data |> filter(!is.na(exec_pct)) |> slice_min(exec_pct, n = 1, with_ties = FALSE)
+n17_min_exec_name <- n17_min_exec$provincia
+n17_min_exec_pct  <- n17_min_exec$exec_pct
+```
+
+Em `r latest_mes` de `r latest_ano`, a dotação do Fundo de Supervisão Distrital (incl. distribuição de livro) por província totalizou `r fmt_mil(n17_grand_total)` milhões de Mts., distribuída por `r n17_n_prov` províncias, com uma taxa de execução global de `r n17_total_exec`%. `r n17_max_dot_name` concentrou a maior alocação, com `r fmt_mil(n17_max_dot_val)` milhões de Mts. (`r n17_max_dot_peso`% do total), enquanto `r n17_min_dot_name` registou a menor, com `r fmt_mil(n17_min_dot_val)` milhões de Mts. Em termos de execução, `r n17_max_exec_name` apresentou a taxa mais elevada, com `r n17_max_exec_pct`%, ao passo que `r n17_min_exec_name` registou a taxa mais baixa, com `r n17_min_exec_pct`%, conforme a tabela seguinte:
+
+```{r tbl-17}
+#| echo: false
+#| tbl-cap: !expr glue::glue("Execução Orçamental do Fundo de Supervisão Distrital por Província ({latest_mes}, {latest_ano})")
+
+tbl17_data <- tibble(provincia = setdiff(provincia_order, "Total")) |>
+  left_join(n17_data, by = "provincia") |>
+  mutate(
+    dotacao  = replace_na(dotacao, 0),
+    paga     = replace_na(paga, 0),
+    exec_pct = if_else(dotacao > 0, round(paga / dotacao * 100, 1), NA_real_)
+  ) |>
+  mutate(provincia = factor(provincia, levels = provincia_order)) |>
+  arrange(provincia) |>
+  mutate(provincia = as.character(provincia)) |>
+  select(provincia, dotacao, paga, exec_pct)
+
+total_row17 <- tbl17_data |>
+  summarise(
+    dotacao  = sum(dotacao,  na.rm = TRUE),
+    paga     = sum(paga,     na.rm = TRUE),
+    exec_pct = if_else(
+      sum(dotacao, na.rm = TRUE) > 0,
+      sum(paga, na.rm = TRUE) / sum(dotacao, na.rm = TRUE) * 100,
+      NA_real_
+    )
+  ) |>
+  mutate(provincia = "Total")
+
+tbl17_data <- bind_rows(tbl17_data, total_row17)
+
+flextable(tbl17_data) |>
+  set_header_labels(
+    provincia = "Província",
+    dotacao   = "Orçamento",
+    paga      = "Despesa",
+    exec_pct  = "Exec%"
+  ) |>
+  theme_vanilla() |>
+  bg(i = seq(1, nrow(tbl17_data), 2), bg = "#f5f5f5", part = "body") |>
+  align(part = "header", align = "center") |>
+  align(j = 1, part = "all", align = "left") |>
+  bold(i = nrow(tbl17_data), part = "body") |>
+  colformat_num(
+    j            = c("dotacao", "paga"),
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = "exec_pct",
+    digits = 1,
+    suffix = "%"
+  ) |>
+  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+#### Construção Acelerada de Salas de Aulas
+
+```{r narrative-tbl18}
+#| include: false
+
+n18_data <- df |>
+  filter(
+    ano == latest_ano,
+    mes == latest_mes,
+    programa_tipo %in% c("Construção Acelerada de Escolas Primárias", "Construção EP"),
+    provincia %in% setdiff(provincia_order, "Total")
+  ) |>
+  group_by(provincia) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  filter(dotacao > 0) |>
+  mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 1))
+
+n18_grand_total  <- sum(n18_data$dotacao)
+n18_total_paga   <- sum(n18_data$paga)
+n18_total_exec   <- round(if_else(n18_grand_total > 0, n18_total_paga / n18_grand_total * 100, NA_real_), 1)
+n18_n_prov       <- nrow(n18_data)
+
+n18_max_dot      <- n18_data |> slice_max(dotacao, n = 1, with_ties = FALSE)
+n18_max_dot_name <- n18_max_dot$provincia
+n18_max_dot_val  <- n18_max_dot$dotacao
+n18_max_dot_peso <- round(n18_max_dot$dotacao / n18_grand_total * 100, 1)
+
+n18_min_dot      <- n18_data |> slice_min(dotacao, n = 1, with_ties = FALSE)
+n18_min_dot_name <- n18_min_dot$provincia
+n18_min_dot_val  <- n18_min_dot$dotacao
+
+n18_max_exec      <- n18_data |> filter(!is.na(exec_pct)) |> slice_max(exec_pct, n = 1, with_ties = FALSE)
+n18_max_exec_name <- n18_max_exec$provincia
+n18_max_exec_pct  <- n18_max_exec$exec_pct
+
+n18_min_exec      <- n18_data |> filter(!is.na(exec_pct)) |> slice_min(exec_pct, n = 1, with_ties = FALSE)
+n18_min_exec_name <- n18_min_exec$provincia
+n18_min_exec_pct  <- n18_min_exec$exec_pct
+```
+
+Em `r latest_mes` de `r latest_ano`, a dotação do Programa de Construção de Escolas Primárias por província totalizou `r fmt_mil(n18_grand_total)` milhões de Mts., distribuída por `r n18_n_prov` províncias, com uma taxa de execução global de `r n18_total_exec`%. `r n18_max_dot_name` concentrou a maior alocação, com `r fmt_mil(n18_max_dot_val)` milhões de Mts. (`r n18_max_dot_peso`% do total), enquanto `r n18_min_dot_name` registou a menor, com `r fmt_mil(n18_min_dot_val)` milhões de Mts. Em termos de execução, `r n18_max_exec_name` apresentou a taxa mais elevada, com `r n18_max_exec_pct`%, ao passo que `r n18_min_exec_name` registou a taxa mais baixa, com `r n18_min_exec_pct`%, conforme a tabela seguinte:
+
+```{r tbl-18}
+#| echo: false
+#| tbl-cap: !expr glue::glue("Programa de Construção Acelerada de Salas de Aulas – Inv. Externo ({latest_mes}, {latest_ano})")
+
+tbl18_data <- tibble(provincia = setdiff(provincia_order, "Total")) |>
+  left_join(n18_data, by = "provincia") |>
+  mutate(
+    dotacao  = replace_na(dotacao, 0),
+    paga     = replace_na(paga, 0),
+    exec_pct = if_else(dotacao > 0, round(paga / dotacao * 100, 1), NA_real_)
+  ) |>
+  mutate(provincia = factor(provincia, levels = provincia_order)) |>
+  arrange(provincia) |>
+  mutate(provincia = as.character(provincia)) |>
+  select(provincia, dotacao, paga, exec_pct)
+
+total_row18 <- tbl18_data |>
+  summarise(
+    dotacao  = sum(dotacao,  na.rm = TRUE),
+    paga     = sum(paga,     na.rm = TRUE),
+    exec_pct = if_else(
+      sum(dotacao, na.rm = TRUE) > 0,
+      sum(paga, na.rm = TRUE) / sum(dotacao, na.rm = TRUE) * 100,
+      NA_real_
+    )
+  ) |>
+  mutate(provincia = "Total")
+
+tbl18_data <- bind_rows(tbl18_data, total_row18)
+
+flextable(tbl18_data) |>
+  set_header_labels(
+    provincia = "Província",
+    dotacao   = "Orçamento",
+    paga      = "Despesa",
+    exec_pct  = "Exec%"
+  ) |>
+  theme_vanilla() |>
+  bg(i = seq(1, nrow(tbl18_data), 2), bg = "#f5f5f5", part = "body") |>
+  align(part = "header", align = "center") |>
+  align(j = 1, part = "all", align = "left") |>
+  bold(i = nrow(tbl18_data), part = "body") |>
+  colformat_num(
+    j            = c("dotacao", "paga"),
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = "exec_pct",
+    digits = 1,
+    suffix = "%"
+  ) |>
+  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+#### Apoio Alimentar para os Centros Internatos e Lares
+
+```{r narrative-tbl19}
+#| include: false
+
+n19_data <- df |>
+  filter(
+    ano == latest_ano,
+    mes == latest_mes,
+    reporte_tipo == "Investimento Externo",
+    programa_tipo %in% c("Alimentação para Lares e Internatos"),
+    provincia %in% setdiff(provincia_order, "Total")
+  ) |>
+  group_by(provincia) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  filter(dotacao > 0) |>
+  mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 1))
+
+n19_grand_total  <- sum(n19_data$dotacao)
+n19_total_paga   <- sum(n19_data$paga)
+n19_total_exec   <- round(if_else(n19_grand_total > 0, n19_total_paga / n19_grand_total * 100, NA_real_), 1)
+n19_n_prov       <- nrow(n19_data)
+
+n19_max_dot      <- n19_data |> slice_max(dotacao, n = 1, with_ties = FALSE)
+n19_max_dot_name <- n19_max_dot$provincia
+n19_max_dot_val  <- n19_max_dot$dotacao
+n19_max_dot_peso <- round(n19_max_dot$dotacao / n19_grand_total * 100, 1)
+
+n19_min_dot      <- n19_data |> slice_min(dotacao, n = 1, with_ties = FALSE)
+n19_min_dot_name <- n19_min_dot$provincia
+n19_min_dot_val  <- n19_min_dot$dotacao
+
+n19_max_exec      <- n19_data |> filter(!is.na(exec_pct)) |> slice_max(exec_pct, n = 1, with_ties = FALSE)
+n19_max_exec_name <- n19_max_exec$provincia
+n19_max_exec_pct  <- n19_max_exec$exec_pct
+
+n19_min_exec      <- n19_data |> filter(!is.na(exec_pct)) |> slice_min(exec_pct, n = 1, with_ties = FALSE)
+n19_min_exec_name <- n19_min_exec$provincia
+n19_min_exec_pct  <- n19_min_exec$exec_pct
+```
+
+Em `r latest_mes` de `r latest_ano`, a dotação do Programa de Alimentação para Lares e Internatos por província totalizou `r fmt_mil(n19_grand_total)` milhões de Mts., distribuída por `r n19_n_prov` províncias, com uma taxa de execução global de `r n19_total_exec`%. `r n19_max_dot_name` concentrou a maior alocação, com `r fmt_mil(n19_max_dot_val)` milhões de Mts. (`r n19_max_dot_peso`% do total), enquanto `r n19_min_dot_name` registou a menor, com `r fmt_mil(n19_min_dot_val)` milhões de Mts. Em termos de execução, `r n19_max_exec_name` apresentou a taxa mais elevada, com `r n19_max_exec_pct`%, ao passo que `r n19_min_exec_name` registou a taxa mais baixa, com `r n19_min_exec_pct`%, conforme a tabela seguinte:
+
+```{r tbl-19}
+#| echo: false
+#| tbl-cap: !expr glue::glue("Programa de Alimentação Escolar – Lares e Centros Internatos ({latest_mes}, {latest_ano})")
+
+tbl19_data <- tibble(provincia = setdiff(provincia_order, "Total")) |>
+  left_join(n19_data, by = "provincia") |>
+  mutate(
+    dotacao  = replace_na(dotacao, 0),
+    paga     = replace_na(paga, 0),
+    exec_pct = if_else(dotacao > 0, round(paga / dotacao * 100, 1), NA_real_)
+  ) |>
+  mutate(provincia = factor(provincia, levels = provincia_order)) |>
+  arrange(provincia) |>
+  mutate(provincia = as.character(provincia)) |>
+  select(provincia, dotacao, paga, exec_pct)
+
+total_row19 <- tbl19_data |>
+  summarise(
+    dotacao  = sum(dotacao,  na.rm = TRUE),
+    paga     = sum(paga,     na.rm = TRUE),
+    exec_pct = if_else(
+      sum(dotacao, na.rm = TRUE) > 0,
+      sum(paga, na.rm = TRUE) / sum(dotacao, na.rm = TRUE) * 100,
+      NA_real_
+    )
+  ) |>
+  mutate(provincia = "Total")
+
+tbl19_data <- bind_rows(tbl19_data, total_row19)
+
+flextable(tbl19_data) |>
+  set_header_labels(
+    provincia = "Província",
+    dotacao   = "Orçamento",
+    paga      = "Despesa",
+    exec_pct  = "Exec%"
+  ) |>
+  theme_vanilla() |>
+  bg(i = seq(1, nrow(tbl19_data), 2), bg = "#f5f5f5", part = "body") |>
+  align(part = "header", align = "center") |>
+  align(j = 1, part = "all", align = "left") |>
+  bold(i = nrow(tbl19_data), part = "body") |>
+  colformat_num(
+    j            = c("dotacao", "paga"),
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = "exec_pct",
+    digits = 1,
+    suffix = "%"
+  ) |>
+  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+#### Formação e Capacitação dos Professores
+
+```{r narrative-tbl20}
+#| include: false
+
+n20_data <- df |>
+  filter(
+    ano == latest_ano,
+    mes == latest_mes,
+    #programa_tipo %in% c("Formação e Capacitação de Professores"),
+    provincia %in% setdiff(provincia_order, "Total")
+  ) |>
+  group_by(provincia) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  filter(dotacao > 0) |>
+  mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 1))
+
+n20_grand_total  <- sum(n20_data$dotacao)
+n20_total_paga   <- sum(n20_data$paga)
+n20_total_exec   <- round(if_else(n20_grand_total > 0, n20_total_paga / n20_grand_total * 100, NA_real_), 1)
+n20_n_prov       <- nrow(n20_data)
+
+n20_max_dot      <- n20_data |> slice_max(dotacao, n = 1, with_ties = FALSE)
+n20_max_dot_name <- n20_max_dot$provincia
+n20_max_dot_val  <- n20_max_dot$dotacao
+n20_max_dot_peso <- round(n20_max_dot$dotacao / n20_grand_total * 100, 1)
+
+n20_min_dot      <- n20_data |> slice_min(dotacao, n = 1, with_ties = FALSE)
+n20_min_dot_name <- n20_min_dot$provincia
+n20_min_dot_val  <- n20_min_dot$dotacao
+
+n20_max_exec      <- n20_data |> filter(!is.na(exec_pct)) |> slice_max(exec_pct, n = 1, with_ties = FALSE)
+n20_max_exec_name <- n20_max_exec$provincia
+n20_max_exec_pct  <- n20_max_exec$exec_pct
+
+n20_min_exec      <- n20_data |> filter(!is.na(exec_pct)) |> slice_min(exec_pct, n = 1, with_ties = FALSE)
+n20_min_exec_name <- n20_min_exec$provincia
+n20_min_exec_pct  <- n20_min_exec$exec_pct
+```
+
+Em `r latest_mes` de `r latest_ano`, a dotação do Programa de Formação e Capacitação de Professores por província totalizou `r fmt_mil(n20_grand_total)` milhões de Mts., distribuída por `r n20_n_prov` províncias, com uma taxa de execução global de `r n20_total_exec`%. `r n20_max_dot_name` concentrou a maior alocação, com `r fmt_mil(n20_max_dot_val)` milhões de Mts. (`r n20_max_dot_peso`% do total), enquanto `r n20_min_dot_name` registou a menor, com `r fmt_mil(n20_min_dot_val)` milhões de Mts. Em termos de execução, `r n20_max_exec_name` apresentou a taxa mais elevada, com `r n20_max_exec_pct`%, ao passo que `r n20_min_exec_name` registou a taxa mais baixa, com `r n20_min_exec_pct`%, conforme a tabela seguinte:
+
+```{r tbl-20}
+#| echo: false
+#| tbl-cap: !expr glue::glue("Programa de Formação e Capacitação de Professores ({latest_mes}, {latest_ano})")
+
+tbl20_data <- tibble(provincia = setdiff(provincia_order, "Total")) |>
+  left_join(n20_data, by = "provincia") |>
+  mutate(
+    dotacao  = replace_na(dotacao, 0),
+    paga     = replace_na(paga, 0),
+    exec_pct = if_else(dotacao > 0, round(paga / dotacao * 100, 1), NA_real_)
+  ) |>
+  mutate(provincia = factor(provincia, levels = provincia_order)) |>
+  arrange(provincia) |>
+  mutate(provincia = as.character(provincia)) |>
+  select(provincia, dotacao, paga, exec_pct)
+
+total_row20 <- tbl20_data |>
+  summarise(
+    dotacao  = sum(dotacao,  na.rm = TRUE),
+    paga     = sum(paga,     na.rm = TRUE),
+    exec_pct = if_else(
+      sum(dotacao, na.rm = TRUE) > 0,
+      sum(paga, na.rm = TRUE) / sum(dotacao, na.rm = TRUE) * 100,
+      NA_real_
+    )
+  ) |>
+  mutate(provincia = "Total")
+
+tbl20_data <- bind_rows(tbl20_data, total_row20)
+
+flextable(tbl20_data) |>
+  set_header_labels(
+    provincia = "Província",
+    dotacao   = "Orçamento",
+    paga      = "Despesa",
+    exec_pct  = "Exec%"
+  ) |>
+  theme_vanilla() |>
+  bg(i = seq(1, nrow(tbl20_data), 2), bg = "#f5f5f5", part = "body") |>
+  align(part = "header", align = "center") |>
+  align(j = 1, part = "all", align = "left") |>
+  bold(i = nrow(tbl20_data), part = "body") |>
+  colformat_num(
+    j            = c("dotacao", "paga"),
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = "exec_pct",
+    digits = 1,
+    suffix = "%"
+  ) |>
+  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+#### Projecto Piloto de Primeira Infância
+
+```{r narrative-tbl21}
+#| include: false
+
+n21_data <- df |>
+  filter(
+    ano == latest_ano,
+    mes == latest_mes,
+    programa_tipo %in% c("Projecto Piloto da Primeira Infancia"),
+    provincia %in% setdiff(provincia_order, "Total")
+  ) |>
+  group_by(provincia) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  filter(dotacao > 0) |>
+  mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 1))
+
+n21_grand_total  <- sum(n21_data$dotacao)
+n21_total_paga   <- sum(n21_data$paga)
+n21_total_exec   <- round(if_else(n21_grand_total > 0, n21_total_paga / n21_grand_total * 100, NA_real_), 1)
+n21_n_prov       <- nrow(n21_data)
+
+n21_max_dot      <- n21_data |> slice_max(dotacao, n = 1, with_ties = FALSE)
+n21_max_dot_name <- n21_max_dot$provincia
+n21_max_dot_val  <- n21_max_dot$dotacao
+n21_max_dot_peso <- round(n21_max_dot$dotacao / n21_grand_total * 100, 1)
+
+n21_min_dot      <- n21_data |> slice_min(dotacao, n = 1, with_ties = FALSE)
+n21_min_dot_name <- n21_min_dot$provincia
+n21_min_dot_val  <- n21_min_dot$dotacao
+
+n21_max_exec      <- n21_data |> filter(!is.na(exec_pct)) |> slice_max(exec_pct, n = 1, with_ties = FALSE)
+n21_max_exec_name <- n21_max_exec$provincia
+n21_max_exec_pct  <- n21_max_exec$exec_pct
+
+n21_min_exec      <- n21_data |> filter(!is.na(exec_pct)) |> slice_min(exec_pct, n = 1, with_ties = FALSE)
+n21_min_exec_name <- n21_min_exec$provincia
+n21_min_exec_pct  <- n21_min_exec$exec_pct
+```
+
+Em `r latest_mes` de `r latest_ano`, a dotação do Projecto Piloto da Primeira Infância por província totalizou `r fmt_mil(n21_grand_total)` milhões de Mts., distribuída por `r n21_n_prov` províncias, com uma taxa de execução global de `r n21_total_exec`%. `r n21_max_dot_name` concentrou a maior alocação, com `r fmt_mil(n21_max_dot_val)` milhões de Mts. (`r n21_max_dot_peso`% do total), enquanto `r n21_min_dot_name` registou a menor, com `r fmt_mil(n21_min_dot_val)` milhões de Mts. Em termos de execução, `r n21_max_exec_name` apresentou a taxa mais elevada, com `r n21_max_exec_pct`%, ao passo que `r n21_min_exec_name` registou a taxa mais baixa, com `r n21_min_exec_pct`%, conforme a tabela seguinte:
+
+```{r tbl-21}
+#| echo: false
+#| tbl-cap: !expr glue::glue("Projecto Piloto de Primeira Infância ({latest_mes}, {latest_ano})")
+
+tbl21_data <- tibble(provincia = setdiff(provincia_order, "Total")) |>
+  left_join(n21_data, by = "provincia") |>
+  mutate(
+    dotacao  = replace_na(dotacao, 0),
+    paga     = replace_na(paga, 0),
+    exec_pct = if_else(dotacao > 0, round(paga / dotacao * 100, 1), NA_real_)
+  ) |>
+  mutate(provincia = factor(provincia, levels = provincia_order)) |>
+  arrange(provincia) |>
+  mutate(provincia = as.character(provincia)) |>
+  select(provincia, dotacao, paga, exec_pct)
+
+total_row21 <- tbl21_data |>
+  summarise(
+    dotacao  = sum(dotacao,  na.rm = TRUE),
+    paga     = sum(paga,     na.rm = TRUE),
+    exec_pct = if_else(
+      sum(dotacao, na.rm = TRUE) > 0,
+      sum(paga, na.rm = TRUE) / sum(dotacao, na.rm = TRUE) * 100,
+      NA_real_
+    )
+  ) |>
+  mutate(provincia = "Total")
+
+tbl21_data <- bind_rows(tbl21_data, total_row21)
+
+flextable(tbl21_data) |>
+  set_header_labels(
+    provincia = "Província",
+    dotacao   = "Orçamento",
+    paga      = "Despesa",
+    exec_pct  = "Exec%"
+  ) |>
+  theme_vanilla() |>
+  bg(i = seq(1, nrow(tbl21_data), 2), bg = "#f5f5f5", part = "body") |>
+  align(part = "header", align = "center") |>
+  align(j = 1, part = "all", align = "left") |>
+  bold(i = nrow(tbl21_data), part = "body") |>
+  colformat_num(
+    j            = c("dotacao", "paga"),
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = "exec_pct",
+    digits = 1,
+    suffix = "%"
+  ) |>
+  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+#### Prevenção e Combate do HIV-SIDA
+
+```{r narrative-tbl22}
+#| include: false
+
+n22_data <- df |>
+  filter(
+    ano == latest_ano,
+    mes == latest_mes,
+    programa_tipo %in% c("Resposta do Sector ao HIV/SIDA, saúde escolar inclui lanche escolar"),
+    provincia %in% setdiff(provincia_order, "Total")
+  ) |>
+  group_by(provincia) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  filter(dotacao > 0) |>
+  mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 1))
+
+n22_grand_total  <- sum(n22_data$dotacao)
+n22_total_paga   <- sum(n22_data$paga)
+n22_total_exec   <- round(if_else(n22_grand_total > 0, n22_total_paga / n22_grand_total * 100, NA_real_), 1)
+n22_n_prov       <- nrow(n22_data)
+
+n22_max_dot      <- n22_data |> slice_max(dotacao, n = 1, with_ties = FALSE)
+n22_max_dot_name <- n22_max_dot$provincia
+n22_max_dot_val  <- n22_max_dot$dotacao
+n22_max_dot_peso <- round(n22_max_dot$dotacao / n22_grand_total * 100, 1)
+
+n22_min_dot      <- n22_data |> slice_min(dotacao, n = 1, with_ties = FALSE)
+n22_min_dot_name <- n22_min_dot$provincia
+n22_min_dot_val  <- n22_min_dot$dotacao
+
+n22_max_exec      <- n22_data |> filter(!is.na(exec_pct)) |> slice_max(exec_pct, n = 1, with_ties = FALSE)
+n22_max_exec_name <- n22_max_exec$provincia
+n22_max_exec_pct  <- n22_max_exec$exec_pct
+
+n22_min_exec      <- n22_data |> filter(!is.na(exec_pct)) |> slice_min(exec_pct, n = 1, with_ties = FALSE)
+n22_min_exec_name <- n22_min_exec$provincia
+n22_min_exec_pct  <- n22_min_exec$exec_pct
+```
+
+Em `r latest_mes` de `r latest_ano`, a dotação do Programa de Resposta do Sector ao HIV/SIDA, Saúde Escolar (incl. lanche escolar) por província totalizou `r fmt_mil(n22_grand_total)` milhões de Mts., distribuída por `r n22_n_prov` províncias, com uma taxa de execução global de `r n22_total_exec`%. `r n22_max_dot_name` concentrou a maior alocação, com `r fmt_mil(n22_max_dot_val)` milhões de Mts. (`r n22_max_dot_peso`% do total), enquanto `r n22_min_dot_name` registou a menor, com `r fmt_mil(n22_min_dot_val)` milhões de Mts. Em termos de execução, `r n22_max_exec_name` apresentou a taxa mais elevada, com `r n22_max_exec_pct`%, ao passo que `r n22_min_exec_name` registou a taxa mais baixa, com `r n22_min_exec_pct`%, conforme a tabela seguinte:
+
+```{r tbl-22}
+#| echo: false
+#| tbl-cap: !expr glue::glue("Programa de Prevenção e Combate ao HIV/SIDA ({latest_mes}, {latest_ano})")
+
+tbl22_data <- tibble(provincia = setdiff(provincia_order, "Total")) |>
+  left_join(n22_data, by = "provincia") |>
+  mutate(
+    dotacao  = replace_na(dotacao, 0),
+    paga     = replace_na(paga, 0),
+    exec_pct = if_else(dotacao > 0, round(paga / dotacao * 100, 1), NA_real_)
+  ) |>
+  mutate(provincia = factor(provincia, levels = provincia_order)) |>
+  arrange(provincia) |>
+  mutate(provincia = as.character(provincia)) |>
+  select(provincia, dotacao, paga, exec_pct)
+
+total_row22 <- tbl22_data |>
+  summarise(
+    dotacao  = sum(dotacao,  na.rm = TRUE),
+    paga     = sum(paga,     na.rm = TRUE),
+    exec_pct = if_else(
+      sum(dotacao, na.rm = TRUE) > 0,
+      sum(paga, na.rm = TRUE) / sum(dotacao, na.rm = TRUE) * 100,
+      NA_real_
+    )
+  ) |>
+  mutate(provincia = "Total")
+
+tbl22_data <- bind_rows(tbl22_data, total_row22)
+
+flextable(tbl22_data) |>
+  set_header_labels(
+    provincia = "Província",
+    dotacao   = "Orçamento",
+    paga      = "Despesa",
+    exec_pct  = "Exec%"
+  ) |>
+  theme_vanilla() |>
+  bg(i = seq(1, nrow(tbl22_data), 2), bg = "#f5f5f5", part = "body") |>
+  align(part = "header", align = "center") |>
+  align(j = 1, part = "all", align = "left") |>
+  bold(i = nrow(tbl22_data), part = "body") |>
+  colformat_num(
+    j            = c("dotacao", "paga"),
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = "exec_pct",
+    digits = 1,
+    suffix = "%"
+  ) |>
+  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+#### Programa de Controle Interno da Educação
+
+```{r narrative-tbl23}
+#| include: false
+
+n23_data <- df |>
+  filter(
+    ano == latest_ano,
+    mes == latest_mes,
+    programa_tipo %in% c("Controlo Interno"),
+    provincia %in% setdiff(provincia_order, "Total")
+  ) |>
+  group_by(provincia) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  filter(dotacao > 0) |>
+  mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 1))
+
+n23_grand_total  <- sum(n23_data$dotacao)
+n23_total_paga   <- sum(n23_data$paga)
+n23_total_exec   <- round(if_else(n23_grand_total > 0, n23_total_paga / n23_grand_total * 100, NA_real_), 1)
+n23_n_prov       <- nrow(n23_data)
+
+n23_max_dot      <- n23_data |> slice_max(dotacao, n = 1, with_ties = FALSE)
+n23_max_dot_name <- n23_max_dot$provincia
+n23_max_dot_val  <- n23_max_dot$dotacao
+n23_max_dot_peso <- round(n23_max_dot$dotacao / n23_grand_total * 100, 1)
+
+n23_min_dot      <- n23_data |> slice_min(dotacao, n = 1, with_ties = FALSE)
+n23_min_dot_name <- n23_min_dot$provincia
+n23_min_dot_val  <- n23_min_dot$dotacao
+
+n23_max_exec      <- n23_data |> filter(!is.na(exec_pct)) |> slice_max(exec_pct, n = 1, with_ties = FALSE)
+n23_max_exec_name <- n23_max_exec$provincia
+n23_max_exec_pct  <- n23_max_exec$exec_pct
+
+n23_min_exec      <- n23_data |> filter(!is.na(exec_pct)) |> slice_min(exec_pct, n = 1, with_ties = FALSE)
+n23_min_exec_name <- n23_min_exec$provincia
+n23_min_exec_pct  <- n23_min_exec$exec_pct
+```
+
+Em `r latest_mes` de `r latest_ano`, a dotação do Programa de Controlo Interno por província totalizou `r fmt_mil(n23_grand_total)` milhões de Mts., distribuída por `r n23_n_prov` províncias, com uma taxa de execução global de `r n23_total_exec`%. `r n23_max_dot_name` concentrou a maior alocação, com `r fmt_mil(n23_max_dot_val)` milhões de Mts. (`r n23_max_dot_peso`% do total), enquanto `r n23_min_dot_name` registou a menor, com `r fmt_mil(n23_min_dot_val)` milhões de Mts. Em termos de execução, `r n23_max_exec_name` apresentou a taxa mais elevada, com `r n23_max_exec_pct`%, ao passo que `r n23_min_exec_name` registou a taxa mais baixa, com `r n23_min_exec_pct`%, conforme a tabela seguinte:
+
+```{r tbl-23}
+#| echo: false
+#| tbl-cap: !expr glue::glue("Programa de Controlo Interno da Educação ({latest_mes}, {latest_ano})")
+
+tbl23_data <- tibble(provincia = setdiff(provincia_order, "Total")) |>
+  left_join(n23_data, by = "provincia") |>
+  mutate(
+    dotacao  = replace_na(dotacao, 0),
+    paga     = replace_na(paga, 0),
+    exec_pct = if_else(dotacao > 0, round(paga / dotacao * 100, 1), NA_real_)
+  ) |>
+  mutate(provincia = factor(provincia, levels = provincia_order)) |>
+  arrange(provincia) |>
+  mutate(provincia = as.character(provincia)) |>
+  select(provincia, dotacao, paga, exec_pct)
+
+total_row23 <- tbl23_data |>
+  summarise(
+    dotacao  = sum(dotacao,  na.rm = TRUE),
+    paga     = sum(paga,     na.rm = TRUE),
+    exec_pct = if_else(
+      sum(dotacao, na.rm = TRUE) > 0,
+      sum(paga, na.rm = TRUE) / sum(dotacao, na.rm = TRUE) * 100,
+      NA_real_
+    )
+  ) |>
+  mutate(provincia = "Total")
+
+tbl23_data <- bind_rows(tbl23_data, total_row23)
+
+flextable(tbl23_data) |>
+  set_header_labels(
+    provincia = "Província",
+    dotacao   = "Orçamento",
+    paga      = "Despesa",
+    exec_pct  = "Exec%"
+  ) |>
+  theme_vanilla() |>
+  bg(i = seq(1, nrow(tbl23_data), 2), bg = "#f5f5f5", part = "body") |>
+  align(part = "header", align = "center") |>
+  align(j = 1, part = "all", align = "left") |>
+  bold(i = nrow(tbl23_data), part = "body") |>
+  colformat_num(
+    j            = c("dotacao", "paga"),
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = "exec_pct",
+    digits = 1,
+    suffix = "%"
+  ) |>
+  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+```{r narrative-tbl24}
+#| include: false
+
+n24_data <- df |>
+  filter(
+    ano == latest_ano,
+    mes == latest_mes,
+    reporte_tipo == "Investimento Externo"
+  ) |>
+  group_by(programa_tipo, fr) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  filter(dotacao > 0) |>
+  mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 1))
+
+n24_grand_total  <- sum(n24_data$dotacao)
+n24_total_paga   <- sum(n24_data$paga)
+n24_total_exec   <- round(if_else(n24_grand_total > 0, n24_total_paga / n24_grand_total * 100, NA_real_), 1)
+n24_n_rows       <- nrow(n24_data)
+
+n24_max_dot      <- n24_data |> slice_max(dotacao, n = 1, with_ties = FALSE)
+n24_max_dot_prog <- n24_max_dot$programa_tipo
+n24_max_dot_fr   <- n24_max_dot$fr
+n24_max_dot_val  <- n24_max_dot$dotacao
+n24_max_dot_peso <- round(n24_max_dot$dotacao / n24_grand_total * 100, 1)
+
+n24_max_exec      <- n24_data |> filter(!is.na(exec_pct)) |> slice_max(exec_pct, n = 1, with_ties = FALSE)
+n24_max_exec_prog <- n24_max_exec$programa_tipo
+n24_max_exec_pct  <- n24_max_exec$exec_pct
+
+n24_min_exec      <- n24_data |> filter(!is.na(exec_pct)) |> slice_min(exec_pct, n = 1, with_ties = FALSE)
+n24_min_exec_prog <- n24_min_exec$programa_tipo
+n24_min_exec_pct  <- n24_min_exec$exec_pct
+```
+
+Em `r latest_mes` de `r latest_ano`, o Investimento Externo do Sector da Educação totalizou `r fmt_mil(n24_grand_total)` milhões de Mts. em dotação, com uma taxa de execução global de `r n24_total_exec`%. O programa `r n24_max_dot_prog` (FR: `r n24_max_dot_fr`) concentrou a maior alocação, com `r fmt_mil(n24_max_dot_val)` milhões de Mts. (`r n24_max_dot_peso`% do total). Em termos de execução, `r n24_max_exec_prog` apresentou a taxa mais elevada, com `r n24_max_exec_pct`%, enquanto `r n24_min_exec_prog` registou a taxa mais baixa, com `r n24_min_exec_pct`%, conforme a tabela seguinte:
+
+```{r tbl-24}
+#| echo: false
+#| tbl-cap: !expr glue::glue("Execução Orçamental do Investimento Externo por Programa e Fonte de Recurso ({latest_mes}, {latest_ano})")
+
+tbl24_data <- n24_data |>
+  arrange(programa_tipo, fr) |>
+  select(programa_tipo, fr, dotacao, paga, exec_pct)
+
+total_row24 <- tbl24_data |>
+  summarise(
+    dotacao  = sum(dotacao,  na.rm = TRUE),
+    paga     = sum(paga,     na.rm = TRUE),
+    exec_pct = if_else(
+      sum(dotacao, na.rm = TRUE) > 0,
+      sum(paga, na.rm = TRUE) / sum(dotacao, na.rm = TRUE) * 100,
+      NA_real_
+    )
+  ) |>
+  mutate(programa_tipo = "Total", fr = "")
+
+tbl24_data <- bind_rows(tbl24_data, total_row24)
+
+flextable(tbl24_data) |>
+  set_header_labels(
+    programa_tipo = "Programa",
+    fr            = "FR",
+    dotacao       = "Orçamento",
+    paga          = "Despesa",
+    exec_pct      = "Exec%"
+  ) |>
+  theme_vanilla() |>
+  bg(i = seq(1, nrow(tbl24_data), 2), bg = "#f5f5f5", part = "body") |>
+  align(part = "header", align = "center") |>
+  align(j = 1:2, part = "all", align = "left") |>
+  bold(i = nrow(tbl24_data), part = "body") |>
+  colformat_num(
+    j            = c("dotacao", "paga"),
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = "exec_pct",
+    digits = 1,
+    suffix = "%"
+  ) |>
+  merge_v(j = "programa_tipo", part = "body") |>
+  valign(j = "programa_tipo", valign = "top", part = "body") |>
+  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+## Nota Metodológica
+
+Este relatório foi gerado de forma programática utilizando [Quarto](https://quarto.org/) e a linguagem de programação R. Os dados de base provêm do Demonstrativo Consolidado do sistema e-SISTAFE (easystafe) e são armazenados localmente através do pacote `pins`, permitindo o controlo de versões e o rastreamento da data de actualização da informação.
+
+O processamento, a análise e a visualização dos dados foram realizados com recurso aos seguintes pacotes R: `tidyverse` (manipulação e transformação de dados), `ggplot2` e `ggrepel` (gráficos), `gt` e `gtExtras` (tabelas estáticas), `flextable` (tabelas com formatação avançada), `patchwork` (composição de figuras) e `glue` (formatação de texto dinâmico).
+
+O documento é reprodutível: ao actualizar os dados de origem e recompilar o ficheiro `.qmd`, todo o conteúdo — tabelas, gráficos e valores no texto — é recalculado automaticamente.

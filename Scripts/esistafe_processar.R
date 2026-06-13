@@ -1,7 +1,7 @@
-# DOCUMENTACAO DO PACOTE 'easystafe' DISPONIVEL ABAIXO
+# DOCUMENTACAO DO PACOTE 'easystafe'
 # https://github.com/moz-gpe/easystafe
 
-# CORRER CODIGOS ABAIXO PARA ACTUALIZAR O PACOTE
+# ACTUALIZAR O PACOTE
 # pak::pak("moz-gpe/easystafe")
 
 # CORRER CODIGOS ABAIXO LINHA POR LINHA NA JANELA 'TERMINAL' PARA ALINHAR SCRIPT COM GITHUB
@@ -17,6 +17,7 @@ library(glue)
 library(arrow)
 library(pins)
 library(easystafe)
+library(esquisse)
 
 # GLOBAL VARS -------------------------------------------------
 
@@ -44,7 +45,7 @@ board <- board_folder(
 
 lookups <- carregar_lookups_esistafe(metadata_lookup)
 
-# PROCESSAR E GRAVAR E-SISTAFE -----------------------------------------------------
+# PROCESSAR E-SISTAFE -----------------------------------------------------
 
 df_esistafe <- paths_esistafe |>
   map(\(path) {
@@ -61,8 +62,10 @@ df_esistafe <- paths_esistafe |>
   list_rbind() |>
   adicionar_lookups_esistafe(lookups)
 
-gravar_esistafe(df_esistafe, output_folder = "Dataout/", quiet = TRUE)
 
+# GRAVAR DADOS PROCESSADOS -----------------------------------------------
+
+gravar_esistafe(df_esistafe, output_folder = "Dataout/", quiet = TRUE)
 
 pin_write(
   board = board,
@@ -71,3 +74,11 @@ pin_write(
   type = "parquet",
   description = "Compilação do Demonstrativo Consolidado gerado pelo pipeline easystafe."
 )
+
+# GERAR RELATORIO --------------------------------------------------------
+
+quarto::quarto_render(
+  input = "Relatório de Execução Orçamental.qmd"
+)
+
+rstudioapi::viewer("Relatório de Execução Orçamental.html")
