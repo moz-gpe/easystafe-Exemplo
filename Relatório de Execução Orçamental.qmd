@@ -3708,8 +3708,18 @@ flextable(tbl24_data) |>
 
 ## Nota Metodológica
 
-Este relatório foi gerado de forma programática utilizando [Quarto](https://quarto.org/) e a linguagem de programação R. Os dados de base provêm do Demonstrativo Consolidado do sistema e-SISTAFE (easystafe) e são armazenados localmente através do pacote `pins`, permitindo o controlo de versões e o rastreamento da data de actualização da informação.
+```{r nota-metadata}
+#| include: false
 
-O processamento, a análise e a visualização dos dados foram realizados com recurso aos seguintes pacotes R: `tidyverse` (manipulação e transformação de dados), `ggplot2` e `ggrepel` (gráficos), `gt` e `gtExtras` (tabelas estáticas), `flextable` (tabelas com formatação avançada), `patchwork` (composição de figuras) e `glue` (formatação de texto dinâmico).
+pin_info       <- pin_meta(board, "demostrativo_consolidado_compilado")
+nota_n_obs     <- format(nrow(df), big.mark = ".", decimal.mark = ",")
+nota_anos      <- paste(range(years), collapse = " a ")
+nota_meses_cov <- length(unique(df$mes[df$ano == latest]))
+nota_pin_ver   <- pin_info$api_version
+```
 
-O documento é reprodutível: ao actualizar os dados de origem e recompilar o ficheiro `.qmd`, todo o conteúdo — tabelas, gráficos e valores no texto — é recalculado automaticamente.
+Este relatório foi gerado de forma programática utilizando [Quarto](https://quarto.org/) e a linguagem de programação R.
+
+### Fonte de Dados
+
+Os dados provêm do Demonstrativo Consolidado do sistema e-SISTAFE, processados através do pacote [`easystafe`](https://github.com/moz-gpe/easystafe) e armazenados localmente. A base de dados utilizada neste relatório foi actualizada pela última vez em **`r pin_mod`**, abrangendo o período de **`r nota_anos`** (`r nota_meses_cov` `r if(nota_meses_cov == 1) "mês disponível" else "meses disponíveis"` para `r latest`).
