@@ -17,7 +17,6 @@ library(glue)
 library(arrow)
 library(pins)
 library(easystafe)
-library(esquisse)
 
 # GLOBAL VARS -------------------------------------------------
 
@@ -27,6 +26,7 @@ paths_esistafe <- c(
   "Data/demonstrativo_consolidado/202502",
   "Data/demonstrativo_consolidado/202503",
   "Data/demonstrativo_consolidado/202504",
+  "Data/demonstrativo_consolidado/202505",
   "Data/demonstrativo_consolidado/202512",
   "Data/demonstrativo_consolidado/202601",
   "Data/demonstrativo_consolidado/202602",
@@ -62,6 +62,10 @@ df_esistafe <- paths_esistafe |>
   list_rbind() |>
   adicionar_lookups_esistafe(lookups)
 
+# CONFIGURAR PARA DUCKDB -----------------------------------------------
+
+df_esistafe_db <- df_esistafe |>
+  config_para_duckdb()
 
 # GRAVAR DADOS PROCESSADOS -----------------------------------------------
 
@@ -71,6 +75,14 @@ pin_write(
   board = board,
   x = df_esistafe,
   name = "demostrativo_consolidado_compilado",
+  type = "parquet",
+  description = "Compilação do Demonstrativo Consolidado gerado pelo pipeline easystafe."
+)
+
+pin_write(
+  board = board,
+  x = df_esistafe_db,
+  name = "esistafe_dm_duckdb",
   type = "parquet",
   description = "Compilação do Demonstrativo Consolidado gerado pelo pipeline easystafe."
 )
