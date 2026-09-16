@@ -20,20 +20,25 @@ library(easystafe)
 
 # GLOBAL VARS -------------------------------------------------
 
-metadata_lookup <- "Documents/lookup.xlsx"
+metadata_lookup <- "Documents/esistafe_dim_lookup.xlsx"
 
 paths_esistafe <- c(
   "Data/demonstrativo_consolidado/202502",
   "Data/demonstrativo_consolidado/202503",
   "Data/demonstrativo_consolidado/202504",
   "Data/demonstrativo_consolidado/202505",
+  "Data/demonstrativo_consolidado/202506",
+  "Data/demonstrativo_consolidado/202507",
   "Data/demonstrativo_consolidado/202512",
   "Data/demonstrativo_consolidado/202601",
   "Data/demonstrativo_consolidado/202602",
   "Data/demonstrativo_consolidado/202603",
   "Data/demonstrativo_consolidado/202604",
-  "Data/demonstrativo_consolidado/202605"
+  "Data/demonstrativo_consolidado/202605",
+  "Data/demonstrativo_consolidado/202606",
+  "Data/demonstrativo_consolidado/202607"
 )
+
 
 board <- board_folder(
   "C:/Users/Joe/Documents/R/moz-data-pins/Data",

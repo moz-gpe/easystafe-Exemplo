@@ -56,7 +56,10 @@ df <- df_raw |>
   ) |>
   filter(!mes == "Maio")
 
-pin_mod <- format(as.Date(pin_meta(board, "poema")$created), "%d/%m/%Y")
+pin_mod <- {
+  dt <- as.POSIXct(pin_meta(board, "poema")$created)
+  paste0(format(dt, "%d de "), mes_pt[as.integer(format(dt, "%m"))], format(dt, ", %Y %H:%M"))
+}
 
 fmt_mil <- function(x, digits = 0)
   format(round(x, digits), big.mark = ".", decimal.mark = ",", nsmall = digits, scientific = FALSE)
@@ -227,6 +230,9 @@ tbl_data <- df |>
       NA_real_
     )
   ) |>
+  mutate(reporte_tipo = factor(reporte_tipo, levels = c("Investimento Externo", "Investimento Interno", "Funcionamento"))) |>
+  arrange(reporte_tipo) |>
+  mutate(reporte_tipo = as.character(reporte_tipo)) |>
   select(reporte_tipo, all_of(dotacao_cols), dotacao_pct, all_of(paga_cols), paga_pct)
 
 # total row
@@ -261,7 +267,10 @@ flextable(tbl_data) |>
   set_header_df(mapping = typology, key = "col_keys") |>
   merge_h(part = "header") |>
   merge_v(part = "header") |>
+  add_header_lines("✓ Pronto para revisão") |>
   theme_vanilla() |>
+  color(i = 1, color = "#1565C0", part = "header") |>
+  bold(i = 1, part = "header") |>
   bg(i = seq(1, nrow(tbl_data), 2), bg = "#f5f5f5", part = "body") |>
   align(part = "header", align = "center") |>
   align(j = 1, part = "all", align = "left") |>
@@ -278,7 +287,7 @@ flextable(tbl_data) |>
     suffix = "%"
   ) |>
   bold(i = nrow(tbl_data), part = "body") |>
-  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -321,9 +330,13 @@ ggplot(fig1_data, aes(x = 0.5, y = dotacao, fill = reporte_tipo)) +
   coord_polar(theta = "y", start = 0, clip = "off") +
   scale_x_continuous(limits = c(0, 1.0)) +
   scale_fill_grey(start = 0.3, end = 0.85) +
-  labs(caption = glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) +
+  labs(
+    subtitle = "✓ Pronto para revisão",
+    caption  = glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")
+  ) +
   theme_void() +
   theme(
+    plot.subtitle    = element_text(color = "#1565C0", face = "bold"),
     legend.position  = "right",
     legend.title     = element_blank(),
     legend.text      = element_text(size = 11),
@@ -355,7 +368,7 @@ Em `r latest_ano`, o orçamento do Sector da Educação está distribuído por `
 #| echo: false
 #| fig-cap: !expr glue("Divisão do Orçamento do Sector da Educação por Descrição Institucional ({latest_mes}, {latest})")
 #| fig-width: 6
-#| fig-height: 5
+#| fig-height: 4
 
 fig2_data <- df |>
   filter(ano == latest_ano, mes == latest_mes, !is.na(descricao)) |>
@@ -371,7 +384,7 @@ fig2_data <- df |>
   )
 
 ggplot(fig2_data, aes(x = dotacao, y = reorder(descricao, dotacao))) +
-  geom_col(width = 0.65, fill = "grey30") +
+  geom_col(width = 0.8, fill = "grey30") +
   geom_text(
     aes(label = bar_label),
     hjust   = -0.1,
@@ -383,11 +396,13 @@ ggplot(fig2_data, aes(x = dotacao, y = reorder(descricao, dotacao))) +
     expand = expansion(mult = c(0, 0.45))
   ) +
   labs(
-    x       = "Orçamento (milhões de Mts.)",
-    y       = NULL
+    subtitle = "✓ Pronto para revisão",
+    x        = "Orçamento (milhões de Mts.)",
+    y        = NULL
   ) +
   theme_minimal(base_size = 9) +
   theme(
+    plot.subtitle      = element_text(color = "#1565C0", face = "bold"),
     legend.position    = "none",
     panel.grid.major.y = element_blank(),
     panel.grid.minor   = element_blank(),
@@ -406,8 +421,9 @@ fig3_data <- df |>
   group_by(mes, reporte_tipo) |>
   summarise(dotacao = sum(dotacao_actualizada_da, na.rm = TRUE), .groups = "drop") |>
   mutate(
-    mes_num   = match(mes, mes_order),
-    mes_label = sprintf("%02d-%d", mes_num, latest_ano)
+    mes_num      = match(mes, mes_order),
+    mes_label    = sprintf("%02d-%d", mes_num, latest_ano),
+    reporte_tipo = factor(reporte_tipo, levels = c("Investimento Externo", "Investimento Interno", "Funcionamento"))
   ) |>
   filter(!is.na(mes_num)) |>
   arrange(mes_num) |>
@@ -438,7 +454,7 @@ A figura seguinte ilustra a evolução mensal do orçamento por tipo de reporte 
 
 ```{r fig-3}
 #| echo: false
-#| fig-cap: !expr glue::glue("Variação do Orçamento ({latest_ano})")
+#| fig-cap: !expr glue::glue("Gestão do Orçamento para o Exercício Económico ({latest_ano})")
 #| fig-width: 8
 #| fig-height: 4
 
@@ -459,12 +475,14 @@ ggplot(fig3_data, aes(x = mes_label, y = dotacao, color = reporte_tipo, group = 
   ) +
   scale_x_discrete(expand = expansion(add = c(0.5, 1))) +
   labs(
-    x     = NULL,
-    y     = "Dotação (milhões de Mts.)",
-    color = NULL
+    subtitle = "✓ Pronto para revisão",
+    x        = NULL,
+    y        = "Dotação (milhões de Mts.)",
+    color    = NULL
   ) +
   theme_minimal(base_size = 9) +
   theme(
+    plot.subtitle    = element_text(color = "#1565C0", face = "bold"),
     legend.position  = "right",
     legend.text      = element_text(size = 11),
     panel.grid.minor = element_blank(),
@@ -654,10 +672,21 @@ flextable(tbl2_data) |>
   set_header_df(mapping = typology2, key = "col_keys") |>
   merge_h(part = "header") |>
   merge_v(part = "header") |>
+  add_header_lines("✓ Pronto para revisão") |>
   theme_vanilla() |>
+  color(i = 1, color = "#1565C0", part = "header") |>
+  bold(i = 1, part = "header") |>
+  align(i = 1, part = "header", align = "left") |>
+  fontsize(size = 10, part = "body") |>
   bg(i = seq(1, nrow(tbl2_data), 2), bg = "#f5f5f5", part = "body") |>
   align(part = "header", align = "center") |>
-  align(j = 1, part = "all", align = "left") |>
+  valign(part = "header", valign = "bottom") |>
+  padding(i = 3, part = "header", padding.top = 6, padding.bottom = 6) |>
+  height(i = 3, height = 0.4, part = "header") |>
+  fontsize(i = 3, size = 11, part = "header") |>
+  align(j = 1, part = "body", align = "left") |>
+  align(j = 1, part = "header", align = "left") |>
+  valign(j = 1, part = "header", valign = "bottom") |>
   colformat_num(
     j            = dotacao_cols2,
     big.mark     = ".",
@@ -670,12 +699,13 @@ flextable(tbl2_data) |>
     suffix = "%"
   ) |>
   bold(i = nrow(tbl2_data), part = "body") |>
-  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
   padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
-  flextable::autofit()
+  flextable::autofit() |>
+  width(j = "provincia", width = 1.5)
 ```
 
 ## Execução do Orçamento
@@ -777,7 +807,11 @@ flextable(tbl3_data) |>
   set_header_df(mapping = typology3, key = "col_keys") |>
   merge_h(part = "header") |>
   merge_v(part = "header") |>
+  add_header_lines("✓ Pronto para revisão") |>
   theme_vanilla() |>
+  color(i = 1, color = "#1565C0", part = "header") |>
+  bold(i = 1, part = "header") |>
+  align(i = 1, part = "header", align = "left") |>
   bg(i = seq(1, nrow(tbl3_data), 2), bg = "#f5f5f5", part = "body") |>
   align(part = "header", align = "center") |>
   align(j = 1, part = "all", align = "left") |>
@@ -793,7 +827,7 @@ flextable(tbl3_data) |>
     suffix = "%"
   ) |>
   bold(i = nrow(tbl3_data), part = "body") |>
-  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -862,12 +896,14 @@ ggplot(fig6_data, aes(x = mes_label, y = paga, color = reporte_tipo, group = rep
   ) +
   scale_x_discrete(expand = expansion(add = c(0.5, 1))) +
   labs(
-    x     = NULL,
-    y     = "Despesa Paga (milhões de Mts.)",
-    color = NULL
+    subtitle = "✓ Pronto para revisão",
+    x        = NULL,
+    y        = "Despesa Paga (milhões de Mts.)",
+    color    = NULL
   ) +
   theme_minimal(base_size = 9) +
   theme(
+    plot.subtitle    = element_text(color = "#1565C0", face = "bold"),
     legend.position  = "right",
     legend.text      = element_text(size = 11),
     panel.grid.minor = element_blank(),
@@ -1027,7 +1063,11 @@ flextable(tbl4_data) |>
   set_header_df(mapping = typology4, key = "col_keys") |>
   merge_h(part = "header") |>
   merge_v(part = "header") |>
+  add_header_lines("✓ Pronto para revisão") |>
   theme_vanilla() |>
+  color(i = 1, color = "#1565C0", part = "header") |>
+  bold(i = 1, part = "header") |>
+  align(i = 1, part = "header", align = "left") |>
   fontsize(size = 8, part = "all") |>
   bg(i = subtitle_idx, bg = "#f5f5f5", part = "body") |>
   align(part = "header", align = "center") |>
@@ -1044,7 +1084,7 @@ flextable(tbl4_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -1109,9 +1149,13 @@ Verificando a execução orçamental de acordo com a classificação territorial
 #| tbl-cap: !expr glue::glue("Resumo da Execução do Orçamento do Sector por Classificação Territorial ({latest_mes}, {prev}/{latest %% 100})")
 
 
+
 # Provincial rows: use provincia as label
 tbl5_prov <- df |>
-  filter(mes == latest_mes, ambito %in% c("Distrital", "Provincial")) |>
+  filter(ambito %in% c("Distrital", "Provincial")) |>
+  group_by(ano) |>
+  filter(match(mes, mes_order) == max(match(mes, mes_order), na.rm = TRUE)) |>
+  ungroup() |>
   group_by(provincia, ano) |>
   summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
             paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
@@ -1119,7 +1163,10 @@ tbl5_prov <- df |>
 
 # Central rows: use descricao as label, drop NA descricao
 tbl5_other <- df |>
-  filter(mes == latest_mes, ambito == "Central", !is.na(descricao)) |>
+  filter(ambito == "Central", !is.na(descricao)) |>
+  group_by(ano) |>
+  filter(match(mes, mes_order) == max(match(mes, mes_order), na.rm = TRUE)) |>
+  ungroup() |>
   group_by(descricao, ano) |>
   summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
             paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
@@ -1132,19 +1179,19 @@ central_total5 <- tbl5_other |>
   summarise(dotacao = sum(dotacao, na.rm = TRUE),
             paga    = sum(paga,    na.rm = TRUE),
             .groups = "drop") |>
-  mutate(provincia = "Nível Central")
+  mutate(provincia = "Subtotal Central")
 
 prov_total5 <- tbl5_prov |>
   group_by(ano) |>
   summarise(dotacao = sum(dotacao, na.rm = TRUE),
             paga    = sum(paga,    na.rm = TRUE),
             .groups = "drop") |>
-  mutate(provincia = "Nível Decentralizado")
+  mutate(provincia = "Subtotal Decentralizado")
 
 # Determine row order before binding
 prov_levels    <- setdiff(provincia_order, "Total")
 central_labels <- sort(setdiff(unique(tbl5_other$provincia), prov_levels))
-row_order      <- c(central_labels, "Nível Central", prov_levels, "Nível Decentralizado")
+row_order      <- c(central_labels, "Subtotal Central", prov_levels, "Subtotal Decentralizado")
 
 # combine in display order, pivot wide, add exec_pct
 tbl5_raw <- bind_rows(tbl5_other, central_total5, tbl5_prov, prov_total5) |>
@@ -1198,8 +1245,8 @@ total_row5 <- total_row5 |>
 
 tbl5_data <- bind_rows(tbl5_data, total_row5)
 
-central_sub_idx  <- which(tbl5_data$provincia == "Nível Central")
-prov_sub_idx     <- which(tbl5_data$provincia == "Nível Decentralizado")
+central_sub_idx  <- which(tbl5_data$provincia == "Subtotal Central")
+prov_sub_idx     <- which(tbl5_data$provincia == "Subtotal Decentralizado")
 bold_rows5       <- c(central_sub_idx, prov_sub_idx, nrow(tbl5_data))
 
 col_meta5 <- tibble(col_key = ordered_cols5) |>
@@ -1225,7 +1272,12 @@ flextable(tbl5_data) |>
   set_header_df(mapping = typology5, key = "col_keys") |>
   merge_h(part = "header") |>
   merge_v(part = "header") |>
+  add_header_lines("✓ Pronto para revisão") |>
   theme_vanilla() |>
+  color(i = 1, color = "#1565C0", part = "header") |>
+  bold(i = 1, part = "header") |>
+  align(i = 1, part = "header", align = "left") |>
+  fontsize(size = 10, part = "body") |>
   bg(i = seq(1, nrow(tbl5_data), 2), bg = "#f5f5f5", part = "body") |>
   hline(
     i      = central_sub_idx,
@@ -1251,7 +1303,7 @@ flextable(tbl5_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -1304,6 +1356,22 @@ n6_min_pct  <- n6_min$exec_pct
 
 Tendo-se efectuado a planificação e tendo decorrido a execução orçamental por níveis de ensino, apresenta-se a seguir o resumo da respectiva execução. Destaca-se que `r n6_dom_paga_share`% do volume de execução do período está imputado ao `r n6_dom_name`, que tem um peso orçamental de `r n6_dom_dotacao_share`% e apresenta uma execução de `r n6_dom_exec`%. Em termos de taxa de execução, o `r n6_max_name` regista o nível mais elevado com `r n6_max_pct`%, enquanto o `r n6_min_name` apresenta a execução mais baixa, com `r n6_min_pct`%, conforme o quadro a seguir:
 
+```{r tbl-6-diag}
+#| echo: false
+
+df |>
+  filter(ano == latest_ano, mes == latest_mes,
+         reporte_tipo %in% c("Funcionamento", "Investimento Interno", "Investimento Externo"),
+         is.na(funcao_nivel)) |>
+  group_by(funcao, descricao, ambito, reporte_tipo, programa) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  arrange(desc(dotacao)) |>
+  knitr::kable()
+```
+
 ```{r tbl-6}
 #| echo: false
 #| tbl-cap: !expr glue::glue("Resumo da Execução do Orçamento do Sector da Educação por Classif. Funcional ({latest_mes}, {latest_ano})")
@@ -1355,7 +1423,7 @@ ordered_cols6 <- c(ordered_cols6, agg_cols6)
 
 tbl6_wide <- tbl6_raw |>
   left_join(tbl6_agg, by = "funcao_nivel") |>
-  arrange(funcao_nivel == "Outros", desc(`dotacao__Total`)) |>
+  arrange(funcao_nivel) |>
   select(funcao_nivel, all_of(ordered_cols6))
 
 # grand total row
@@ -1417,7 +1485,11 @@ flextable(tbl6_data) |>
   set_header_df(mapping = typology6, key = "col_keys") |>
   merge_h(part = "header") |>
   merge_v(part = "header") |>
+  add_header_lines("⚠ Troubleshooting required") |>
   theme_vanilla() |>
+  color(i = 1, color = "#C62828", part = "header") |>
+  bold(i = 1, part = "header") |>
+  align(i = 1, part = "header", align = "left") |>
   fontsize(size = 8, part = "all") |>
   bg(i = seq(1, nrow(tbl6_data), 2), bg = "#f5f5f5", part = "body") |>
   align(part = "header", align = "center") |>
@@ -1434,7 +1506,7 @@ flextable(tbl6_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -1660,7 +1732,7 @@ flextable(tbl5_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -1826,7 +1898,7 @@ flextable(tbl8_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -1925,7 +1997,7 @@ flextable(tbl11b_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -2152,7 +2224,7 @@ flextable(tbl10_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -2315,7 +2387,7 @@ flextable(tbl11_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -2483,7 +2555,7 @@ flextable(tbl9_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -2553,7 +2625,7 @@ flextable(tbl12_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -2719,7 +2791,7 @@ flextable(tbl13_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -2824,7 +2896,7 @@ flextable(tbl14_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -2929,7 +3001,7 @@ flextable(tbl15_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -3036,7 +3108,7 @@ flextable(tbl16_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -3143,7 +3215,7 @@ flextable(tbl17_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -3250,7 +3322,7 @@ flextable(tbl18_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -3358,7 +3430,7 @@ flextable(tbl19_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -3465,7 +3537,7 @@ flextable(tbl20_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -3572,7 +3644,7 @@ flextable(tbl21_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -3679,7 +3751,7 @@ flextable(tbl22_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -3786,7 +3858,7 @@ flextable(tbl23_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -3882,7 +3954,7 @@ flextable(tbl24_data) |>
   ) |>
   merge_v(j = "programa_tipo", part = "body") |>
   valign(j = "programa_tipo", valign = "top", part = "body") |>
-  add_footer_lines(glue("Fonte: e-SISTAFE Demonstrativo Consolidado (easystafe); Modificado: {pin_mod}")) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
