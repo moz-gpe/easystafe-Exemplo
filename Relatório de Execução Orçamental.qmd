@@ -1356,21 +1356,6 @@ n6_min_pct  <- n6_min$exec_pct
 
 Tendo-se efectuado a planificação e tendo decorrido a execução orçamental por níveis de ensino, apresenta-se a seguir o resumo da respectiva execução. Destaca-se que `r n6_dom_paga_share`% do volume de execução do período está imputado ao `r n6_dom_name`, que tem um peso orçamental de `r n6_dom_dotacao_share`% e apresenta uma execução de `r n6_dom_exec`%. Em termos de taxa de execução, o `r n6_max_name` regista o nível mais elevado com `r n6_max_pct`%, enquanto o `r n6_min_name` apresenta a execução mais baixa, com `r n6_min_pct`%, conforme o quadro a seguir:
 
-```{r tbl-6-diag}
-#| echo: false
-
-df |>
-  filter(ano == latest_ano, mes == latest_mes,
-         reporte_tipo %in% c("Funcionamento", "Investimento Interno", "Investimento Externo"),
-         is.na(funcao_nivel)) |>
-  group_by(funcao, descricao, ambito, reporte_tipo, programa) |>
-  summarise(
-    dotacao = sum(dotacao_actualizada_da, na.rm = TRUE),
-    .groups = "drop"
-  ) |>
-  arrange(desc(dotacao)) |>
-  knitr::kable()
-```
 
 ```{r tbl-6}
 #| echo: false
@@ -1485,7 +1470,7 @@ flextable(tbl6_data) |>
   set_header_df(mapping = typology6, key = "col_keys") |>
   merge_h(part = "header") |>
   merge_v(part = "header") |>
-  add_header_lines("⚠ Troubleshooting required") |>
+  add_header_lines("⚠ Troubleshooting required - Missing Funcao lookups") |>
   theme_vanilla() |>
   color(i = 1, color = "#C62828", part = "header") |>
   bold(i = 1, part = "header") |>
@@ -1519,16 +1504,22 @@ flextable(tbl6_data) |>
 ```{r narrative-tbl7}
 #| include: false
 
+df_func <- df |> filter(reporte_tipo == "Funcionamento")
+
 pp_dir <- function(x) {
   if (is.na(x) || length(x) == 0) return("N/D")
   if (x >= 0) paste0("mais ", abs(x), "pp") else paste0("menos ", abs(x), "pp")
 }
 
-# Totals by year: mirrors tbl-7 filters exactly
+# Totals by year: mirrors tbl-7 filters exactly; uses latest month per year
+# so both years are present even if 2025 lacks a Julho row
 func_totals7 <- bind_rows(
-  df |> filter(mes == latest_mes, ambito == "Provincial", reporte_tipo == "Funcionamento"),
-  df |> filter(mes == latest_mes, ambito == "Central",    !is.na(descricao))
+  df_func |> filter(ambito == "Provincial"),
+  df_func |> filter(ambito == "Central", !is.na(descricao))
 ) |>
+  group_by(ano) |>
+  filter(match(mes, mes_order) == max(match(mes, mes_order), na.rm = TRUE)) |>
+  ungroup() |>
   group_by(ano) |>
   summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
             paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
@@ -1545,8 +1536,8 @@ n7_pp_diff        <- n7_exec_latest - n7_exec_prev
 n7_paga_diff      <- n7_paga_latest - n7_paga_prev
 
 # Provincial exec% per province, latest year
-prov_exec7 <- df |>
-  filter(mes == latest_mes, ano == latest, ambito == "Provincial", reporte_tipo == "Funcionamento") |>
+prov_exec7 <- df_func |>
+  filter(mes == latest_mes, ano == latest, ambito == "Provincial") |>
   group_by(provincia) |>
   summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
             paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
@@ -1564,7 +1555,7 @@ n7_min_prov_pct  <- n7_min_prov$exec_pct
 n7_min_pp_diff   <- n7_min_prov_pct - n7_exec_prov_mean
 
 # Dominant Central institution (highest dotacao, latest year)
-central_inst7 <- df |>
+central_inst7 <- df_func |>
   filter(mes == latest_mes, ambito == "Central", !is.na(descricao)) |>
   group_by(descricao, ano) |>
   summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
@@ -1585,22 +1576,23 @@ A Província de `r n7_min_prov_name` apresenta o nível de execução mais baixo
 #| echo: false
 #| tbl-cap: !expr glue::glue("Resumo da Execução Orçamental do Funcionamento ({latest_mes}, {prev}/{latest %% 100})")
 
-# Provincial rows: use provincia as label
-tbl5_prov <- df |>
-  filter(mes == latest_mes,
-         ambito %in% c("Provincial", "Distrital"),
-         reporte_tipo == "Funcionamento") |>
+# Provincial rows: use provincia as label; latest month per year for multi-year coverage
+tbl5_prov <- df_func |>
+  filter(ambito %in% c("Provincial", "Distrital")) |>
+  group_by(ano) |>
+  filter(match(mes, mes_order) == max(match(mes, mes_order), na.rm = TRUE)) |>
+  ungroup() |>
   group_by(provincia, ano) |>
   summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
             paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
             .groups = "drop")
 
 # Central rows: use descricao as label, drop NA descricao
-tbl5_other <- df |>
-  filter(mes == latest_mes,
-        ambito == "Central",
-        reporte_tipo == "Funcionamento",
-        !is.na(descricao)) |>
+tbl5_other <- df_func |>
+  filter(ambito == "Central", !is.na(descricao)) |>
+  group_by(ano) |>
+  filter(match(mes, mes_order) == max(match(mes, mes_order), na.rm = TRUE)) |>
+  ungroup() |>
   group_by(descricao, ano) |>
   summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
             paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
@@ -1613,19 +1605,19 @@ central_total5 <- tbl5_other |>
   summarise(dotacao = sum(dotacao, na.rm = TRUE),
             paga    = sum(paga,    na.rm = TRUE),
             .groups = "drop") |>
-  mutate(provincia = "Nível Central")
+  mutate(provincia = "Subtotal Central")
 
 prov_total5 <- tbl5_prov |>
   group_by(ano) |>
   summarise(dotacao = sum(dotacao, na.rm = TRUE),
             paga    = sum(paga,    na.rm = TRUE),
             .groups = "drop") |>
-  mutate(provincia = "Nível Decentralizado")
+  mutate(provincia = "Subtotal Decentralizado")
 
 # Determine row order before binding
 prov_levels    <- setdiff(provincia_order, "Total")
 central_labels <- sort(setdiff(unique(tbl5_other$provincia), prov_levels))
-row_order      <- c(central_labels, "Nível Central", prov_levels, "Nível Decentralizado")
+row_order      <- c(central_labels, "Subtotal Central", prov_levels, "Subtotal Decentralizado")
 
 # combine in display order, pivot wide, add exec_pct
 tbl5_raw <- bind_rows(tbl5_other, central_total5, tbl5_prov, prov_total5) |>
@@ -1679,8 +1671,8 @@ total_row5 <- total_row5 |>
 
 tbl5_data <- bind_rows(tbl5_data, total_row5)
 
-central_sub_idx <- which(tbl5_data$provincia == "Nível Central")
-prov_sub_idx    <- which(tbl5_data$provincia == "Nível Decentralizado")
+central_sub_idx <- which(tbl5_data$provincia == "Subtotal Central")
+prov_sub_idx    <- which(tbl5_data$provincia == "Subtotal Decentralizado")
 bold_rows5      <- c(central_sub_idx, prov_sub_idx, nrow(tbl5_data))
 
 col_meta5 <- tibble(col_key = ordered_cols5) |>
@@ -1706,7 +1698,11 @@ flextable(tbl5_data) |>
   set_header_df(mapping = typology5, key = "col_keys") |>
   merge_h(part = "header") |>
   merge_v(part = "header") |>
+  add_header_lines("✓ Pronto para revisão") |>
   theme_vanilla() |>
+  color(i = 1, color = "#1565C0", part = "header") |>
+  bold(i = 1, part = "header") |>
+  align(i = 1, part = "header", align = "left") |>
   bg(i = seq(1, nrow(tbl5_data), 2), bg = "#f5f5f5", part = "body") |>
   hline(
     i      = central_sub_idx,
@@ -1744,8 +1740,8 @@ flextable(tbl5_data) |>
 #| include: false
 
 # Per-CED totals across all ambitos — same filter as tbl8_raw
-ced_exec8 <- df |>
-  filter(ano == latest_ano, reporte_tipo == "Funcionamento", !is.na(ced_nome)) |>
+ced_exec8 <- df_func |>
+  filter(ano == latest_ano, !is.na(ced_nome)) |>
   group_by(ced_nome) |>
   summarise(
     dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
@@ -1779,6 +1775,98 @@ n8_min_ced_pct   <- n8_min_ced$exec_pct
 n8_spread        <- round(n8_max_ced_pct - n8_min_ced_pct, 1)
 ```
 
+```{r narrative-fig8a}
+#| include: false
+
+nf8a_stats <- df_func |>
+  filter(ano == latest_ano, mes == latest_mes) |>
+  group_by(ced_nivel) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(exec_pct = if_else(dotacao > 0, paga / dotacao * 100, NA_real_)) |>
+  filter(dotacao > 0, !is.na(exec_pct))
+
+nf8a_n          <- nrow(nf8a_stats)
+nf8a_total_dot  <- sum(nf8a_stats$dotacao)
+nf8a_total_pag  <- sum(nf8a_stats$paga)
+nf8a_exec_total <- round(nf8a_total_pag / nf8a_total_dot * 100, 0)
+nf8a_above_avg  <- sum(nf8a_stats$exec_pct >= nf8a_exec_total)
+nf8a_below_avg  <- sum(nf8a_stats$exec_pct <  nf8a_exec_total)
+
+nf8a_max         <- nf8a_stats |> slice_max(exec_pct, n = 1, with_ties = FALSE)
+nf8a_min         <- nf8a_stats |> slice_min(exec_pct, n = 1, with_ties = FALSE)
+nf8a_max_name    <- nf8a_max$ced_nivel
+nf8a_max_pct     <- round(nf8a_max$exec_pct, 0)
+nf8a_min_name    <- nf8a_min$ced_nivel
+nf8a_min_pct     <- round(nf8a_min$exec_pct, 0)
+nf8a_spread      <- nf8a_max_pct - nf8a_min_pct
+
+nf8a_max_dot     <- nf8a_stats |> slice_max(dotacao, n = 1, with_ties = FALSE)
+nf8a_max_dot_name <- nf8a_max_dot$ced_nivel
+nf8a_max_dot_val  <- nf8a_max_dot$dotacao
+```
+
+Em `r latest_mes` de `r latest_ano`, `r nf8a_n` CEDs registaram dotação de Funcionamento, com uma taxa de execução global de `r nf8a_exec_total`%, sendo que `r nf8a_above_avg` CEDs se situaram acima ou na média e `r nf8a_below_avg` abaixo. `r nf8a_max_name` destacou-se com a taxa de execução mais elevada (`r nf8a_max_pct`%), enquanto `r nf8a_min_name` registou a mais baixa (`r nf8a_min_pct`%), representando uma amplitude de `r nf8a_spread`pp entre os extremos. Em termos de alocação orçamental, `r nf8a_max_dot_name` concentrou a maior dotação, com `r fmt_mil(nf8a_max_dot_val)` milhões de Mts., conforme ilustrado na figura seguinte:
+
+```{r fig-8a}
+#| echo: false
+#| fig-cap: !expr glue::glue("Orçamento e Taxa de Execução do Orçamento de Funcionamento por CED ({latest_mes}, {latest_ano})")
+#| fig-width: 7
+#| fig-height: 4
+
+fig8a_data <- df_func |>
+  filter(ano == latest_ano, mes == latest_mes) |>
+  group_by(ced_nivel) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(exec_pct = if_else(dotacao > 0, paga / dotacao * 100, NA_real_)) |>
+  filter(dotacao > 0, !is.na(exec_pct)) |>
+  mutate(ced_nivel = fct_reorder(ced_nivel, exec_pct))
+
+fig8a_max_dot  <- max(fig8a_data$dotacao, na.rm = TRUE)
+fig8a_ep_lo    <- max(0,   min(fig8a_data$exec_pct, na.rm = TRUE) - 15)
+fig8a_ep_hi    <- min(100, max(fig8a_data$exec_pct, na.rm = TRUE) + 15)
+fig8a_ep_range <- fig8a_ep_hi - fig8a_ep_lo
+
+ep_to_x8a <- function(ep) (ep - fig8a_ep_lo) / fig8a_ep_range * fig8a_max_dot
+x_to_ep8a <- ~ . / fig8a_max_dot * fig8a_ep_range + fig8a_ep_lo
+
+ggplot(fig8a_data, aes(y = ced_nivel)) +
+  geom_col(aes(x = dotacao), fill = "grey80", width = 0.65) +
+  geom_point(aes(x = ep_to_x8a(exec_pct)), color = "black", size = 3, shape = 19) +
+  geom_text(
+    aes(x = ep_to_x8a(exec_pct),
+        label = paste0(formatC(exec_pct, format = "f", digits = 0), "%")),
+    hjust = -0.3, size = 2.8, color = "black"
+  ) +
+  scale_x_continuous(
+    labels = scales::label_number(big.mark = ".", decimal.mark = ",", accuracy = 1),
+    sec.axis = sec_axis(x_to_ep8a, name = "Execução %",
+                        labels = scales::label_number(suffix = "%", decimal.mark = ",", accuracy = 1)),
+    expand = expansion(mult = c(0, 0.12))
+  ) +
+  coord_cartesian(clip = "off") +
+  labs(x = "Orçamento", y = NULL, subtitle = "Propondo Incluir") +
+  theme_minimal(base_size = 9) +
+  theme(
+    panel.grid.major.y  = element_blank(),
+    panel.grid.minor    = element_blank(),
+    axis.text.y         = element_text(size = 9),
+    axis.text.x.bottom  = element_text(size = 8),
+    axis.text.x.top     = element_text(size = 8),
+    axis.title.x.bottom = element_text(margin = margin(t = 8), size = 9),
+    axis.title.x.top    = element_text(margin = margin(b = 8), size = 9),
+    plot.margin         = margin(t = 5, r = 30, b = 5, l = 5, unit = "pt"),
+    plot.subtitle       = element_text(color = "orange", face = "bold")
+  )
+```
+
 Em `r latest_mes` de `r latest_ano`, `r n8_n_ced` CEDs receberam dotação de Funcionamento, totalizando `r fmt_mil(n8_total_dot)` milhões de Mts., com uma taxa de execução global de `r n8_exec_total`%. Em termos de alocação, `r n8_max_dot_name` registou a maior dotação, com `r fmt_mil(n8_max_dot_val)` milhões de Mts., enquanto `r n8_min_dot_name` recebeu a menor, com `r fmt_mil(n8_min_dot_val)` milhões de Mts. No que respeita à execução, `r n8_max_ced_name` apresentou a taxa mais elevada, com `r n8_max_ced_pct`%, ao passo que `r n8_min_ced_name` registou a taxa mais baixa, com `r n8_min_ced_pct`%, representando uma amplitude de `r n8_spread`pp entre os dois extremos. O detalhe por CED e âmbito encontra-se na tabela seguinte:
 
 ```{r tbl-8}
@@ -1787,10 +1875,9 @@ Em `r latest_mes` de `r latest_ano`, `r n8_n_ced` CEDs receberam dotação de Fu
 
 ambito_order8 <- c("Central", "Provincial", "Distrital")
 
-tbl8_raw <- df |>
+tbl8_raw <- df_func |>
   filter(ano == latest_ano,
-        mes == latest_mes,
-        reporte_tipo == "Funcionamento") |>
+        mes == latest_mes) |>
   group_by(ced_nivel, ambito) |>
   summarise(
     dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
@@ -1828,10 +1915,9 @@ tbl8_wide <- tbl8_raw |>
   arrange(ced_nivel) |>
   select(ced_nivel, all_of(ordered_cols8))
 
-total_row8 <- df |>
+total_row8 <- df_func |>
   filter(ano == latest_ano,
-        mes == latest_mes,
-        reporte_tipo == "Funcionamento") |>
+        mes == latest_mes) |>
   group_by(ambito) |>
   summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
             paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
@@ -1868,8 +1954,8 @@ col_meta8 <- tibble(col_key = ordered_cols8) |>
 
 typology8 <- data.frame(
   col_keys = c("ced_nivel", ordered_cols8),
-  spanner  = c("Nível", col_meta8$ambito_label),
-  label    = c("Nível", col_meta8$sub_label),
+  spanner  = c("", col_meta8$ambito_label),
+  label    = c("", col_meta8$sub_label),
   stringsAsFactors = FALSE
 )
 
@@ -1881,7 +1967,11 @@ flextable(tbl8_data) |>
   set_header_df(mapping = typology8, key = "col_keys") |>
   merge_h(part = "header") |>
   merge_v(part = "header") |>
+  add_header_lines("✓ Pronto para revisão") |>
   theme_vanilla() |>
+  color(i = 1, color = "#1565C0", part = "header") |>
+  bold(i = 1, part = "header") |>
+  align(i = 1, part = "header", align = "left") |>
   fontsize(size = 8, part = "all") |>
   bg(i = seq(1, nrow(tbl8_data), 2), bg = "#f5f5f5", part = "body") |>
   align(part = "header", align = "center") |>
@@ -1906,14 +1996,77 @@ flextable(tbl8_data) |>
   flextable::autofit()
 ```
 
+A figura seguinte ilustra o orçamento e a taxa de execução de cada CED, desagregados por nível geográfico (Central, Provincial e Distrital), com os CEDs ordenados pelo nível de execução Central. Em termos globais, `r n8_max_ced_name` registou a taxa de execução mais elevada (`r n8_max_ced_pct`%), ao passo que `r n8_min_ced_name` apresentou a taxa mais baixa (`r n8_min_ced_pct`%).
+
+```{r fig-8}
+#| echo: false
+#| fig-cap: !expr glue::glue("Orçamento e Taxa de Execução por CED e Nivel ({latest_mes}, {latest_ano})")
+#| fig-width: 11
+#| fig-height: 5
+
+# y-axis order driven by Central exec%
+ced_levels8 <- tbl8_data |>
+  filter(ced_nivel != "Total") |>
+  arrange(`exec_pct__Central`) |>
+  pull(ced_nivel)
+
+fig8_long <- tbl8_data |>
+  filter(ced_nivel != "Total") |>
+  select(ced_nivel, matches("^dotacao__|^exec_pct__")) |>
+  pivot_longer(cols = -ced_nivel, names_to = c("metric", "ambito"), names_sep = "__") |>
+  pivot_wider(names_from = metric, values_from = value) |>
+  filter(ambito != "Total") |>
+  mutate(ced_nivel = factor(ced_nivel, levels = ced_levels8))
+
+make_panel8 <- function(df, title, show_y) {
+  ggplot(df, aes(y = ced_nivel)) +
+    geom_col(aes(x = dotacao), fill = "grey80", width = 0.65) +
+    geom_point(
+      data  = ~ filter(., !is.na(exec_pct), dotacao > 0),
+      aes(x = dotacao * exec_pct / 100),
+      color = "black", size = 3, shape = 19
+    ) +
+    geom_text(
+      data  = ~ filter(., !is.na(exec_pct), dotacao > 0),
+      aes(x = dotacao * exec_pct / 100,
+          label = paste0(round(exec_pct), "%")),
+      hjust = -0.3, size = 2.8, color = "black"
+    ) +
+    scale_x_continuous(
+      labels = scales::label_number(big.mark = ".", decimal.mark = ",", accuracy = 1),
+      expand = expansion(mult = c(0, 0.22))
+    ) +
+    scale_y_discrete(drop = FALSE) +
+    labs(title = title, x = "Orçamento", y = NULL) +
+    theme_minimal(base_size = 9) +
+    theme(
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor   = element_blank(),
+      axis.text.y        = if (show_y) element_text(size = 9) else element_blank(),
+      axis.ticks.y       = element_blank(),
+      axis.text.x        = element_text(size = 8),
+      axis.title.x       = element_text(margin = margin(t = 8), size = 9),
+      plot.title         = element_text(face = "bold", size = 9, hjust = 0.5)
+    )
+}
+
+p8_central <- make_panel8(filter(fig8_long, ambito == "Central"),    "Central",    show_y = TRUE)
+p8_prov    <- make_panel8(filter(fig8_long, ambito == "Provincial"), "Provincial", show_y = FALSE)
+p8_dist    <- make_panel8(filter(fig8_long, ambito == "Distrital"),  "Distrital",  show_y = FALSE)
+
+wrap_plots(p8_central, p8_prov, p8_dist, nrow = 1) +
+  plot_annotation(
+    subtitle = "Propondo Incluir",
+    theme    = theme(plot.subtitle = element_text(color = "orange", face = "bold", size = 9))
+  )
+```
 
 ```{r narrative-tbl11b}
 #| include: false
 
-tbl11b_raw <- df |>
+tbl11b_raw <- df_func |>
   filter(ano == latest_ano,
          mes == latest_mes,
-         reporte_tipo == "Funcionamento",
          ambito == "Central") |>
   group_by(ced_nivel) |>
   summarise(
@@ -1974,13 +2127,17 @@ Em `r latest_mes` de `r latest_ano`, o orçamento de funcionamento do MEC (âmbi
 
 flextable(tbl11b_data) |>
   set_header_labels(
-    ced_nivel = "Nível",
+    ced_nivel = "",
     dotacao   = "Orçamento",
     paga      = "Despesa",
     exec_pct  = "Exec%",
     peso_pct  = "Peso %"
   ) |>
+  add_header_lines("✓ Pronto para revisão") |>
   theme_vanilla() |>
+  color(i = 1, color = "#1565C0", part = "header") |>
+  bold(i = 1, part = "header") |>
+  align(i = 1, part = "header", align = "left") |>
   fontsize(size = 8, part = "all") |>
   bg(i = seq(1, nrow(tbl11b_data), 2), bg = "#f5f5f5", part = "body") |>
   align(part = "header", align = "center") |>
@@ -2007,6 +2164,12 @@ flextable(tbl11b_data) |>
 
 ### Orçamento de Investimento Interno
 
+```{r setup-inv-int}
+#| include: false
+
+df_inv_int <- df |> filter(reporte_tipo == "Investimento Interno")
+```
+
 ```{r narrative-tbl10}
 #| include: false
 
@@ -2017,9 +2180,12 @@ pp_dir <- function(x) {
 
 # Totals by year: mirrors tbl-10 filters exactly
 func_totals10 <- bind_rows(
-  df |> filter(mes == latest_mes, reporte_tipo == "Investimento Interno"),
-  df |> filter(mes == latest_mes, ambito == "Central", !is.na(descricao))
+  df_inv_int,
+  df_inv_int |> filter(ambito == "Central", !is.na(descricao))
 ) |>
+  group_by(ano) |>
+  filter(match(mes, mes_order) == max(match(mes, mes_order), na.rm = TRUE)) |>
+  ungroup() |>
   group_by(ano) |>
   summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
             paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
@@ -2036,8 +2202,8 @@ n10_pp_diff        <- n10_exec_latest - n10_exec_prev
 n10_paga_diff      <- n10_paga_latest - n10_paga_prev
 
 # Provincial exec% per province, latest year (mirrors tbl10_prov filter)
-prov_exec10 <- df |>
-  filter(mes == latest_mes, ano == latest, reporte_tipo == "Investimento Interno") |>
+prov_exec10 <- df_inv_int |>
+  filter(mes == latest_mes, ano == latest) |>
   group_by(provincia) |>
   summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
             paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
@@ -2078,21 +2244,23 @@ A Província de `r n10_min_prov_name` apresenta o nível de execução mais baix
 
 # Provincial rows: use provincia as label (restrict to known provinces to exclude
 # Central rows where provincia is a placeholder like "-")
-tbl10_prov <- df |>
-  filter(mes == latest_mes,
-         reporte_tipo == "Investimento Interno",
-         provincia %in% setdiff(provincia_order, "Total")) |>
+tbl10_prov <- df_inv_int |>
+  filter(provincia %in% setdiff(provincia_order, "Total")) |>
+  group_by(ano) |>
+  filter(match(mes, mes_order) == max(match(mes, mes_order), na.rm = TRUE)) |>
+  ungroup() |>
   group_by(provincia, ano) |>
   summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
             paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
             .groups = "drop")
 
 # Central rows: use descricao as label, drop NA descricao
-tbl10_other <- df |>
-  filter(mes == latest_mes,
-reporte_tipo == "Investimento Interno",
-  ambito == "Central",
-  !is.na(descricao)) |>
+tbl10_other <- df_inv_int |>
+  filter(ambito == "Central",
+         !is.na(descricao)) |>
+  group_by(ano) |>
+  filter(match(mes, mes_order) == max(match(mes, mes_order), na.rm = TRUE)) |>
+  ungroup() |>
   group_by(descricao, ano) |>
   summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
             paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
@@ -2105,19 +2273,19 @@ central_total10 <- tbl10_other |>
   summarise(dotacao = sum(dotacao, na.rm = TRUE),
             paga    = sum(paga,    na.rm = TRUE),
             .groups = "drop") |>
-  mutate(provincia = "Nível Central")
+  mutate(provincia = "Subtotal Central")
 
 prov_total10 <- tbl10_prov |>
   group_by(ano) |>
   summarise(dotacao = sum(dotacao, na.rm = TRUE),
             paga    = sum(paga,    na.rm = TRUE),
             .groups = "drop") |>
-  mutate(provincia = "Nível Decentralizado")
+  mutate(provincia = "Subtotal Decentralizado")
 
 # Determine row order before binding
 prov_levels     <- setdiff(provincia_order, "Total")
 central_labels10 <- sort(setdiff(unique(tbl10_other$provincia), prov_levels))
-row_order        <- c(central_labels10, "Nível Central", prov_levels, "Nível Decentralizado")
+row_order        <- c(central_labels10, "Subtotal Central", prov_levels, "Subtotal Decentralizado")
 
 # combine in display order, pivot wide, add exec_pct
 tbl10_raw <- bind_rows(tbl10_other, central_total10, tbl10_prov, prov_total10) |>
@@ -2171,8 +2339,8 @@ total_row10 <- total_row10 |>
 
 tbl10_data <- bind_rows(tbl10_data, total_row10)
 
-central_sub_idx10 <- which(tbl10_data$provincia == "Nível Central")
-prov_sub_idx10    <- which(tbl10_data$provincia == "Nível Decentralizado")
+central_sub_idx10 <- which(tbl10_data$provincia == "Subtotal Central")
+prov_sub_idx10    <- which(tbl10_data$provincia == "Subtotal Decentralizado")
 bold_rows10       <- c(central_sub_idx10, prov_sub_idx10, nrow(tbl10_data))
 
 col_meta10 <- tibble(col_key = ordered_cols10) |>
@@ -2198,7 +2366,11 @@ flextable(tbl10_data) |>
   set_header_df(mapping = typology10, key = "col_keys") |>
   merge_h(part = "header") |>
   merge_v(part = "header") |>
+  add_header_lines("✓ Pronto para revisão") |>
   theme_vanilla() |>
+  color(i = 1, color = "#1565C0", part = "header") |>
+  bold(i = 1, part = "header") |>
+  align(i = 1, part = "header", align = "left") |>
   bg(i = seq(1, nrow(tbl10_data), 2), bg = "#f5f5f5", part = "body") |>
   hline(
     i      = central_sub_idx10,
@@ -2235,8 +2407,8 @@ flextable(tbl10_data) |>
 ```{r narrative-tbl11}
 #| include: false
 
-inst11 <- df |>
-  filter(ano == latest_ano, mes == latest_mes, reporte_tipo == "Investimento Interno") |>
+inst11 <- df_inv_int |>
+  filter(ano == latest_ano, mes == latest_mes) |>
   group_by(ced_nivel) |>
   summarise(
     dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
@@ -2268,6 +2440,64 @@ n11_min_exec_name <- n11_min_exec$ced_nivel
 n11_min_exec_pct  <- n11_min_exec$exec_pct
 ```
 
+```{r narrative-fig9a}
+#| include: false
+
+nf9a_exec_total <- round(n11_total_exc, 0)
+nf9a_above_avg  <- sum(inst11$exec_pct > nf9a_exec_total, na.rm = TRUE)
+nf9a_below_avg  <- sum(inst11$exec_pct < nf9a_exec_total, na.rm = TRUE)
+nf9a_spread     <- round(n11_max_exec_pct - n11_min_exec_pct, 0)
+```
+
+A distribuição do orçamento de Investimento Interno por CED revela uma taxa de execução global de `r nf9a_exec_total`%, com `r nf9a_above_avg` CEDs acima da média e `r nf9a_below_avg` abaixo. `r n11_max_exec_name` apresenta a taxa mais elevada (`r n11_max_exec_pct`%), enquanto `r n11_min_exec_name` regista a mais baixa (`r n11_min_exec_pct`%), uma amplitude de `r nf9a_spread`pp. `r n11_max_dot_name` concentra a maior dotação, com `r fmt_mil(n11_max_dot_val)` milhões de Mts.
+
+```{r fig-9a}
+#| echo: false
+#| fig-cap: !expr glue::glue("Orçamento e Taxa de Execução de Invest. Interno por CED ({latest_mes}, {latest_ano})")
+#| fig-width: 7
+#| fig-height: 4
+
+fig9a_data <- inst11 |>
+  mutate(ced_nivel = fct_reorder(ced_nivel, exec_pct))
+
+fig9a_max_dot  <- max(fig9a_data$dotacao, na.rm = TRUE)
+fig9a_ep_lo    <- max(0,   min(fig9a_data$exec_pct, na.rm = TRUE) - 15)
+fig9a_ep_hi    <- min(100, max(fig9a_data$exec_pct, na.rm = TRUE) + 15)
+fig9a_ep_range <- fig9a_ep_hi - fig9a_ep_lo
+
+ep_to_x9a <- function(ep) (ep - fig9a_ep_lo) / fig9a_ep_range * fig9a_max_dot
+x_to_ep9a <- ~ . / fig9a_max_dot * fig9a_ep_range + fig9a_ep_lo
+
+ggplot(fig9a_data, aes(y = ced_nivel)) +
+  geom_col(aes(x = dotacao), fill = "grey80", width = 0.65) +
+  geom_point(aes(x = ep_to_x9a(exec_pct)), color = "black", size = 3, shape = 19) +
+  geom_text(
+    aes(x = ep_to_x9a(exec_pct),
+        label = paste0(formatC(exec_pct, format = "f", digits = 0), "%")),
+    hjust = -0.3, size = 2.8, color = "black"
+  ) +
+  scale_x_continuous(
+    labels = scales::label_number(big.mark = ".", decimal.mark = ",", accuracy = 1),
+    sec.axis = sec_axis(x_to_ep9a, name = "Execução %",
+                        labels = scales::label_number(suffix = "%", decimal.mark = ",", accuracy = 1)),
+    expand = expansion(mult = c(0, 0.12))
+  ) +
+  coord_cartesian(clip = "off") +
+  labs(x = "Orçamento", y = NULL, subtitle = "Propondo Incluir") +
+  theme_minimal(base_size = 9) +
+  theme(
+    panel.grid.major.y  = element_blank(),
+    panel.grid.minor    = element_blank(),
+    axis.text.y         = element_text(size = 9),
+    axis.text.x.bottom  = element_text(size = 8),
+    axis.text.x.top     = element_text(size = 8),
+    axis.title.x.bottom = element_text(margin = margin(t = 8), size = 9),
+    axis.title.x.top    = element_text(margin = margin(b = 8), size = 9),
+    plot.margin         = margin(t = 5, r = 30, b = 5, l = 5, unit = "pt"),
+    plot.subtitle       = element_text(color = "orange", face = "bold")
+  )
+```
+
 Em `r latest_mes` de `r latest_ano`, `r n11_n_ced` CEDs receberam dotação de Investimento Interno, totalizando `r fmt_mil(n11_total_dot)` milhões de Mts., com uma taxa de execução global de `r n11_total_exc`%. Em termos de alocação, `r n11_max_dot_name` registou a maior dotação, com `r fmt_mil(n11_max_dot_val)` milhões de Mts., enquanto `r n11_min_dot_name` recebeu a menor alocação, com `r fmt_mil(n11_min_dot_val)` milhões de Mts. No que respeita à execução, `r n11_max_exec_name` apresentou a taxa mais elevada, com `r n11_max_exec_pct`%, ao passo que `r n11_min_exec_name` registou a taxa mais baixa, com `r n11_min_exec_pct`%. O detalhe por CED e âmbito encontra-se na tabela seguinte:
 
 ```{r tbl-11}
@@ -2276,10 +2506,9 @@ Em `r latest_mes` de `r latest_ano`, `r n11_n_ced` CEDs receberam dotação de I
 
 ambito_order11 <- c("Central", "Provincial", "Distrital")
 
-tbl11_raw <- df |>
+tbl11_raw <- df_inv_int |>
   filter(ano == latest_ano,
-        mes == latest_mes,
-        reporte_tipo == "Investimento Interno") |>
+        mes == latest_mes) |>
   group_by(ced_nivel, ambito) |>
   summarise(
     dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
@@ -2317,10 +2546,9 @@ tbl11_wide <- tbl11_raw |>
   arrange(ced_nivel) |>
   select(ced_nivel, all_of(ordered_cols11))
 
-total_row11 <- df |>
+total_row11 <- df_inv_int |>
   filter(ano == latest_ano,
-        mes == latest_mes,
-        reporte_tipo == "Investimento Interno") |>
+        mes == latest_mes) |>
   group_by(ambito) |>
   summarise(dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
             paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
@@ -2370,7 +2598,11 @@ flextable(tbl11_data) |>
   set_header_df(mapping = typology11, key = "col_keys") |>
   merge_h(part = "header") |>
   merge_v(part = "header") |>
+  add_header_lines("✓ Pronto para revisão") |>
   theme_vanilla() |>
+  color(i = 1, color = "#1565C0", part = "header") |>
+  bold(i = 1, part = "header") |>
+  align(i = 1, part = "header", align = "left") |>
   fontsize(size = 8, part = "all") |>
   bg(i = seq(1, nrow(tbl11_data), 2), bg = "#f5f5f5", part = "body") |>
   align(part = "header", align = "center") |>
@@ -2393,6 +2625,71 @@ flextable(tbl11_data) |>
   color(color = "#5A6570", part = "footer") |>
   padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
   flextable::autofit()
+```
+
+```{r fig-9b}
+#| echo: false
+#| fig-cap: !expr glue::glue("Orçamento e Taxa de Execução de Invest. Interno por CED e Nível ({latest_mes}, {latest_ano})")
+#| fig-width: 11
+#| fig-height: 5
+
+ced_levels9b <- tbl11_data |>
+  filter(ced_nivel != "Total") |>
+  arrange(`exec_pct__Central`) |>
+  pull(ced_nivel)
+
+fig9b_long <- tbl11_data |>
+  filter(ced_nivel != "Total") |>
+  select(ced_nivel, matches("^dotacao__|^exec_pct__")) |>
+  pivot_longer(
+    cols      = -ced_nivel,
+    names_to  = c("metric", "ambito"),
+    names_sep = "__"
+  ) |>
+  pivot_wider(names_from = metric, values_from = value) |>
+  filter(ambito != "Total") |>
+  mutate(ced_nivel = factor(ced_nivel, levels = ced_levels9b))
+
+make_panel9b <- function(df, title, show_y) {
+  ggplot(df, aes(y = ced_nivel)) +
+    geom_col(aes(x = dotacao), fill = "grey80", width = 0.65) +
+    geom_point(
+      data = ~ filter(., !is.na(exec_pct), dotacao > 0),
+      aes(x = dotacao * exec_pct / 100), color = "black", size = 2.5, shape = 19
+    ) +
+    geom_text(
+      data = ~ filter(., !is.na(exec_pct), dotacao > 0),
+      aes(x = dotacao * exec_pct / 100,
+          label = paste0(formatC(exec_pct, format = "f", digits = 0), "%")),
+      hjust = -0.3, size = 2.5, color = "black"
+    ) +
+    scale_x_continuous(
+      labels = scales::label_number(big.mark = ".", decimal.mark = ",", accuracy = 1),
+      expand = expansion(mult = c(0, 0.15))
+    ) +
+    scale_y_discrete(drop = FALSE) +
+    labs(title = title, x = "Orçamento", y = NULL) +
+    theme_minimal(base_size = 9) +
+    theme(
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor   = element_blank(),
+      axis.text.y        = if (show_y) element_text(size = 9) else element_blank(),
+      axis.ticks.y       = element_blank(),
+      axis.text.x        = element_text(size = 8),
+      axis.title.x       = element_text(margin = margin(t = 8), size = 9),
+      plot.title         = element_text(face = "bold", size = 9, hjust = 0.5)
+    )
+}
+
+p9b_central <- make_panel9b(filter(fig9b_long, ambito == "Central"),    "Central",    show_y = TRUE)
+p9b_prov    <- make_panel9b(filter(fig9b_long, ambito == "Provincial"), "Provincial", show_y = FALSE)
+p9b_dist    <- make_panel9b(filter(fig9b_long, ambito == "Distrital"),  "Distrital",  show_y = FALSE)
+
+wrap_plots(p9b_central, p9b_prov, p9b_dist, nrow = 1) +
+  plot_annotation(
+    subtitle = "Propondo Incluir",
+    theme    = theme(plot.subtitle = element_text(color = "orange", face = "bold", size = 9))
+  )
 ```
 
 ```{r narrative-tbl12}
@@ -2538,7 +2835,11 @@ flextable(tbl9_data) |>
   set_header_df(mapping = typology9, key = "col_keys") |>
   merge_h(part = "header") |>
   merge_v(part = "header") |>
+  add_header_lines("✓ Pronto para revisão") |>
   theme_vanilla() |>
+  color(i = 1, color = "#1565C0", part = "header") |>
+  bold(i = 1, part = "header") |>
+  align(i = 1, part = "header", align = "left") |>
   fontsize(size = 8, part = "all") |>
   bg(i = seq(1, nrow(tbl9_data), 2), bg = "#f5f5f5", part = "body") |>
   align(part = "header", align = "center") |>
@@ -2563,14 +2864,71 @@ flextable(tbl9_data) |>
   flextable::autofit()
 ```
 
+```{r fig-12}
+#| echo: false
+#| fig-cap: !expr glue::glue("Orçamento e Taxa de Execução das Instituições Tuteladas e Subordinadas pelo MEC ({latest_mes}, {latest_ano})")
+
+fig12_data <- tbl9_data |>
+  filter(ugb != "Total") |>
+  select(ugb, dotacao = `dotacao__Total`, exec_pct = `exec_pct__Total`) |>
+  mutate(ugb = fct_reorder(ugb, exec_pct))
+
+fig12_max_dot  <- max(fig12_data$dotacao, na.rm = TRUE)
+fig12_ep_lo    <- max(0,   min(fig12_data$exec_pct, na.rm = TRUE) - 15)
+fig12_ep_hi    <- min(100, max(fig12_data$exec_pct, na.rm = TRUE) + 15)
+fig12_ep_range <- fig12_ep_hi - fig12_ep_lo
+
+# linear map: exec_pct -> primary axis position
+ep_to_x  <- function(ep) (ep - fig12_ep_lo) / fig12_ep_range * fig12_max_dot
+# inverse for sec_axis: primary position -> exec_pct
+x_to_ep  <- ~ . / fig12_max_dot * fig12_ep_range + fig12_ep_lo
+
+ggplot(fig12_data, aes(y = ugb)) +
+  geom_col(aes(x = dotacao), fill = "grey80", width = 0.65) +
+  geom_point(
+    aes(x = ep_to_x(exec_pct)),
+    color = "black", size = 3, shape = 19
+  ) +
+  geom_text(
+    aes(x = ep_to_x(exec_pct),
+        label = paste0(formatC(exec_pct, format = "f", digits = 0), "%")),
+    hjust = -0.3, size = 2.8, color = "black"
+  ) +
+  scale_x_continuous(
+    labels = scales::label_number(big.mark = ".", decimal.mark = ",", accuracy = 1),
+    sec.axis = sec_axis(
+      x_to_ep,
+      name   = "Execução %",
+      labels = scales::label_number(suffix = "%", decimal.mark = ",", accuracy = 1)
+    ),
+    expand = expansion(mult = c(0, 0.12))
+  ) +
+  labs(
+    x        = "Orçamento",
+    y        = NULL,
+    subtitle = "Propondo Incluir"
+  ) +
+  theme_minimal(base_size = 9) +
+  theme(
+    panel.grid.major.y  = element_blank(),
+    panel.grid.minor    = element_blank(),
+    axis.text.y         = element_text(size = 9),
+    axis.text.x.bottom  = element_text(size = 8),
+    axis.text.x.top     = element_text(size = 8),
+    axis.title.x.bottom = element_text(margin = margin(t = 8), size = 9),
+    axis.title.x.top    = element_text(margin = margin(b = 8), size = 9),
+    plot.caption        = element_text(size = 7, color = "#5A6570", face = "italic"),
+    plot.subtitle       = element_text(color = "orange", face = "bold")
+  )
+```
+
 ```{r tbl-12}
 #| echo: false
-#| tbl-cap: !expr glue::glue("Execução do Programa de Aquisição de Carteiras Escolares por UGB ({latest_mes}, {latest_ano})")
+#| tbl-cap: !expr glue::glue("Programa de Construção de Carteiras Escolares – Inv. Interno ({latest_mes}, {latest_ano})")
 
-tbl12_raw <- df |>
+tbl12_raw <- df_inv_int |>
   filter(ano == latest_ano,
         mes == latest_mes,
-        reporte_tipo == "Investimento Interno",
         programa_tipo == "Aquisição de carteiras escolares")
 
 tbl12_data <- tbl12_raw |>
@@ -2631,63 +2989,6 @@ flextable(tbl12_data) |>
   color(color = "#5A6570", part = "footer") |>
   padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
   flextable::autofit()
-```
-
-
-```{r fig-12}
-#| echo: false
-#| fig-cap: !expr glue::glue("Orçamento e Taxa de Execução das Instituições Tuteladas e Subordinadas pelo MEC ({latest_mes}, {latest_ano})")
-
-fig12_data <- tbl9_data |>
-  filter(ugb != "Total") |>
-  select(ugb, dotacao = `dotacao__Total`, exec_pct = `exec_pct__Total`) |>
-  mutate(ugb = fct_reorder(ugb, exec_pct))
-
-fig12_max_dot  <- max(fig12_data$dotacao, na.rm = TRUE)
-fig12_ep_lo    <- max(0,   min(fig12_data$exec_pct, na.rm = TRUE) - 15)
-fig12_ep_hi    <- min(100, max(fig12_data$exec_pct, na.rm = TRUE) + 15)
-fig12_ep_range <- fig12_ep_hi - fig12_ep_lo
-
-# linear map: exec_pct -> primary axis position
-ep_to_x  <- function(ep) (ep - fig12_ep_lo) / fig12_ep_range * fig12_max_dot
-# inverse for sec_axis: primary position -> exec_pct
-x_to_ep  <- ~ . / fig12_max_dot * fig12_ep_range + fig12_ep_lo
-
-ggplot(fig12_data, aes(y = ugb)) +
-  geom_col(aes(x = dotacao), fill = "grey80", width = 0.65) +
-  geom_point(
-    aes(x = ep_to_x(exec_pct)),
-    color = "black", size = 3, shape = 19
-  ) +
-  geom_text(
-    aes(x = ep_to_x(exec_pct),
-        label = paste0(formatC(exec_pct, format = "f", digits = 0), "%")),
-    hjust = -0.3, size = 2.8, color = "black"
-  ) +
-  scale_x_continuous(
-    labels = scales::label_number(big.mark = ".", decimal.mark = ",", accuracy = 1),
-    sec.axis = sec_axis(
-      x_to_ep,
-      name   = "Execução %",
-      labels = scales::label_number(suffix = "%", decimal.mark = ",", accuracy = 1)
-    ),
-    expand = expansion(mult = c(0, 0.12))
-  ) +
-  labs(
-    x       = "Orçamento",
-    y       = NULL
-  ) +
-  theme_minimal(base_size = 9) +
-  theme(
-    panel.grid.major.y  = element_blank(),
-    panel.grid.minor    = element_blank(),
-    axis.text.y         = element_text(size = 9),
-    axis.text.x.bottom  = element_text(size = 8),
-    axis.text.x.top     = element_text(size = 8),
-    axis.title.x.bottom = element_text(margin = margin(t = 8), size = 9),
-    axis.title.x.top    = element_text(margin = margin(b = 8), size = 9),
-    plot.caption        = element_text(size = 7, color = "#5A6570", face = "italic")
-  )
 ```
 
 ### Orçamento de Investimento Externo
