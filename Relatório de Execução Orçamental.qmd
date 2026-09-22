@@ -1912,7 +1912,7 @@ ordered_cols8 <- c(
 )
 
 tbl8_wide <- tbl8_raw |>
-  arrange(ced_nivel) |>
+  arrange(desc(`dotacao__Total`)) |>
   select(ced_nivel, all_of(ordered_cols8))
 
 total_row8 <- df_func |>
@@ -2075,7 +2075,7 @@ tbl11b_raw <- df_func |>
     .groups = "drop"
   ) |>
   mutate(exec_pct = round(if_else(dotacao > 0, paga / dotacao * 100, NA_real_), 1)) |>
-  arrange(ced_nivel)
+  arrange(desc(dotacao))
 
 total_dotacao11b <- sum(tbl11b_raw$dotacao, na.rm = TRUE)
 
@@ -2543,7 +2543,7 @@ ordered_cols11 <- c(
 )
 
 tbl11_wide <- tbl11_raw |>
-  arrange(ced_nivel) |>
+  arrange(desc(`dotacao__Total`)) |>
   select(ced_nivel, all_of(ordered_cols11))
 
 total_row11 <- df_inv_int |>
@@ -2932,7 +2932,7 @@ tbl12_raw <- df_inv_int |>
         programa_tipo == "Aquisição de carteiras escolares")
 
 tbl12_data <- tbl12_raw |>
-  group_by(ugb, programa) |>
+  group_by(ugb, programa, fr) |>
   summarise(
     dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
     paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
@@ -2954,7 +2954,7 @@ total_row12 <- tbl12_data |>
       NA_real_
     )
   ) |>
-  mutate(ugb = "Total", programa = "")
+  mutate(ugb = "Total", programa = "", fr = "")
 
 tbl12_data <- bind_rows(tbl12_data, total_row12)
 
@@ -2962,16 +2962,322 @@ flextable(tbl12_data) |>
   set_header_labels(
     ugb      = "UGB",
     programa = "Programa",
+    fr       = "FR",
     dotacao  = "Orçamento",
     paga     = "Despesa",
     exec_pct = "Exec%"
   ) |>
+  add_header_lines("Requer revisão profunda") |>
   theme_vanilla() |>
+  color(i = 1, color = "orange", part = "header") |>
+  bold(i = 1, part = "header") |>
   fontsize(size = 8, part = "all") |>
   bg(i = seq(1, nrow(tbl12_data), 2), bg = "#f5f5f5", part = "body") |>
   align(part = "header", align = "center") |>
-  align(j = c("ugb", "programa"), part = "all", align = "left") |>
+  align(j = c("ugb", "programa", "fr"), part = "all", align = "left") |>
   bold(i = nrow(tbl12_data), part = "body") |>
+  colformat_num(
+    j            = c("dotacao", "paga"),
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = "exec_pct",
+    digits = 1,
+    suffix = "%"
+  ) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+```{r tbl-12b}
+#| echo: false
+#| tbl-cap: !expr glue::glue("Programa de Alfabetizadores – Inv. Interno ({latest_mes}, {latest_ano})")
+
+tbl12b_raw <- df_inv_int |>
+  filter(
+    ano == latest_ano,
+    mes == latest_mes,
+    str_detect(programa, regex("lfabetiza", ignore_case = TRUE))
+  )
+
+tbl12b_data <- tbl12b_raw |>
+  group_by(ugb, programa, fr) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(
+    ugb      = str_to_title(ugb),
+    exec_pct = if_else(dotacao > 0, paga / dotacao * 100, NA_real_)
+  ) |>
+  arrange(desc(dotacao))
+
+total_row12b <- tbl12b_data |>
+  summarise(
+    dotacao  = sum(dotacao, na.rm = TRUE),
+    paga     = sum(paga,    na.rm = TRUE),
+    exec_pct = if_else(
+      sum(dotacao, na.rm = TRUE) > 0,
+      sum(paga, na.rm = TRUE) / sum(dotacao, na.rm = TRUE) * 100,
+      NA_real_
+    )
+  ) |>
+  mutate(ugb = "Total", programa = "", fr = "")
+
+tbl12b_data <- bind_rows(tbl12b_data, total_row12b)
+
+flextable(tbl12b_data) |>
+  set_header_labels(
+    ugb      = "UGB",
+    programa = "Programa",
+    fr       = "FR",
+    dotacao  = "Orçamento",
+    paga     = "Despesa",
+    exec_pct = "Exec%"
+  ) |>
+  add_header_lines("Requer revisão profunda") |>
+  theme_vanilla() |>
+  color(i = 1, color = "orange", part = "header") |>
+  bold(i = 1, part = "header") |>
+  fontsize(size = 8, part = "all") |>
+  bg(i = seq(1, nrow(tbl12b_data), 2), bg = "#f5f5f5", part = "body") |>
+  align(part = "header", align = "center") |>
+  align(j = c("ugb", "programa", "fr"), part = "all", align = "left") |>
+  bold(i = nrow(tbl12b_data), part = "body") |>
+  colformat_num(
+    j            = c("dotacao", "paga"),
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = "exec_pct",
+    digits = 1,
+    suffix = "%"
+  ) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+```{r tbl-12c}
+#| echo: false
+#| tbl-cap: !expr glue::glue("Programa de Construção de Salas de Aulas e Outras Infraestruturas – Inv. Interno ({latest_mes}, {latest_ano})")
+
+construcao_tipos <- c(
+  "Construção",
+  "Construção Acelerada (ESG) - FASE",
+  "Construção Acelerada de Escolas Primárias",
+  "Construção de Salas de Aulas",
+  "Construção e Apetrechamento de Escolas Comunitárias",
+  "Construção EP"
+)
+
+tbl12c_raw <- df_inv_int |>
+  filter(
+    ano          == latest_ano,
+    mes          == latest_mes,
+    programa_tipo %in% construcao_tipos
+  )
+
+tbl12c_data <- tbl12c_raw |>
+  group_by(ugb, programa, fr) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(
+    ugb      = str_to_title(ugb),
+    exec_pct = if_else(dotacao > 0, paga / dotacao * 100, NA_real_)
+  ) |>
+  arrange(desc(dotacao))
+
+total_row12c <- tbl12c_data |>
+  summarise(
+    dotacao  = sum(dotacao, na.rm = TRUE),
+    paga     = sum(paga,    na.rm = TRUE),
+    exec_pct = if_else(
+      sum(dotacao, na.rm = TRUE) > 0,
+      sum(paga, na.rm = TRUE) / sum(dotacao, na.rm = TRUE) * 100,
+      NA_real_
+    )
+  ) |>
+  mutate(ugb = "Total", programa = "", fr = "")
+
+tbl12c_data <- bind_rows(tbl12c_data, total_row12c)
+
+flextable(tbl12c_data) |>
+  set_header_labels(
+    ugb      = "UGB",
+    programa = "Programa",
+    fr       = "FR",
+    dotacao  = "Orçamento",
+    paga     = "Despesa",
+    exec_pct = "Exec%"
+  ) |>
+  add_header_lines("Requer revisão profunda") |>
+  theme_vanilla() |>
+  color(i = 1, color = "orange", part = "header") |>
+  bold(i = 1, part = "header") |>
+  fontsize(size = 8, part = "all") |>
+  bg(i = seq(1, nrow(tbl12c_data), 2), bg = "#f5f5f5", part = "body") |>
+  align(part = "header", align = "center") |>
+  align(j = c("ugb", "programa", "fr"), part = "all", align = "left") |>
+  bold(i = nrow(tbl12c_data), part = "body") |>
+  colformat_num(
+    j            = c("dotacao", "paga"),
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = "exec_pct",
+    digits = 1,
+    suffix = "%"
+  ) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+```{r tbl-12d}
+#| echo: false
+#| tbl-cap: !expr glue::glue("Programa de Jogos Escolares – Inv. Interno ({latest_mes}, {latest_ano})")
+
+tbl12d_raw <- df_inv_int |>
+  filter(
+    ano          == latest_ano,
+    mes          == latest_mes,
+    programa_tipo == "Jogos Escolares"
+  )
+
+tbl12d_data <- tbl12d_raw |>
+  group_by(ugb, programa, fr) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(
+    ugb      = str_to_title(ugb),
+    exec_pct = if_else(dotacao > 0, paga / dotacao * 100, NA_real_)
+  ) |>
+  arrange(desc(dotacao))
+
+total_row12d <- tbl12d_data |>
+  summarise(
+    dotacao  = sum(dotacao, na.rm = TRUE),
+    paga     = sum(paga,    na.rm = TRUE),
+    exec_pct = if_else(
+      sum(dotacao, na.rm = TRUE) > 0,
+      sum(paga, na.rm = TRUE) / sum(dotacao, na.rm = TRUE) * 100,
+      NA_real_
+    )
+  ) |>
+  mutate(ugb = "Total", programa = "", fr = "")
+
+tbl12d_data <- bind_rows(tbl12d_data, total_row12d)
+
+flextable(tbl12d_data) |>
+  set_header_labels(
+    ugb      = "UGB",
+    programa = "Programa",
+    fr       = "FR",
+    dotacao  = "Orçamento",
+    paga     = "Despesa",
+    exec_pct = "Exec%"
+  ) |>
+  add_header_lines("Requer revisão profunda") |>
+  theme_vanilla() |>
+  color(i = 1, color = "orange", part = "header") |>
+  bold(i = 1, part = "header") |>
+  fontsize(size = 8, part = "all") |>
+  bg(i = seq(1, nrow(tbl12d_data), 2), bg = "#f5f5f5", part = "body") |>
+  align(part = "header", align = "center") |>
+  align(j = c("ugb", "programa", "fr"), part = "all", align = "left") |>
+  bold(i = nrow(tbl12d_data), part = "body") |>
+  colformat_num(
+    j            = c("dotacao", "paga"),
+    big.mark     = ".",
+    decimal.mark = ",",
+    digits       = 0
+  ) |>
+  colformat_double(
+    j      = "exec_pct",
+    digits = 1,
+    suffix = "%"
+  ) |>
+  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  italic(part = "footer") |>
+  fontsize(size = 8, part = "footer") |>
+  color(color = "#5A6570", part = "footer") |>
+  padding(part = "footer", padding.top = 2, padding.bottom = 2) |>
+  flextable::autofit()
+```
+
+```{r tbl-12e}
+#| echo: false
+#| tbl-cap: !expr glue::glue("Investimento Interno – MEC ({latest_mes}, {latest_ano})")
+
+tbl12e_data <- df_inv_int |>
+  filter(
+    ano      == latest_ano,
+    mes      == latest_mes,
+    descricao == "MEC"
+  ) |>
+  group_by(programa_tipo) |>
+  summarise(
+    dotacao = sum(dotacao_actualizada_da,      na.rm = TRUE),
+    paga    = sum(ad_fundos_desp_paga_vd_afdp, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(exec_pct = if_else(dotacao > 0, paga / dotacao * 100, NA_real_)) |>
+  arrange(desc(dotacao))
+
+total_row12e <- tbl12e_data |>
+  summarise(
+    dotacao  = sum(dotacao, na.rm = TRUE),
+    paga     = sum(paga,    na.rm = TRUE),
+    exec_pct = if_else(
+      sum(dotacao, na.rm = TRUE) > 0,
+      sum(paga, na.rm = TRUE) / sum(dotacao, na.rm = TRUE) * 100,
+      NA_real_
+    )
+  ) |>
+  mutate(programa_tipo = "Total")
+
+tbl12e_data <- bind_rows(tbl12e_data, total_row12e)
+
+flextable(tbl12e_data) |>
+  set_header_labels(
+    programa_tipo = "Programa",
+    dotacao       = "Orçamento",
+    paga          = "Despesa",
+    exec_pct      = "Exec%"
+  ) |>
+  add_header_lines("Requer revisão profunda") |>
+  theme_vanilla() |>
+  color(i = 1, color = "orange", part = "header") |>
+  bold(i = 1, part = "header") |>
+  fontsize(size = 8, part = "all") |>
+  bg(i = seq(1, nrow(tbl12e_data), 2), bg = "#f5f5f5", part = "body") |>
+  align(part = "header", align = "center") |>
+  align(j = "programa_tipo", part = "all", align = "left") |>
+  bold(i = nrow(tbl12e_data), part = "body") |>
   colformat_num(
     j            = c("dotacao", "paga"),
     big.mark     = ".",
