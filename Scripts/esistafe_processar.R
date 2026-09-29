@@ -23,17 +23,17 @@ library(easystafe)
 metadata_lookup <- "Documents/esistafe_dim_lookup.xlsx"
 
 paths_esistafe <- c(
-  "Data/demonstrativo_consolidado/202502",
-  "Data/demonstrativo_consolidado/202503",
-  "Data/demonstrativo_consolidado/202504",
-  "Data/demonstrativo_consolidado/202505",
-  "Data/demonstrativo_consolidado/202506",
-  "Data/demonstrativo_consolidado/202507",
-  "Data/demonstrativo_consolidado/202512",
-  "Data/demonstrativo_consolidado/202601",
-  "Data/demonstrativo_consolidado/202602",
-  "Data/demonstrativo_consolidado/202603",
-  "Data/demonstrativo_consolidado/202604",
+  # "Data/demonstrativo_consolidado/202502",
+  # "Data/demonstrativo_consolidado/202503",
+  # "Data/demonstrativo_consolidado/202504",
+  # "Data/demonstrativo_consolidado/202505",
+  # "Data/demonstrativo_consolidado/202506",
+  # "Data/demonstrativo_consolidado/202507",
+  # "Data/demonstrativo_consolidado/202512",
+  # "Data/demonstrativo_consolidado/202601",
+  # "Data/demonstrativo_consolidado/202602",
+  # "Data/demonstrativo_consolidado/202603",
+  # "Data/demonstrativo_consolidado/202604",
   "Data/demonstrativo_consolidado/202605",
   "Data/demonstrativo_consolidado/202606",
   "Data/demonstrativo_consolidado/202607"
@@ -66,6 +66,12 @@ df_esistafe <- paths_esistafe |>
   }) |>
   list_rbind() |>
   adicionar_lookups_esistafe(lookups)
+
+gaps <- sitrep_processamento_esistafe(
+  df_esistafe,
+  lookups,
+  lookup_path = metadata_lookup
+)
 
 # CONFIGURAR PARA DUCKDB -----------------------------------------------
 
