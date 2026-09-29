@@ -66,6 +66,12 @@ fmt_mil <- function(x, digits = 0)
 
 pull1 <- function(df, ...) { x <- pull(df, ...); if (length(x) == 0) NA_real_ else x }
 
+fmt_filtros <- function(...) {
+  args <- list(...)
+  pairs <- paste(names(args), unlist(args), sep = ": ")
+  paste(c(pairs, paste0("Fonte: e-SISTAFE"), paste0("Act.: ", pin_mod)), collapse = " | ")
+}
+
 ```
 
 ```{r data-prep}
@@ -287,7 +293,7 @@ flextable(tbl_data) |>
     suffix = "%"
   ) |>
   bold(i = nrow(tbl_data), part = "body") |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Todos", "Anos" = paste(prev, latest, sep = "/"), "Mês" = "último disponível por ano")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -699,7 +705,7 @@ flextable(tbl2_data) |>
     suffix = "%"
   ) |>
   bold(i = nrow(tbl2_data), part = "body") |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Todos", "Âmbito" = "Provincial", "Inst." = "DPE - OGDP", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -827,7 +833,7 @@ flextable(tbl3_data) |>
     suffix = "%"
   ) |>
   bold(i = nrow(tbl3_data), part = "body") |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Todos", "Mês" = latest_mes, "Anos" = "todos disponíveis")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -1084,7 +1090,7 @@ flextable(tbl4_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Func/Inv.Int/Inv.Ext", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -1303,7 +1309,7 @@ flextable(tbl5_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Todos", "Anos" = paste(prev, latest, sep = "/"), "Mês" = "último disponível por ano")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -1491,7 +1497,7 @@ flextable(tbl6_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Func/Inv.Int/Inv.Ext", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -1728,7 +1734,7 @@ flextable(tbl5_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Funcionamento", "Anos" = paste(prev, latest, sep = "/"), "Mês" = "último disponível por ano")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -1988,7 +1994,7 @@ flextable(tbl8_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Funcionamento", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -2154,7 +2160,7 @@ flextable(tbl11b_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Funcionamento", "Âmbito" = "Central", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -2396,7 +2402,7 @@ flextable(tbl10_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Investimento Interno", "Anos" = paste(prev, latest, sep = "/"), "Mês" = "último disponível por ano")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -2619,7 +2625,7 @@ flextable(tbl11_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Investimento Interno", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -2856,7 +2862,7 @@ flextable(tbl9_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Todos", "Descricao" = "Outras Instituições", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -2987,7 +2993,7 @@ flextable(tbl12_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Inv. Interno", "Programa" = "Aquisição de carteiras escolares", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -3062,7 +3068,7 @@ flextable(tbl12b_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Inv. Interno", "Programa" = "str_detect(programa, 'lfabetiza')", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -3146,7 +3152,7 @@ flextable(tbl12c_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Inv. Interno", "Programa" = "Construção (6 tipos)", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -3221,7 +3227,7 @@ flextable(tbl12d_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Inv. Interno", "Programa" = "Jogos Escolares", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -3289,7 +3295,7 @@ flextable(tbl12e_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Inv. Interno", "Descricao" = "MEC", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -3525,7 +3531,7 @@ flextable(tbl25_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Investimento Externo", "Anos" = paste(prev, latest, sep = "/"), "Mês" = "último disponível por ano")) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -3688,7 +3694,7 @@ flextable(tbl26_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Investimento Externo", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -3870,7 +3876,7 @@ flextable(tbl27_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Inv. Externo", "FR" = "133FCFASE", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -3973,7 +3979,7 @@ flextable(tbl28_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Inv. Externo", "Descricao" = "MEC", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -4084,7 +4090,7 @@ flextable(tbl13_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Inv. Externo", "Programa" = "ADE EP", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -4193,7 +4199,7 @@ flextable(tbl14_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Inv. Externo", "Programa" = "ADE EB", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -4302,7 +4308,7 @@ flextable(tbl15_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Inv. Externo", "Programa" = "ADE ESG", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -4413,7 +4419,7 @@ flextable(tbl16_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Inv. Externo", "Programa" = "Fundo de supervisão Provincial", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -4524,7 +4530,7 @@ flextable(tbl17_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Inv. Externo", "Programa" = "Fundo de supervisão Distrital", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -4635,7 +4641,7 @@ flextable(tbl18_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Inv. Externo", "Programa" = "Construção Acelerada EP (2 tipos)", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -4747,7 +4753,7 @@ flextable(tbl19_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Inv. Externo", "FR" = "133FCFASE", "Programa" = "Alimentação para Lares e Internatos", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -4858,7 +4864,7 @@ flextable(tbl20_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Inv. Externo", "Programa" = "Formação e Capacitação de Professores", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -4969,7 +4975,7 @@ flextable(tbl21_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Inv. Externo", "Programa" = "Projecto Piloto da Primeira Infancia", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -5080,7 +5086,7 @@ flextable(tbl22_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Inv. Externo", "Programa" = "str_detect(programa_tipo, 'HIV')", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -5191,7 +5197,7 @@ flextable(tbl23_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Inv. Externo", "Programa" = "Controlo Interno", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -5278,7 +5284,7 @@ flextable(tbl33_data) |>
     digits = 1,
     suffix = "%"
   ) |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Inv. Externo", "Âmbito" = "Central", "FR" = "5 bilaterais", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
@@ -5374,7 +5380,7 @@ flextable(tbl24_data) |>
   ) |>
   merge_v(j = "programa_tipo", part = "body") |>
   valign(j = "programa_tipo", valign = "top", part = "body") |>
-  add_footer_lines(glue("Fonte(s): e-SISTAFE Demonstrativo Consolidado; Última Actualização: {pin_mod}")) |>
+  add_footer_lines(fmt_filtros("Tipo" = "Investimento Externo", "Período" = paste(latest_mes, latest_ano, sep = ", "))) |>
   italic(part = "footer") |>
   fontsize(size = 8, part = "footer") |>
   color(color = "#5A6570", part = "footer") |>
