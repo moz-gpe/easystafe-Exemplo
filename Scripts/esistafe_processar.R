@@ -34,9 +34,9 @@ paths_esistafe <- c(
   # "Data/demonstrativo_consolidado/202602",
   # "Data/demonstrativo_consolidado/202603",
   # "Data/demonstrativo_consolidado/202604",
-  "Data/demonstrativo_consolidado/202605",
-  "Data/demonstrativo_consolidado/202606",
-  "Data/demonstrativo_consolidado/202607"
+  # "Data/demonstrativo_consolidado/202605",
+  # "Data/demonstrativo_consolidado/202606",
+  # "Data/demonstrativo_consolidado/202607"
 )
 
 
