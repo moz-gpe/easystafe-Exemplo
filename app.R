@@ -1,23 +1,21 @@
 # Pipeline e-SISTAFE — Shiny app
-# Runs: shiny::runApp("processar_app.R")
+# Deploy: Posit Connect Cloud. Users upload e-SISTAFE Excel files; the app
+# detects periods from filenames, processes, and serves downloads.
 # Requires: callr, shinyjs (install.packages(c("callr","shinyjs")))
 
 library(shiny)
 library(bslib)
 library(shinyjs)
 
-# Rendering the report used to drop quarto intermediates (relatorio_tmp.html,
-# *_files/, *.rmarkdown) into this app's working directory. Under RStudio that
-# file churn tripped Shiny's autoreload, restarting the session mid-render
-# (symptom: the page "flashes" and jumps back to the first tab). Disable it —
-# this is a pipeline-runner app, not something we hot-edit while it's running.
+# Rendering the report used to drop quarto intermediates into this app's
+# working directory. Under RStudio that file churn tripped Shiny's autoreload,
+# restarting the session mid-render. Disable it — this is a pipeline-runner
+# app, not something we hot-edit while it's running.
 options(shiny.autoreload = FALSE)
 
 # ── constants ──────────────────────────────────────────────────────────────
 
-BOARD_PATH  <- "C:/Users/Joe/Documents/R/moz-data-pins/Data"
 META_LOOKUP <- "documents/esistafe_dim_lookup.xlsx"
-DATA_BASE   <- "data/demonstrativo_consolidado"
 REPORT_QMD  <- "Relatório de Execução Orçamental.qmd"
 
 MESES_PT <- c(
@@ -25,39 +23,47 @@ MESES_PT <- c(
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
 )
 
-# Serve the finished report over the app's own http origin. browseURL() can't
-# be used: it runs on the R server and asks the IDE (Positron/RStudio) to
-# launch an external browser, which fails. Instead we expose a static dir and
-# hand the client an in-app URL it can open in a new tab. The report is a
-# single self-contained HTML, so one file is all we serve (ASCII name, since
-# the project-dir copy has accented characters that complicate URLs).
-REPORT_WWW  <- file.path(tempdir(), "relatorio_www")
-REPORT_FILE <- "relatorio.html"
-REPORT_URL  <- paste0("relatorio/", REPORT_FILE)   # client-visible path
+# Serve rendered reports over the app's own HTTP origin. Each session writes
+# to a unique filename so concurrent users don't overwrite each other.
+REPORT_WWW <- file.path(tempdir(), "relatorio_www")
 dir.create(REPORT_WWW, showWarnings = FALSE, recursive = TRUE)
 addResourcePath("relatorio", REPORT_WWW)
 
 # ── helpers ────────────────────────────────────────────────────────────────
 
-scan_months <- function() {
-  if (!dir.exists(DATA_BASE)) return(character(0))
-  d <- list.dirs(DATA_BASE, recursive = FALSE, full.names = FALSE)
-  d <- d[grepl("^\\d{6}$", d)]
-  d <- d[substr(d, 1, 4) %in% c("2025", "2026")]
-  has_data <- vapply(d, function(yyyymm) {
-    files <- list.files(file.path(DATA_BASE, yyyymm), pattern = "DemonstrativoConsolidado")
-    length(files) > 0
-  }, logical(1))
-  sort(d[has_data], decreasing = TRUE)
+# Extract YYYYMM from an e-SISTAFE filename by parsing the first YYYYMMDD
+# pattern (data_reporte). Returns NA if no 8-digit date is found.
+extract_yyyymm <- function(fname) {
+  m <- regmatches(fname, gregexpr("\\d{8}", fname))[[1]]
+  if (!length(m)) return(NA_character_)
+  substr(m[1], 1, 6)
 }
 
-month_label <- function(yyyymm) {
+yyyymm_label <- function(yyyymm) {
   yr <- substr(yyyymm, 1, 4)
   mo <- as.integer(substr(yyyymm, 5, 6))
   paste0(yr, "-", MESES_PT[mo])
 }
 
 strip_ansi <- function(x) gsub("\033\\[[0-9;]*m", "", x)
+
+# Copy uploaded files into per-period YYYYMM subdirs under base_dir.
+# Returns a named character vector: names = YYYYMM, values = folder paths.
+# Files whose names don't contain a parseable date are silently skipped.
+stage_files <- function(files_df, base_dir) {
+  dirs <- list()
+  for (i in seq_len(nrow(files_df))) {
+    fname  <- files_df$name[i]
+    fpath  <- files_df$datapath[i]
+    yyyymm <- extract_yyyymm(fname)
+    if (is.na(yyyymm)) next
+    dir_path <- file.path(base_dir, yyyymm)
+    dir.create(dir_path, showWarnings = FALSE, recursive = TRUE)
+    file.copy(fpath, file.path(dir_path, fname), overwrite = TRUE)
+    dirs[[yyyymm]] <- dir_path
+  }
+  unlist(dirs)
+}
 
 # Drain stdout + stderr pipes into a reactiveVal, appending to existing text.
 #
@@ -74,13 +80,13 @@ strip_ansi <- function(x) gsub("\033\\[[0-9;]*m", "", x)
 drain_pipes <- function(job, log_rv, final = FALSE) {
   if (final) {
     out <- tryCatch(job$read_output_lines(), error = function(e) character(0))
-    err <- tryCatch(job$read_error_lines(), error = function(e) character(0))
+    err <- tryCatch(job$read_error_lines(),  error = function(e) character(0))
   } else {
     st  <- tryCatch(job$poll_io(0), error = function(e) c(output = "", error = ""))
     out <- if (identical(st[["output"]], "ready"))
              tryCatch(job$read_output_lines(), error = function(e) character(0)) else character(0)
     err <- if (identical(st[["error"]], "ready"))
-             tryCatch(job$read_error_lines(), error = function(e) character(0)) else character(0)
+             tryCatch(job$read_error_lines(),  error = function(e) character(0)) else character(0)
   }
   lines <- strip_ansi(c(out, err))
   lines <- lines[nchar(lines) > 0]
@@ -99,13 +105,11 @@ log_style <- paste(
 # ── UI ─────────────────────────────────────────────────────────────────────
 
 ui <- page_sidebar(
-  title   = "Pipeline e-SISTAFE",
-  theme   = bs_theme(bootswatch = "flatly"),
+  title    = "Pipeline e-SISTAFE",
+  theme    = bs_theme(bootswatch = "flatly"),
   fillable = FALSE,
   useShinyjs(),
 
-  # best-effort auto-open of the finished report in a new browser tab; the
-  # visible link in the status card is the reliable fallback if blocked
   tags$head(tags$script(HTML(
     "Shiny.addCustomMessageHandler('open_report', function(url){ window.open(url, '_blank'); });"
   ))),
@@ -113,13 +117,15 @@ ui <- page_sidebar(
   sidebar = sidebar(
     width = 270,
 
-    tags$b("Períodos a processar"),
-    uiOutput("month_ui"),
-    div(class = "mt-1 small",
-      actionLink("btn_all",  "todos"),
-      " · ",
-      actionLink("btn_none", "nenhum")
+    fileInput(
+      "files", "Ficheiros e-SISTAFE (.xlsx)",
+      multiple    = TRUE,
+      accept      = ".xlsx",
+      buttonLabel = "Seleccionar...",
+      placeholder = "Nenhum ficheiro seleccionado"
     ),
+
+    uiOutput("periods_ui"),
 
     hr(),
 
@@ -132,14 +138,6 @@ ui <- page_sidebar(
       "btn_report", "Gerar Relatório",
       icon  = icon("file"),
       class = "btn-success w-100"
-    ),
-
-    hr(),
-
-    actionButton(
-      "btn_scan", "Actualizar lista",
-      icon  = icon("sync"),
-      class = "btn-outline-secondary btn-sm w-100"
     )
   ),
 
@@ -147,14 +145,11 @@ ui <- page_sidebar(
     id = "tabs",
 
     nav_panel("Processamento", value = "tab_proc",
-
       card(
         card_header("Log de Processamento"),
         div(style = log_style, textOutput("proc_log"))
       ),
-
       uiOutput("proc_status_card"),
-
       card(
         card_header("Verificação de Qualidade (sitrep)"),
         verbatimTextOutput("sitrep_out")
@@ -162,9 +157,7 @@ ui <- page_sidebar(
     ),
 
     nav_panel("Relatório", value = "tab_rep",
-
       uiOutput("rep_status_card"),
-
       card(
         card_header("Log de Renderização"),
         div(style = log_style, textOutput("rep_log"))
@@ -177,30 +170,41 @@ ui <- page_sidebar(
 
 server <- function(input, output, session) {
 
-  # months ----------------------------------------------------------------
+  # Session-scoped paths — unique per user so concurrent sessions don't
+  # collide on shared temp directories.
+  out_dir     <- file.path(tempdir(), paste0("esistafe_out_",   session$token))
+  stage_base  <- file.path(tempdir(), paste0("esistafe_stage_", session$token))
+  rep_file    <- paste0("relatorio_", session$token, ".html")
+  rep_url_path <- paste0("relatorio/", rep_file)
+  rep_dest    <- file.path(REPORT_WWW, rep_file)
+  dir.create(out_dir,    recursive = TRUE, showWarnings = FALSE)
+  dir.create(stage_base, recursive = TRUE, showWarnings = FALSE)
 
-  months_rv <- reactiveVal(scan_months())
-  observeEvent(input$btn_scan, months_rv(scan_months()))
+  # ── file upload & period detection ───────────────────────────────────────
 
-  output$month_ui <- renderUI({
-    m <- months_rv()
-    if (!length(m))
-      return(p(class = "text-muted small",
-               paste("Sem pastas em", DATA_BASE)))
-    ch <- setNames(file.path(DATA_BASE, m), month_label(m))
-    checkboxGroupInput("months", NULL, choices = ch, selected = character(0))
+  output$periods_ui <- renderUI({
+    req(input$files)
+    yyyymms <- vapply(input$files$name, extract_yyyymm, character(1))
+    valid   <- sort(yyyymms[!is.na(yyyymms)])
+
+    if (!length(valid))
+      return(p(class = "text-warning small",
+               "Não foi possível detectar períodos nos nomes dos ficheiros."))
+
+    tbl   <- sort(table(valid))
+    items <- mapply(
+      function(yyyymm, n) tags$li(paste0(yyyymm_label(yyyymm), " — ", n, " ficheiro(s)")),
+      names(tbl), as.integer(tbl),
+      SIMPLIFY = FALSE
+    )
+    tagList(
+      p(class = "small mb-1",
+        strong(length(tbl), " período(s) detectado(s):")),
+      tags$ul(class = "small ps-3", items)
+    )
   })
 
-  observeEvent(input$btn_all, {
-    m  <- months_rv()
-    ch <- setNames(file.path(DATA_BASE, m), month_label(m))
-    updateCheckboxGroupInput(session, "months", selected = ch)
-  })
-  observeEvent(input$btn_none,
-    updateCheckboxGroupInput(session, "months", selected = character(0))
-  )
-
-  # pipeline --------------------------------------------------------------
+  # ── pipeline ──────────────────────────────────────────────────────────────
 
   proc_job  <- reactiveVal(NULL)
   proc_log  <- reactiveVal("Aguardando...")
@@ -208,16 +212,19 @@ server <- function(input, output, session) {
   proc_res  <- reactiveVal(NULL)
 
   observeEvent(input$btn_process, {
-    req(length(input$months) > 0)
+    req(input$files)
     proc_done(FALSE)
     proc_res(NULL)
     proc_log("")
     shinyjs::disable("btn_report")
     nav_select("tabs", "tab_proc")
 
-    paths   <- input$months
-    meta    <- META_LOOKUP
-    outdir  <- "dataout/"
+    staged <- stage_files(input$files, stage_base)
+    req(length(staged) > 0)
+
+    paths  <- unname(staged)
+    meta   <- normalizePath(META_LOOKUP, mustWork = FALSE)
+    outdir <- out_dir
 
     job <- callr::r_bg(
       func = function(paths, meta, outdir) {
@@ -303,11 +310,33 @@ server <- function(input, output, session) {
       else if (!is.null(res$error))
         div(class = "text-danger", strong("Erro: "), res$error)
       else
-        div(class = "text-success",
-          strong(icon("circle-check"), " Concluído — "),
-          format(res$nrows, big.mark = "."), " linhas processadas.")
+        div(
+          div(class = "text-success mb-2",
+            strong(icon("circle-check"), " Concluído — "),
+            format(res$nrows, big.mark = "."), " linhas processadas."),
+          div(class = "d-flex gap-2",
+            downloadButton("dl_parquet", "Parquet",
+                           class = "btn-outline-primary btn-sm"),
+            downloadButton("dl_excel",   "Excel",
+                           class = "btn-outline-success btn-sm")
+          )
+        )
     ))
   })
+
+  output$dl_parquet <- downloadHandler(
+    filename = "e-SISTAFE_processado.parquet",
+    content  = function(file) {
+      file.copy(file.path(out_dir, "e-SISTAFE_processado.parquet"), file)
+    }
+  )
+
+  output$dl_excel <- downloadHandler(
+    filename = "e-SISTAFE_processado.xlsx",
+    content  = function(file) {
+      file.copy(file.path(out_dir, "e-SISTAFE_processado.xlsx"), file)
+    }
+  )
 
   output$sitrep_out <- renderPrint({
     req(proc_done())
@@ -316,7 +345,7 @@ server <- function(input, output, session) {
     print(res$gaps)
   })
 
-  # report ----------------------------------------------------------------
+  # ── report ────────────────────────────────────────────────────────────────
 
   rep_job  <- reactiveVal(NULL)
   rep_log  <- reactiveVal("")
@@ -333,28 +362,28 @@ server <- function(input, output, session) {
     rep_log("")
     nav_select("tabs", "tab_rep")
 
-    qmd_abs <- normalizePath(REPORT_QMD, mustWork = FALSE)
+    qmd_abs     <- normalizePath(REPORT_QMD, mustWork = FALSE)
+    abs_parquet <- normalizePath(
+      file.path(out_dir, "e-SISTAFE_processado.parquet"),
+      mustWork = FALSE, winslash = "/"
+    )
 
     job <- callr::r_bg(
-      func = function(qmd) {
+      func = function(qmd, abs_parquet, report_dest) {
         if (!file.exists(qmd))
           stop("QMD não encontrado: ", qmd)
 
-        out_html <- sub("\\.qmd$", ".html", qmd)
-
-        # Render in an ISOLATED temp dir — never in the app's working directory.
+        # Render in an isolated temp dir — never in the app's working directory.
         # Two reasons:
         #   1. Quarto on Windows rejects non-ASCII/special characters in the
         #      input filename, so we need a plain-ASCII copy anyway.
         #   2. Writing quarto intermediates into the watched app dir restarts
         #      the Shiny session mid-render. Keeping all churn under tempdir()
         #      means the app dir only ever sees the single final HTML copy.
-        # The QMD reads its data via absolute pins paths and uses only inline
-        # CSS, so it has no dependence on being rendered from the project dir.
-        rdir      <- file.path(tempdir(), paste0("relatorio_", as.integer(Sys.time())))
+        rdir     <- file.path(tempdir(), paste0("relatorio_", as.integer(Sys.time())))
         dir.create(rdir, showWarnings = FALSE, recursive = TRUE)
-        tmp_qmd   <- file.path(rdir, "relatorio.qmd")
-        tmp_html  <- file.path(rdir, "relatorio.html")
+        tmp_qmd  <- file.path(rdir, "relatorio.qmd")
+        tmp_html <- file.path(rdir, "relatorio.html")
         on.exit(unlink(rdir, recursive = TRUE), add = TRUE)
 
         # Inject `embed-resources: true` so quarto emits ONE self-contained
@@ -365,10 +394,6 @@ server <- function(input, output, session) {
         hit <- grep("^\\s*html:\\s*$", src)[1]
         if (!is.na(hit))
           src <- append(src, "    embed-resources: true", after = hit)
-        abs_parquet <- normalizePath(
-          file.path(getwd(), "dataout/e-SISTAFE_processado.parquet"),
-          mustWork = FALSE, winslash = "/"
-        )
         src <- sub(
           'parquet_path <- "dataout/e-SISTAFE_processado.parquet"',
           paste0('parquet_path <- "', abs_parquet, '"'),
@@ -382,14 +407,15 @@ server <- function(input, output, session) {
 
         if (!file.exists(tmp_html)) {
           html_files <- list.files(rdir, pattern = "\\.html$")
-          stop("HTML não encontrado após renderização. Ficheiros HTML encontrados: ",
+          stop("HTML não encontrado após renderização. Ficheiros HTML: ",
                if (length(html_files)) paste(html_files, collapse = ", ") else "(nenhum)")
         }
 
-        file.copy(tmp_html, out_html, overwrite = TRUE)
-        message("✓ Relatório gerado: ", basename(out_html))
+        dir.create(dirname(report_dest), showWarnings = FALSE, recursive = TRUE)
+        file.copy(tmp_html, report_dest, overwrite = TRUE)
+        message("✓ Relatório gerado.")
       },
-      args   = list(qmd = qmd_abs),
+      args   = list(qmd = qmd_abs, abs_parquet = abs_parquet, report_dest = rep_dest),
       stdout = "|",
       stderr = "|",
       wd     = getwd()
@@ -406,7 +432,7 @@ server <- function(input, output, session) {
     if (!job$is_alive()) {
       drain_pipes(job, rep_log, final = TRUE)
       result <- tryCatch(
-        { job$get_result(); list(ok = TRUE,  err = NULL) },
+        { job$get_result(); list(ok = TRUE, err = NULL) },
         error = function(e) list(ok = FALSE, err = conditionMessage(e))
       )
       rep_ok(result$ok)
@@ -415,26 +441,15 @@ server <- function(input, output, session) {
     }
   })
 
-  # fires once when rep_done flips to TRUE — publish the report and notify
   observeEvent(rep_done(), {
     req(rep_done())
     if (rep_ok()) {
-      html   <- normalizePath(sub("\\.qmd$", ".html", REPORT_QMD), mustWork = FALSE)
-      served <- file.path(REPORT_WWW, REPORT_FILE)
-      if (file.exists(html) && file.copy(html, served, overwrite = TRUE)) {
-        rep_url(REPORT_URL)
-        # try to pop it open automatically; link in the card is the fallback
-        session$sendCustomMessage("open_report", REPORT_URL)
-        showNotification(
-          "Relatório gerado. Se não abrir automaticamente, use o link no painel.",
-          type = "message", duration = 10
-        )
-      } else {
-        showNotification(
-          "Relatório renderizado mas não foi possível publicá-lo para visualização.",
-          type = "warning", duration = 15
-        )
-      }
+      rep_url(rep_url_path)
+      session$sendCustomMessage("open_report", rep_url_path)
+      showNotification(
+        "Relatório gerado. Se não abrir automaticamente, use o link no painel.",
+        type = "message", duration = 10
+      )
     } else {
       err_msg <- if (!is.null(rep_err())) rep_err() else "Erro desconhecido."
       showNotification(paste0("Erro: ", err_msg), type = "error", duration = 20)
@@ -452,6 +467,7 @@ server <- function(input, output, session) {
     done <- rep_done()
     ok   <- rep_ok()
     err  <- rep_err()
+    url  <- rep_url()
     card(card_body(
       if (!done)
         div(class = "d-flex align-items-center gap-2",
@@ -460,15 +476,24 @@ server <- function(input, output, session) {
       else if (ok)
         div(class = "alert alert-success mb-0",
           strong(icon("circle-check"), " Relatório gerado. "),
-          if (!is.null(rep_url()))
-            tags$a(href = rep_url(), target = "_blank", class = "alert-link",
-                   "Abrir relatório numa nova janela."))
+          if (!is.null(url))
+            tags$a(href = url, target = "_blank", class = "alert-link",
+                   "Abrir numa nova janela."),
+          " ",
+          downloadButton("dl_report", "Descarregar HTML",
+                         class = "btn-outline-secondary btn-sm ms-2")
+        )
       else
         div(class = "alert alert-danger mb-0",
           tags$b("Erro: "),
           if (!is.null(err)) err else "Erro desconhecido. Ver log abaixo.")
     ))
   })
+
+  output$dl_report <- downloadHandler(
+    filename = "relatorio-execucao-orcamental.html",
+    content  = function(file) file.copy(rep_dest, file)
+  )
 }
 
 shinyApp(ui, server)
