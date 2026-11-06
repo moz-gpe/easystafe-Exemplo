@@ -308,7 +308,6 @@ server <- function(input, output, session) {
 
         message("[2/4] A processar ", length(paths), " período(s)...")
         df_raw <- map(paths, \(p) {
-          message("  → ", basename(p))
           processar_extracto_esistafe(
             source_path           = p,
             df_ugb_lookup         = lookups$ugb,
