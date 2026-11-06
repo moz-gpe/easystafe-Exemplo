@@ -6,6 +6,13 @@ library(shiny)
 library(bslib)
 library(shinyjs)
 
+# Rendering the report used to drop quarto intermediates (relatorio_tmp.html,
+# *_files/, *.rmarkdown) into this app's working directory. Under RStudio that
+# file churn tripped Shiny's autoreload, restarting the session mid-render
+# (symptom: the page "flashes" and jumps back to the first tab). Disable it —
+# this is a pipeline-runner app, not something we hot-edit while it's running.
+options(shiny.autoreload = FALSE)
+
 # ── constants ──────────────────────────────────────────────────────────────
 
 BOARD_PATH  <- "C:/Users/Joe/Documents/R/moz-data-pins/Data"
@@ -325,28 +332,40 @@ server <- function(input, output, session) {
 
     job <- callr::r_bg(
       func = function(qmd) {
-        # Quarto on Windows rejects non-ASCII/special characters in filenames.
-        # Copy to a plain ASCII name, render, copy HTML output back.
-        dir      <- dirname(qmd)
-        tmp_qmd  <- file.path(dir, "relatorio_tmp.qmd")
-        tmp_html <- file.path(dir, "relatorio_tmp.html")
-        out_html <- sub("\\.qmd$", ".html", qmd)
-
         if (!file.exists(qmd))
           stop("QMD não encontrado: ", qmd)
 
-        file.copy(qmd, tmp_qmd, overwrite = TRUE)
-        on.exit({
-          if (file.exists(tmp_qmd)) unlink(tmp_qmd)
-          if (file.exists(tmp_html)) unlink(tmp_html)
-        }, add = TRUE)
+        out_html <- sub("\\.qmd$", ".html", qmd)
 
-        message("A renderizar relatório...")
+        # Render in an ISOLATED temp dir — never in the app's working directory.
+        # Two reasons:
+        #   1. Quarto on Windows rejects non-ASCII/special characters in the
+        #      input filename, so we need a plain-ASCII copy anyway.
+        #   2. Writing quarto intermediates into the watched app dir restarts
+        #      the Shiny session mid-render. Keeping all churn under tempdir()
+        #      means the app dir only ever sees the single final HTML copy.
+        # The QMD reads its data via absolute pins paths and uses only inline
+        # CSS, so it has no dependence on being rendered from the project dir.
+        rdir      <- file.path(tempdir(), paste0("relatorio_", as.integer(Sys.time())))
+        dir.create(rdir, showWarnings = FALSE, recursive = TRUE)
+        tmp_qmd   <- file.path(rdir, "relatorio.qmd")
+        tmp_html  <- file.path(rdir, "relatorio.html")
+        on.exit(unlink(rdir, recursive = TRUE), add = TRUE)
+
+        # Inject `embed-resources: true` so quarto emits ONE self-contained
+        # HTML (no _files/ sidecar), making the copy back a single-file op.
+        src <- readLines(qmd, warn = FALSE)
+        hit <- grep("^\\s*html:\\s*$", src)[1]
+        if (!is.na(hit))
+          src <- append(src, "    embed-resources: true", after = hit)
+        writeLines(src, tmp_qmd)
+
+        message("A renderizar relatório (em ", rdir, ")...")
         quarto::quarto_render(input = tmp_qmd)
         message("Render concluído. A verificar output...")
 
         if (!file.exists(tmp_html)) {
-          html_files <- list.files(dir, pattern = "\\.html$")
+          html_files <- list.files(rdir, pattern = "\\.html$")
           stop("HTML não encontrado após renderização. Ficheiros HTML encontrados: ",
                if (length(html_files)) paste(html_files, collapse = ", ") else "(nenhum)")
         }
