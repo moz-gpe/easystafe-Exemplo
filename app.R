@@ -202,7 +202,7 @@ ui <- page_sidebar(
       uiOutput("proc_status_card"),
       card(
         card_header("Verificação de Qualidade (sitrep)"),
-        verbatimTextOutput("sitrep_out")
+        uiOutput("sitrep_out")
       )
     ),
 
@@ -328,7 +328,18 @@ server <- function(input, output, session) {
         )
 
         message("[3/4] A verificar qualidade (sitrep)...")
-        gaps <- quietly(sitrep_processamento_esistafe(df, lookups, lookup_path = meta))
+        sitrep_dir <- file.path(outdir, "sitrep")
+        gaps <- quietly(sitrep_processamento_esistafe(
+          df, lookups,
+          lookup_path   = meta,
+          output_folder = sitrep_dir,
+          quiet         = TRUE
+        ))
+        sitrep_excel <- {
+          p <- file.path(sitrep_dir,
+                         paste0("sitrep_esistafe_", format(Sys.Date(), "%Y-%m-%d"), ".xlsx"))
+          if (file.exists(p)) p else NULL
+        }
 
         message("[4/4] A gravar ficheiros...")
         if (!dir.exists(outdir)) dir.create(outdir, recursive = TRUE)
@@ -336,7 +347,7 @@ server <- function(input, output, session) {
         quietly(writexl::write_xlsx(df, file.path(outdir, "e-SISTAFE_processado.xlsx")))
 
         message("✓ Processamento concluído.")
-        list(gaps = gaps, nrows = nrow(df))
+        list(gaps = gaps, nrows = nrow(df), sitrep_excel = sitrep_excel)
       },
       args   = list(paths = paths, meta = meta, outdir = outdir),
       stdout = "|",
@@ -407,12 +418,142 @@ server <- function(input, output, session) {
     }
   )
 
-  output$sitrep_out <- renderPrint({
+  output$sitrep_out <- renderUI({
     req(proc_done())
     res <- proc_res()
-    if (is.null(res) || !is.null(res$error)) return(invisible(NULL))
-    print(res$gaps)
+    if (is.null(res) || !is.null(res$error)) return(NULL)
+
+    gaps <- res$gaps
+    n    <- gaps$n_afectados
+
+    fmt_mt <- function(x) {
+      if (is.na(x) || x == 0) return("MT 0")
+      if (x >= 1e9) paste0("MT ", round(x / 1e9, 1), "B")
+      else           paste0("MT ", round(x / 1e6, 0), "M")
+    }
+
+    get_stats <- function(tipo) {
+      r <- n[n$gap_tipo == tipo, ]
+      list(n_gap = r$n_gap, n_linhas = r$n_linhas, dotacao = r$dotacao_total)
+    }
+
+    fa   <- get_stats("funcao_nivel")
+    pb   <- get_stats("programa_tipo")
+    ced  <- get_stats("ced_nome")
+    ugb_n <- nrow(gaps$ugb_completude)
+    total <- fa$n_gap + pb$n_gap + ced$n_gap + ugb_n
+
+    gap_section <- function(letter, title, n_gap, impact, description, followup,
+                            last = FALSE) {
+      ok <- n_gap == 0
+      icon_cls <- if (ok) "fa fa-circle-check text-success mt-1"
+                  else    "fa fa-triangle-exclamation text-warning mt-1"
+      div(class = if (last) "mb-2" else "mb-3 pb-3 border-bottom",
+        div(class = "d-flex gap-2",
+          tags$i(class = icon_cls, style = "min-width:16px"),
+          div(class = "w-100",
+            tags$b(paste0("[", letter, "] ", title)),
+            if (ok)
+              p(class = "small text-success mb-0 mt-1", "Sem lacunas detectadas.")
+            else
+              tagList(
+                p(class = "small text-muted mt-1 mb-1", description),
+                div(class = "mb-1",
+                  tags$span(class = "badge text-bg-warning", impact)),
+                div(class = "small mb-0", followup)
+              )
+          )
+        )
+      )
+    }
+
+    n_fmt <- function(x) format(x, big.mark = " ")
+
+    sec_A <- gap_section(
+      "A", "Classificação de Funções",
+      fa$n_gap,
+      paste0(fa$n_gap,
+             if (fa$n_gap == 1) " função" else " funções",
+             " em falta → ", n_fmt(fa$n_linhas), " linhas → ", fmt_mt(fa$dotacao)),
+      paste0(fa$n_gap, " código(s) de função nos dados e-SISTAFE sem classificação de ",
+             "nível no ficheiro de metadados (esistafe_dim_lookup.xlsx → folha 'funcao')."),
+      tagList("Adicionar os ", fa$n_gap, " código(s) em falta à folha ",
+              tags$b("funcao"), " do ficheiro de metadados.")
+    )
+
+    sec_B <- gap_section(
+      "B", "Tipo de Programa",
+      pb$n_gap,
+      paste0(pb$n_gap,
+             if (pb$n_gap == 1) " combinação" else " combinações",
+             " em falta → ", n_fmt(pb$n_linhas), " linhas → ", fmt_mt(pb$dotacao)),
+      paste0(pb$n_gap, " combinação(ões) programa-âmbito-FR nos dados e-SISTAFE sem ",
+             "tipo de programa correspondente no ficheiro de metadados ",
+             "(esistafe_dim_lookup.xlsx → folha 'programa')."),
+      tagList("Adicionar as ", pb$n_gap, " combinação(ões) em falta à folha ",
+              tags$b("programa"), " do ficheiro de metadados.")
+    )
+
+    sec_C <- gap_section(
+      "C", "Nomes de CED (Classificação Económica de Despesa)",
+      ced$n_gap,
+      paste0(ced$n_gap,
+             if (ced$n_gap == 1) " código CED" else " códigos CED",
+             " em falta → ", n_fmt(ced$n_linhas), " linhas → ", fmt_mt(ced$dotacao)),
+      paste0(ced$n_gap, " código(s) CED nos dados e-SISTAFE sem nome correspondente ",
+             "no ficheiro de metadados (esistafe_dim_lookup.xlsx)."),
+      tagList(
+        "Actualizar ", tags$b("em cascata"), " por cada código em falta:",
+        tags$ol(class = "small mb-1 mt-1 ps-3",
+          tags$li(tagList("Folha ", tags$b("ced"), " — sempre")),
+          tags$li(tagList("Folha ", tags$b("ced_3"),
+                          " — se ", tags$code("ced_3_existe = FALSE"))),
+          tags$li(tagList("Folha ", tags$b("ced_nivel"),
+                          " — se ced_3 é novo ou ", tags$code("ced_nivel_existe = FALSE"))),
+          tags$li(tagList("Folha ", tags$b("ced_2"),
+                          " — se ", tags$code("ced_2_existe = FALSE")))
+        ),
+        tags$small(class = "text-muted",
+          "O Excel de lacunas indica os passos necessários para cada código.")
+      )
+    )
+
+    sec_D <- gap_section(
+      "D", "Completude de UGBs (Funcionamento)",
+      ugb_n,
+      paste0(ugb_n,
+             if (ugb_n == 1) " combinação período × UGB"
+             else             " combinações período × UGB",
+             " sem dados de Funcionamento"),
+      paste0(ugb_n, " combinação(ões) período × UGB esperada(s) segundo o ficheiro ",
+             "de metadados não estão presentes nos dados e-SISTAFE carregados."),
+      "Verificar se todos os relatórios mensais de Funcionamento foram incluídos. Se a ausência for esperada (UGB sem actividade nesse período), pode ignorar.",
+      last = TRUE
+    )
+
+    tagList(
+      if (total == 0)
+        div(class = "d-flex gap-2 align-items-center text-success mb-3",
+          tags$i(class = "fa fa-circle-check"),
+          tags$b("Sem lacunas detectadas — todos os lookups estão completos."))
+      else
+        p(class = "text-muted small mb-3",
+          paste0(total, " lacuna(s) detectada(s) — ver detalhes abaixo.")),
+      sec_A, sec_B, sec_C, sec_D,
+      if (total > 0 && !is.null(res$sitrep_excel) && file.exists(res$sitrep_excel))
+        div(class = "mt-3",
+          downloadButton("dl_sitrep", "Descarregar Excel de lacunas",
+                         class = "btn-outline-warning btn-sm"))
+    )
   })
+
+  output$dl_sitrep <- downloadHandler(
+    filename = function() paste0("sitrep_esistafe_", format(Sys.Date(), "%Y-%m-%d"), ".xlsx"),
+    content  = function(file) {
+      path <- proc_res()$sitrep_excel
+      if (!is.null(path) && file.exists(path)) file.copy(path, file)
+    }
+  )
 
   # ── report ────────────────────────────────────────────────────────────────
 
