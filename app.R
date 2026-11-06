@@ -111,49 +111,71 @@ ui <- page_sidebar(
   fillable = FALSE,
   useShinyjs(),
 
-  tags$head(tags$script(HTML(
-    "Shiny.addCustomMessageHandler('open_report', function(url){ window.open(url, '_blank'); });"
-  ))),
+  tags$head(tags$script(HTML("
+    Shiny.addCustomMessageHandler('open_report', function(url){ window.open(url, '_blank'); });
+
+    // Cumulative folder picker — each click opens a folder picker and
+    // APPENDS the new files to the existing selection via DataTransfer.
+    // After each addition the accumulated FileList is assigned to Shiny's
+    // hidden input and a change event is dispatched so Shiny uploads them.
+    var accFiles = new DataTransfer();
+
+    function pushToShiny() {
+      var si = document.getElementById('files');
+      if (!si) return;
+      si.files = accFiles.files;
+      si.dispatchEvent(new Event('change', { bubbles: true }));
+      var n = accFiles.files.length;
+      document.getElementById('files_count').textContent =
+        n > 0 ? n + ' ficheiro(s) seleccionado(s)' : '';
+    }
+
+    $(document).on('click', '#btn_add_folder', function() {
+      var tmp = document.createElement('input');
+      tmp.type = 'file';
+      tmp.setAttribute('webkitdirectory', '');
+      tmp.setAttribute('multiple', '');
+      tmp.style.cssText = 'position:fixed;top:-9999px;left:-9999px;';
+      document.body.appendChild(tmp);
+      tmp.addEventListener('change', function() {
+        for (var i = 0; i < tmp.files.length; i++) accFiles.items.add(tmp.files[i]);
+        document.body.removeChild(tmp);
+        pushToShiny();
+      });
+      tmp.addEventListener('cancel', function() { document.body.removeChild(tmp); });
+      tmp.click();
+    });
+
+    $(document).on('click', '#btn_clear_files', function(e) {
+      e.preventDefault();
+      accFiles = new DataTransfer();
+      pushToShiny();
+    });
+  "))),
 
   sidebar = sidebar(
     width = 270,
 
-    # Custom folder picker — replicates Shiny's fileInput HTML exactly but with
-    # webkitdirectory baked into the <input> at render time (browsers block
-    # setting it dynamically via JS after the element is created).
+    tags$b("Ficheiros e-SISTAFE"),
+    tags$button(
+      id    = "btn_add_folder",
+      class = "btn btn-default w-100 mt-1 mb-1",
+      tags$i(class = "fa fa-folder-open me-1"), "Adicionar pasta..."
+    ),
+    tags$small(id = "files_count", class = "text-muted d-block"),
+    uiOutput("periods_ui"),
+    tags$a(id = "btn_clear_files", href = "#",
+           class = "small text-danger d-block mt-1 mb-1",
+           "Limpar selecção"),
+
+    # Hidden Shiny binding target — the visible picker above feeds into this.
     tags$div(
-      class = "form-group shiny-input-container",
-      tags$label(class = "control-label", `for` = "files",
-                 "Pasta com ficheiros e-SISTAFE"),
-      tags$div(
-        class = "input-group",
-        tags$label(
-          class = "input-group-btn input-group-prepend",
-          tags$span(
-            class = "btn btn-default btn-file",
-            "Seleccionar pasta...",
-            tags$input(
-              id              = "files",
-              class           = "shiny-input-file",
-              name            = "files",
-              type            = "file",
-              style           = "position:absolute!important;top:-99999px!important;left:-99999px!important;",
-              multiple        = "multiple",
-              webkitdirectory = NA,
-              mozdirectory    = NA
-            )
-          )
-        ),
-        tags$input(type = "text", class = "form-control",
-                   placeholder = "Nenhuma pasta seleccionada",
-                   readonly = "readonly")
-      ),
-      tags$div(id = "files_progress",
-               class = "progress active shiny-file-input-progress",
+      style = "display:none",
+      tags$input(id = "files", class = "shiny-input-file", name = "files",
+                 type = "file", multiple = "multiple"),
+      tags$div(id = "files_progress", class = "progress shiny-file-input-progress",
                tags$div(class = "progress-bar"))
     ),
-
-    uiOutput("periods_ui"),
 
     hr(),
 
