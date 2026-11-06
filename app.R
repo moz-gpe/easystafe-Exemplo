@@ -112,13 +112,12 @@ ui <- page_sidebar(
   useShinyjs(),
 
   tags$head(tags$script(HTML(
-    "Shiny.addCustomMessageHandler('open_report', function(url){ window.open(url, '_blank'); });",
-    // Allow selecting an entire folder — browser uploads all files inside it.
-    "$(document).ready(function() {",
-    "  var inp = document.querySelector('#files input[type=\"file\"]');",
-    "  inp.setAttribute('webkitdirectory', '');",
-    "  inp.setAttribute('mozdirectory', '');",
-    "});"
+    "Shiny.addCustomMessageHandler('open_report', function(url){ window.open(url, '_blank'); });
+     $(document).ready(function() {
+       var inp = document.querySelector('#files input[type=\"file\"]');
+       inp.setAttribute('webkitdirectory', '');
+       inp.setAttribute('mozdirectory', '');
+     });"
   ))),
 
   sidebar = sidebar(
