@@ -6,6 +6,7 @@
 library(shiny)
 library(bslib)
 library(shinyjs)
+library(base64enc)
 
 # Rendering the report used to drop quarto intermediates into this app's
 # working directory. Under RStudio that file churn tripped Shiny's autoreload,
@@ -103,15 +104,30 @@ log_style <- paste(
   "background: #f8f9fa; padding: 10px; border-radius: 4px; min-height: 60px;"
 )
 
+mec_uri <- base64enc::dataURI(
+  file = "images/1200px-Emblem_of_Mozambique.svg-716778474.png",
+  mime = "image/png"
+)
+
 # ── UI ─────────────────────────────────────────────────────────────────────
 
-ui <- page_sidebar(
-  title    = "Pipeline e-SISTAFE",
-  theme    = bs_theme(bootswatch = "flatly"),
-  fillable = FALSE,
+ui <- page_fluid(
+  style = "padding: 0;",
+  theme = bs_theme(
+    bootswatch  = "flatly",
+    "navbar-bg" = "#16697a",
+    primary     = "#16697a",
+    success     = "#ffa62b",
+    "body-color" = "#495057"
+  ),
   useShinyjs(),
 
-  tags$head(tags$script(HTML("
+  tags$head(
+    tags$link(rel = "stylesheet", href = paste0(
+      "styles.css?v",
+      tryCatch(as.integer(file.info("www/styles.css")$mtime), error = function(e) "")
+    )),
+    tags$script(HTML("
     Shiny.addCustomMessageHandler('open_report', function(url){ window.open(url, '_blank'); });
 
     // Cumulative folder picker — each click opens a folder picker and
@@ -125,9 +141,8 @@ ui <- page_sidebar(
       if (!si) return;
       si.files = accFiles.files;
       si.dispatchEvent(new Event('change', { bubbles: true }));
-      var n = accFiles.files.length;
-      document.getElementById('files_count').textContent =
-        n > 0 ? n + ' ficheiro(s) seleccionado(s)' : '';
+      var fc = document.getElementById('files_count');
+      if (fc) { var n = accFiles.files.length; fc.textContent = n > 0 ? n + ' ficheiro(s) seleccionado(s)' : ''; }
     }
 
     $(document).on('click', '#btn_add_folder', function() {
@@ -151,66 +166,133 @@ ui <- page_sidebar(
       accFiles = new DataTransfer();
       pushToShiny();
     });
-  "))),
+  "))
+  ),
 
-  sidebar = sidebar(
-    width = 270,
-
-    tags$b("Ficheiros e-SISTAFE"),
-    tags$button(
-      id    = "btn_add_folder",
-      class = "btn btn-default w-100 mt-1 mb-1",
-      tags$i(class = "fa fa-folder-open me-1"), "Adicionar pasta..."
-    ),
-    tags$small(id = "files_count", class = "text-muted d-block"),
-    uiOutput("periods_ui"),
-    tags$a(id = "btn_clear_files", href = "#",
-           class = "small text-danger d-block mt-1 mb-1",
-           "Limpar selecção"),
-
-    # Hidden Shiny binding target — the visible picker above feeds into this.
+  # ── Banner ───────────────────────────────────────────────────────────────
+  tags$nav(
+    class = "navbar navbar-expand-md",
+    style = "margin-bottom: 0; padding: 0; background-color: #16697a;",
     tags$div(
-      style = "display:none",
-      tags$input(id = "files", class = "shiny-input-file", name = "files",
-                 type = "file", multiple = "multiple"),
-      tags$div(id = "files_progress", class = "progress shiny-file-input-progress",
-               tags$div(class = "progress-bar"))
-    ),
-
-    hr(),
-
-    actionButton(
-      "btn_process", "Processar dados",
-      icon  = icon("play"),
-      class = "btn-primary w-100 mb-2"
-    ),
-    actionButton(
-      "btn_report", "Gerar Relatório",
-      icon  = icon("file"),
-      class = "btn-success w-100"
+      class = "container-fluid",
+      style = "display:flex; align-items:center; padding-top:0.2rem; padding-bottom:0.2rem;",
+      tags$span(
+        class = "navbar-brand",
+        style = "flex:1; min-width:0;",
+        tags$span(
+          style = "display:flex; align-items:center; width:100%;",
+          tags$img(
+            src   = mec_uri,
+            style = "height:68px; width:auto; margin-left:24px; margin-right:16px; flex-shrink:0;"
+          ),
+          tags$div(
+            style = "flex:1; min-width:0;",
+            tags$span(
+              "easystafe::",
+              style = "color:#FFFFFF; font-size:2.5rem; font-weight:600; white-space:nowrap; display:block; margin-bottom:-1rem;"
+            ),
+            tags$span(
+              "Ferramenta de processamento do Demonstrativo Consolidado do e-SISTAFE — Ministério da Educação e Cultura",
+              style = "color:#FFFFFF; font-size:0.9rem; font-weight:400; opacity:0.85; font-style:italic;"
+            )
+          )
+        )
+      )
     )
   ),
 
-  navset_card_underline(
-    id = "tabs",
+  # Banner underline
+  tags$div(style = "height: 1.25px; background-color: #16697a; margin-top: 1.5px;"),
 
-    nav_panel("Processamento", value = "tab_proc",
-      card(
-        card_header("Log de Processamento"),
-        div(style = log_style, textOutput("proc_log"))
+  # ── Main content ─────────────────────────────────────────────────────────
+  tags$div(
+    style = "padding: 1rem;",
+    layout_sidebar(
+      fillable = FALSE,
+      sidebar = sidebar(
+        width = 240,
+
+        tags$div(
+          tags$p(class = "mb-0", style = "font-weight:600; font-size:0.85rem; color:#16697a;", "Carregar Dados"),
+          tags$p(
+            class = "mb-0",
+            style = "color: #495057; font-size: 0.7rem;",
+            "Seleccione as pastas onde estão guardados os ficheiros do Demonstrativo Consolidado e-SISTAFE.",
+            actionLink(
+              "btn_info_files",
+              label = NULL,
+              icon  = icon("circle-info"),
+              style = "font-size: 0.75rem; color: #489fb5; vertical-align: middle; margin-left: 2px;"
+            )
+          ),
+          tags$button(
+            id    = "btn_add_folder",
+            class = "btn w-100 mb-0",
+            style = "background-color:#16697a; color:#ffffff; border-color:#16697a; font-size:0.8rem; margin-top:4px;",
+            tags$i(class = "fa fa-folder-open me-1"), "Adicionar Pasta(s)..."
+          )
+        ),
+        uiOutput("periods_ui"),
+
+        # Hidden Shiny binding target — the visible picker above feeds into this.
+        tags$div(
+          style = "display:none",
+          tags$input(id = "files", class = "shiny-input-file", name = "files",
+                     type = "file", multiple = "multiple"),
+          tags$div(id = "files_progress", class = "progress shiny-file-input-progress",
+                   tags$div(class = "progress-bar"))
+        ),
+
+        tags$hr(style = "margin-top: 4px; margin-bottom: 8px;"),
+
+        tags$div(
+          tags$p(class = "mb-0", style = "font-weight:600; font-size:0.85rem; color:#16697a;", "Processamento"),
+          tags$p(class = "mb-0", style = "color:#495057; font-size:0.7rem;",
+                 "Processe os ficheiros carregados e prepare os dados para o relatório."),
+          actionButton(
+            "btn_process", "Processar Dados",
+            icon  = icon("play"),
+            class = "btn-primary w-100",
+            style = "margin-top:4px;"
+          )
+        ),
+        tags$hr(style = "margin-top: 8px; margin-bottom: 4px;"),
+        tags$div(
+          tags$p(class = "mb-0", style = "font-weight:600; font-size:0.85rem; color:#16697a;", "Gerar Relatório"),
+          tags$p(class = "mb-0", style = "color:#495057; font-size:0.7rem;",
+                 "Gere o relatório de execução orçamental em formato HTML."),
+          actionButton(
+            "btn_report", "Gerar Relatório",
+            icon  = icon("file"),
+            class = "btn-success w-100",
+            style = "color: #16697a !important; --bs-btn-color: #16697a; margin-top:4px;"
+          )
+        ),
+        tags$hr(style = "margin-top: 8px; margin-bottom: 4px;")
       ),
-      uiOutput("proc_status_card"),
-      card(
-        card_header("Verificação de Qualidade (sitrep)"),
-        uiOutput("sitrep_out")
-      )
-    ),
 
-    nav_panel("Relatório", value = "tab_rep",
-      uiOutput("rep_status_card"),
-      card(
-        card_header("Log de Renderização"),
-        div(style = log_style, textOutput("rep_log"))
+      navset_card_underline(
+        id = "tabs",
+
+        nav_panel("Processamento", value = "tab_proc",
+          card(
+            card_header("Log de Processamento"),
+            div(style = log_style, textOutput("proc_log"))
+          ),
+          uiOutput("proc_status_card"),
+          card(
+            card_header("Verificação de Qualidade (sitrep)"),
+            uiOutput("sitrep_out")
+          )
+        ),
+
+        nav_panel("Relatório", value = "tab_rep",
+          uiOutput("rep_status_card"),
+          card(
+            card_header("Log de Renderização"),
+            div(style = log_style, textOutput("rep_log"))
+          )
+        )
       )
     )
   )
@@ -219,6 +301,25 @@ ui <- page_sidebar(
 # ── Server ─────────────────────────────────────────────────────────────────
 
 server <- function(input, output, session) {
+
+  observeEvent(input$btn_info_files, {
+    showModal(modalDialog(
+      title = "Ficheiros do Demonstrativo Consolidado e-SISTAFE",
+      easyClose = TRUE,
+      footer = modalButton("Fechar"),
+      tags$h6("Formato", style = "font-weight:600; color:#16697a;"),
+      tags$p("Os ficheiros devem estar no formato Excel (.xls) exportados directamente do sistema e-SISTAFE — Demonstrativo Consolidado."),
+      tags$h6("Padrão de nomenclatura", style = "font-weight:600; color:#16697a; margin-top:1rem;"),
+      tags$p("O nome de cada ficheiro deve conter uma data no formato ", tags$code("YYYYMMDD"),
+             " (ex: ", tags$code("20240131"), "). Esta data corresponde à data de reporte e é usada pela aplicação para identificar automaticamente o período (mês/ano) de cada ficheiro."),
+      tags$p("Exemplo de nome válido:"),
+      tags$pre("DemostrativoConsolidado_20240131.xls"),
+      tags$h6("Organização em pastas", style = "font-weight:600; color:#16697a; margin-top:1rem;"),
+      tags$p("Os ficheiros podem estar organizados em uma ou mais pastas, uma por período ou agrupados. A aplicação processa todos os ficheiros encontrados nas pastas seleccionadas e detecta os períodos automaticamente."),
+      tags$h6("Múltiplos períodos", style = "font-weight:600; color:#16697a; margin-top:1rem;"),
+      tags$p("É possível carregar ficheiros de vários meses de uma só vez. Use o botão ", tags$b("Adicionar Pasta(s)..."), " múltiplas vezes para acumular pastas de diferentes períodos.")
+    ))
+  })
 
   # Session-scoped paths — unique per user so concurrent sessions don't
   # collide on shared temp directories.
@@ -232,25 +333,32 @@ server <- function(input, output, session) {
 
   # ── file upload & period detection ───────────────────────────────────────
 
+  shinyjs::disable("btn_report")
+
+  files_cleared <- reactiveVal(FALSE)
+  observeEvent(input$btn_clear_files, { files_cleared(TRUE) }, ignoreInit = TRUE)
+  observeEvent(input$files,           { files_cleared(FALSE) }, ignoreInit = TRUE)
+
   output$periods_ui <- renderUI({
+    if (isTRUE(files_cleared())) return(NULL)
     req(input$files)
     yyyymms <- vapply(input$files$name, extract_yyyymm, character(1))
     valid   <- sort(yyyymms[!is.na(yyyymms)])
 
     if (!length(valid))
-      return(p(class = "text-warning small",
+      return(p(style = "font-size:0.7rem; color:#495057;",
                "Não foi possível detectar períodos nos nomes dos ficheiros."))
 
     tbl   <- sort(table(valid))
     items <- mapply(
-      function(yyyymm, n) tags$li(paste0(yyyymm_label(yyyymm), " — ", n, " ficheiro(s)")),
+      function(yyyymm, n) tags$div(paste0(yyyymm_label(yyyymm), " — ", n, " ficheiro(s)")),
       names(tbl), as.integer(tbl),
       SIMPLIFY = FALSE
     )
     tagList(
-      p(class = "small mb-1",
-        strong(length(tbl), " período(s) detectado(s):")),
-      tags$ul(class = "small ps-3", items)
+      tags$div(style = "font-size:0.7rem; color:#495057; line-height:1.6;",
+        tags$strong(paste0(length(tbl), " período(s) detectado(s):")),
+        items)
     )
   })
 

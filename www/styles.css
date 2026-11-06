@@ -1,0 +1,158 @@
+/* =========================================================================
+   1. Colour system
+   Brand gold (#F4C400) is the navbar/banner colour. Never used for data.
+   Ink neutrals for text. Hue palette available for future use.
+   ========================================================================= */
+:root {
+  --poema-brand:     #16697a;
+  --poema-brand-fg:  #FFFFFF;
+  --poema-accent:    #ffa62b;
+  --poema-ink:       #495057;
+  --bs-body-color:   #495057;
+
+  --poema-ink:       #212529;
+  --poema-body:      #495057;
+  --poema-muted:     #6c757d;
+  --poema-faint:     #adb5bd;
+  --poema-line:      #dee2e6;
+  --poema-line-soft: rgba(16, 24, 40, 0.09);
+  --poema-surface:   #ffffff;
+  --poema-wash:      #f8f9fa;
+
+  --hue-teal:   #0D9488;
+  --hue-purple: #6F42C1;
+  --hue-blue:   #2E8AFF;
+  --hue-green:  #43AA8B;
+  --hue-slate:  #577590;
+  --hue-cyan:   #277DA1;
+  --hue-amber:  #F8961E;
+  --hue-coral:  #F9844A;
+}
+
+/* Force navbar bg to gold (redundant with bs_theme arg, but ensures it in
+   case bslib injects its own navbar for page_fluid). */
+.navbar,
+.bslib-page-title,
+header.navbar {
+  background-color: var(--poema-brand) !important;
+  border-bottom: none !important;
+}
+
+.navbar-brand,
+.navbar-brand * {
+  color: var(--poema-brand-fg) !important;
+}
+
+.bslib-grid {
+  margin-bottom: 1.5rem;
+}
+
+body {
+  color: #495057 !important;
+}
+
+/* Sidebar text matches main content */
+.bslib-sidebar-layout {
+  --bslib-sidebar-fg: var(--bs-body-color);
+  --bslib-sidebar-bg: #ede7e3;
+}
+
+.bslib-sidebar-layout aside .btn {
+  font-size: 0.8rem;
+}
+
+/* =========================================================================
+   2. Card chrome
+   Rounded corners, hairline border, two-stop shadow. Nested cards drop
+   the shadow to avoid stacked-shadow noise.
+   ========================================================================= */
+.card,
+.bslib-card {
+  border: 1px solid var(--poema-line-soft);
+  border-radius: 10px;
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.04),
+    0 1px 3px rgba(16, 24, 40, 0.06);
+}
+
+.card .card,
+.bslib-card .bslib-card {
+  box-shadow: none;
+}
+
+.card > .card-header,
+.bslib-card > .card-header {
+  background-color: transparent;
+  border-bottom: 1px solid var(--poema-line-soft);
+  color: #495057 !important;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+/* navset_card_underline's own header holds the tab strip — no extra rule. */
+.bslib-card > .card-header:has(.nav-tabs) {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+/* =========================================================================
+   3. Tab strips
+   Active tab: gold underline + heavier weight. Inactive: muted, 500 weight.
+   ========================================================================= */
+
+/* navset_card_underline tabs inside a card */
+.bslib-card .nav-tabs .nav-link,
+.bslib-card .nav-underline .nav-link {
+  color: #495057 !important;
+  font-weight: 400 !important;
+  border: none;
+  border-bottom: 2px solid transparent;
+}
+
+.bslib-card .nav-tabs .nav-link:hover,
+.bslib-card .nav-underline .nav-link:hover {
+  color: #495057 !important;
+}
+
+.bslib-card .nav-tabs .nav-link.active,
+.bslib-card .nav-underline .nav-link.active {
+  color: #495057 !important;
+  font-weight: 700 !important;
+  background-color: transparent;
+  border-bottom-color: #495057 !important;
+}
+
+/* Generic tab toggle color */
+a[data-bs-toggle="tab"] {
+  color: #495057 !important;
+}
+
+/* =========================================================================
+   4. Empty and loading states
+   ========================================================================= */
+.shiny-output-error-validation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  height: 100%;
+  padding: 2rem 1rem;
+  color: var(--poema-faint);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.recalculating {
+  opacity: 0.55 !important;
+  animation: poema-pulse 1.2s ease-in-out infinite;
+  transition: opacity 0.15s ease;
+}
+
+@keyframes poema-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%       { opacity: 0.78; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recalculating { animation: none; }
+}
