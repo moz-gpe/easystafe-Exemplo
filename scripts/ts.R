@@ -10,7 +10,7 @@ library(esquisse)
 
 # GLOBAL VARS -------------------------------------------------
 
-source <- "Documents/temp_compare.xlsx"
+source <- "documents/temp_compare.xlsx"
 
 old <- read_excel(source, sheet = "old") %>%
   select(-c(conjunto, Integra)) %>%
@@ -37,7 +37,7 @@ print(new_only)
 new_not_old <- anti_join(new, old, by = in_both)
 
 
-path <- "Documents/lookup.xlsx"
+path <- "documents/lookup.xlsx"
 
 sheets <- c("ugb", "funcao", "programa", "ced", "ced_2", "ced_3", "ced_nivel")
 keys <- c(

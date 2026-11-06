@@ -16,8 +16,8 @@ options(shiny.autoreload = FALSE)
 # ── constants ──────────────────────────────────────────────────────────────
 
 BOARD_PATH  <- "C:/Users/Joe/Documents/R/moz-data-pins/Data"
-META_LOOKUP <- "Documents/esistafe_dim_lookup.xlsx"
-DATA_BASE   <- "Data/demonstrativo_consolidado"
+META_LOOKUP <- "documents/esistafe_dim_lookup.xlsx"
+DATA_BASE   <- "data/demonstrativo_consolidado"
 REPORT_QMD  <- "Relatório de Execução Orçamental.qmd"
 
 MESES_PT <- c(
@@ -218,7 +218,7 @@ server <- function(input, output, session) {
     paths   <- input$months
     meta    <- META_LOOKUP
     board_p <- BOARD_PATH
-    outdir  <- "Dataout/"
+    outdir  <- "dataout/"
 
     job <- callr::r_bg(
       func = function(paths, meta, board_p, outdir) {

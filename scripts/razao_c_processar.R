@@ -21,10 +21,10 @@ library(easystafe)
 # GLOBAL VARS -------------------------------------------------
 
 paths_razao_contabilistica <- c(
-  "Data/razao_cont/202601/",
-  "Data/razao_cont/202602/",
-  "Data/razao_cont/202603/",
-  "Data/razao_cont/202604/"
+  "data/razao_cont/202601/",
+  "data/razao_cont/202602/",
+  "data/razao_cont/202603/",
+  "data/razao_cont/202604/"
 )
 
 rates_diarias <- obter_conversao_bancomoc(wide = TRUE)

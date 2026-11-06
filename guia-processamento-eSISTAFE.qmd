@@ -2,7 +2,7 @@
 title: "*Automatização da limpeza de dados do e-SISTAFE*"
 subtitle: "*Usando R para automatizar a compilação e limpeza de ficheiros exportados e-SISTAFE*"
 format: html
-logo: Images/emblem_giz_large.png
+logo: images/emblem_giz_large.png
 ---
 
 # Introdução
@@ -48,7 +48,7 @@ library(tidyverse)
 library(readxl)
 library(janitor)
 library(glue)
-source("Scripts/functions.R")
+source("scripts/functions.R")
 
 ```
 
@@ -61,7 +61,7 @@ A seguir, definimos os caminhos para os ficheiros que vamos usar. Isto facilita 
 #| warning: false
 
 path_ugb <- "../../Data/ugb/Codigos de UGBs.xlsx"
-path_data <- "Data/"
+path_data <- "data/"
 
 ```
 

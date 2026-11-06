@@ -20,23 +20,23 @@ library(easystafe)
 
 # GLOBAL VARS -------------------------------------------------
 
-metadata_lookup <- "Documents/esistafe_dim_lookup.xlsx"
+metadata_lookup <- "documents/esistafe_dim_lookup.xlsx"
 
 paths_esistafe <- c(
-  # "Data/demonstrativo_consolidado/202502",
-  # "Data/demonstrativo_consolidado/202503",
-  # "Data/demonstrativo_consolidado/202504",
-  # "Data/demonstrativo_consolidado/202505",
-  # "Data/demonstrativo_consolidado/202506",
-  # "Data/demonstrativo_consolidado/202507",
-  # "Data/demonstrativo_consolidado/202512",
-  # "Data/demonstrativo_consolidado/202601",
-  # "Data/demonstrativo_consolidado/202602",
-  # "Data/demonstrativo_consolidado/202603",
-  # "Data/demonstrativo_consolidado/202604",
-  # "Data/demonstrativo_consolidado/202605",
-  # "Data/demonstrativo_consolidado/202606",
-  # "Data/demonstrativo_consolidado/202607"
+  # "data/demonstrativo_consolidado/202502",
+  # "data/demonstrativo_consolidado/202503",
+  # "data/demonstrativo_consolidado/202504",
+  # "data/demonstrativo_consolidado/202505",
+  # "data/demonstrativo_consolidado/202506",
+  # "data/demonstrativo_consolidado/202507",
+  # "data/demonstrativo_consolidado/202512",
+  # "data/demonstrativo_consolidado/202601",
+  # "data/demonstrativo_consolidado/202602",
+  # "data/demonstrativo_consolidado/202603",
+  # "data/demonstrativo_consolidado/202604",
+  # "data/demonstrativo_consolidado/202605",
+  # "data/demonstrativo_consolidado/202606",
+  # "data/demonstrativo_consolidado/202607"
 )
 
 
@@ -80,7 +80,7 @@ df_esistafe_db <- df_esistafe |>
 
 # GRAVAR DADOS PROCESSADOS -----------------------------------------------
 
-gravar_esistafe(df_esistafe, output_folder = "Dataout/", quiet = TRUE)
+gravar_esistafe(df_esistafe, output_folder = "dataout/", quiet = TRUE)
 
 pin_write(
   board = board,

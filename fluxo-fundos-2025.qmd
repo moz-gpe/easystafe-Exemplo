@@ -13,7 +13,7 @@ format:
     include-before-body:
       text: |
         <div style="text-align: center; margin-bottom: 1rem;">
-          <img src="Images/emblem_giz_large.png" width="400">
+          <img src="images/emblem_giz_large.png" width="400">
         </div>
     theme: cosmo
   
