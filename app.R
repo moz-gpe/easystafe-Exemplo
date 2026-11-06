@@ -359,10 +359,21 @@ server <- function(input, output, session) {
 
         # Inject `embed-resources: true` so quarto emits ONE self-contained
         # HTML (no _files/ sidecar), making the copy back a single-file op.
+        # Also inject the absolute parquet path so the report resolves it
+        # correctly when rendered from an isolated temp directory.
         src <- readLines(qmd, warn = FALSE)
         hit <- grep("^\\s*html:\\s*$", src)[1]
         if (!is.na(hit))
           src <- append(src, "    embed-resources: true", after = hit)
+        abs_parquet <- normalizePath(
+          file.path(getwd(), "dataout/e-SISTAFE_processado.parquet"),
+          mustWork = FALSE, winslash = "/"
+        )
+        src <- sub(
+          'parquet_path <- "dataout/e-SISTAFE_processado.parquet"',
+          paste0('parquet_path <- "', abs_parquet, '"'),
+          src, fixed = TRUE
+        )
         writeLines(src, tmp_qmd)
 
         message("A renderizar relatório (em ", rdir, ")...")
