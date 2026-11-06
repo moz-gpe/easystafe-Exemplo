@@ -101,7 +101,7 @@ drain_pipes <- function(job, log_rv, final = FALSE) {
 log_style <- paste(
   "font-family: monospace; font-size: 0.78rem; white-space: pre-wrap;",
   "max-height: 380px; overflow-y: auto;",
-  "background: #f8f9fa; padding: 10px; border-radius: 4px; min-height: 60px;"
+  "background: #ede7e3; padding: 10px; border-radius: 4px; min-height: 60px;"
 )
 
 mec_uri <- base64enc::dataURI(
@@ -192,7 +192,7 @@ ui <- page_fluid(
               style = "color:#FFFFFF; font-size:2.5rem; font-weight:600; white-space:nowrap; display:block; margin-bottom:-1rem;"
             ),
             tags$span(
-              "Ferramenta de processamento do Demonstrativo Consolidado do e-SISTAFE — Ministério da Educação e Cultura",
+              "Ferramenta de processamento dos ficheiros 'Demonstrativo Consolidado' exportados do e-SISTAFE",
               style = "color:#FFFFFF; font-size:0.9rem; font-weight:400; opacity:0.85; font-style:italic;"
             )
           )
@@ -213,17 +213,20 @@ ui <- page_fluid(
         width = 240,
 
         tags$div(
-          tags$p(class = "mb-0", style = "font-weight:600; font-size:0.85rem; color:#16697a;", "Carregar Dados"),
-          tags$p(
-            class = "mb-0",
-            style = "color: #495057; font-size: 0.7rem;",
-            "Seleccione as pastas onde estão guardados os ficheiros do Demonstrativo Consolidado e-SISTAFE.",
+          tags$div(
+            style = "display:flex; align-items:center; gap:4px;",
+            tags$p(id = "lbl_carregar", class = "mb-0", style = "font-weight:600; font-size:0.85rem; color:#ffa62b;", "Carregar Dados"),
             actionLink(
               "btn_info_files",
               label = NULL,
               icon  = icon("circle-info"),
-              style = "font-size: 0.75rem; color: #489fb5; vertical-align: middle; margin-left: 2px;"
+              style = "font-size: 0.75rem; color: #ffa62b; line-height:1;"
             )
+          ),
+          tags$p(
+            class = "mb-0",
+            style = "color: #495057; font-size: 0.7rem;",
+            "Seleccione as pastas onde estão guardados os ficheiros do Demonstrativo Consolidado e-SISTAFE."
           ),
           tags$button(
             id    = "btn_add_folder",
@@ -246,7 +249,16 @@ ui <- page_fluid(
         tags$hr(style = "margin-top: 4px; margin-bottom: 8px;"),
 
         tags$div(
-          tags$p(class = "mb-0", style = "font-weight:600; font-size:0.85rem; color:#16697a;", "Processamento"),
+          tags$div(
+            style = "display:flex; align-items:center; gap:4px;",
+            tags$p(id = "lbl_processamento", class = "mb-0", style = "font-weight:600; font-size:0.85rem; color:#16697a;", "Processamento"),
+            actionLink(
+              "btn_info_process",
+              label = NULL,
+              icon  = icon("circle-info"),
+              style = "font-size: 0.75rem; color: #489fb5; line-height:1;"
+            )
+          ),
           tags$p(class = "mb-0", style = "color:#495057; font-size:0.7rem;",
                  "Processe os ficheiros carregados e prepare os dados para o relatório."),
           actionButton(
@@ -258,14 +270,23 @@ ui <- page_fluid(
         ),
         tags$hr(style = "margin-top: 8px; margin-bottom: 4px;"),
         tags$div(
-          tags$p(class = "mb-0", style = "font-weight:600; font-size:0.85rem; color:#16697a;", "Gerar Relatório"),
+          tags$div(
+            style = "display:flex; align-items:center; gap:4px;",
+            tags$p(id = "lbl_relatorio", class = "mb-0", style = "font-weight:600; font-size:0.85rem; color:#16697a;", "Gerar Relatório"),
+            actionLink(
+              "btn_info_report",
+              label = NULL,
+              icon  = icon("circle-info"),
+              style = "font-size: 0.75rem; color: #489fb5; line-height:1;"
+            )
+          ),
           tags$p(class = "mb-0", style = "color:#495057; font-size:0.7rem;",
                  "Gere o relatório de execução orçamental em formato HTML."),
           actionButton(
             "btn_report", "Gerar Relatório",
             icon  = icon("file"),
             class = "btn-success w-100",
-            style = "color: #16697a !important; --bs-btn-color: #16697a; margin-top:4px;"
+            style = "color: #ffffff !important; --bs-btn-color: #ffffff; margin-top:4px;"
           )
         ),
         tags$hr(style = "margin-top: 8px; margin-bottom: 4px;")
@@ -276,8 +297,20 @@ ui <- page_fluid(
 
         nav_panel("Processamento", value = "tab_proc",
           card(
-            card_header("Log de Processamento"),
-            div(style = log_style, textOutput("proc_log"))
+            tags$div(
+              class = "card-header d-flex align-items-center justify-content-between",
+              style = "cursor:pointer; user-select:none; background-color:#ede7e3;",
+              `data-bs-toggle` = "collapse",
+              `data-bs-target` = "#log_collapse",
+              "Log de Processamento",
+              tags$i(id = "log_chevron", class = "fa fa-chevron-down",
+                     style = "font-size:0.7rem; color:#6c757d; transition:transform 0.2s;")
+            ),
+            tags$div(
+              id = "log_collapse",
+              class = "collapse",
+              div(style = log_style, textOutput("proc_log"))
+            )
           ),
           uiOutput("proc_status_card"),
           card(
@@ -321,6 +354,22 @@ server <- function(input, output, session) {
     ))
   })
 
+  observeEvent(input$btn_info_process, {
+    showModal(modalDialog(
+      title = "Processamento",
+      easyClose = TRUE,
+      footer = modalButton("Fechar")
+    ))
+  })
+
+  observeEvent(input$btn_info_report, {
+    showModal(modalDialog(
+      title = "Gerar Relatório",
+      easyClose = TRUE,
+      footer = modalButton("Fechar")
+    ))
+  })
+
   # Session-scoped paths — unique per user so concurrent sessions don't
   # collide on shared temp directories.
   out_dir     <- file.path(tempdir(), paste0("esistafe_out_",   session$token))
@@ -335,9 +384,25 @@ server <- function(input, output, session) {
 
   shinyjs::disable("btn_report")
 
+  step_color <- function(carregar, processamento, relatorio) {
+    icon_color <- function(title_color) if (title_color == "#ffa62b") "#ffa62b" else "#489fb5"
+    shinyjs::runjs(sprintf('
+      document.getElementById("lbl_carregar").style.color      = "%s";
+      document.getElementById("lbl_processamento").style.color = "%s";
+      document.getElementById("lbl_relatorio").style.color     = "%s";
+      document.getElementById("btn_info_files").style.color    = "%s";
+      document.getElementById("btn_info_process").style.color  = "%s";
+      document.getElementById("btn_info_report").style.color   = "%s";
+    ', carregar, processamento, relatorio,
+       icon_color(carregar), icon_color(processamento), icon_color(relatorio)))
+  }
+
   files_cleared <- reactiveVal(FALSE)
   observeEvent(input$btn_clear_files, { files_cleared(TRUE) }, ignoreInit = TRUE)
-  observeEvent(input$files,           { files_cleared(FALSE) }, ignoreInit = TRUE)
+  observeEvent(input$files, {
+    files_cleared(FALSE)
+    step_color("#16697a", "#ffa62b", "#16697a")
+  }, ignoreInit = TRUE)
 
   output$periods_ui <- renderUI({
     if (isTRUE(files_cleared())) return(NULL)
@@ -356,7 +421,8 @@ server <- function(input, output, session) {
       SIMPLIFY = FALSE
     )
     tagList(
-      tags$div(style = "font-size:0.7rem; color:#495057; line-height:1.6;",
+      tags$div(
+        style = "font-size:0.7rem; color:#16697a; line-height:1.6; margin-top:4px;",
         tags$strong(paste0(length(tbl), " período(s) detectado(s):")),
         items)
     )
@@ -371,6 +437,12 @@ server <- function(input, output, session) {
 
   observeEvent(input$btn_process, {
     req(input$files)
+    shinyjs::runjs('
+      var el = document.getElementById("log_collapse");
+      if (el) {
+        bootstrap.Collapse.getOrCreateInstance(el, {toggle: false}).hide();
+      }
+    ')
     proc_done(FALSE)
     proc_res(NULL)
     proc_log("")
@@ -455,7 +527,8 @@ server <- function(input, output, session) {
         quietly(writexl::write_xlsx(df, file.path(outdir, "e-SISTAFE_processado.xlsx")))
 
         message("✓ Processamento concluído.")
-        list(gaps = gaps, nrows = nrow(df), sitrep_excel = sitrep_excel)
+        n_years <- length(unique(df$ano[df$data_tipo == "Valor"]))
+        list(gaps = gaps, nrows = nrow(df), sitrep_excel = sitrep_excel, n_years = n_years)
       },
       args   = list(paths = paths, meta = meta, outdir = outdir),
       stdout = "|",
@@ -479,7 +552,14 @@ server <- function(input, output, session) {
       )
       proc_res(res)
       proc_done(TRUE)
-      if (is.null(res$error)) shinyjs::enable("btn_report")
+      if (is.null(res$error)) {
+        if (isTRUE(res$n_years >= 2)) {
+          shinyjs::enable("btn_report")
+          step_color("#16697a", "#16697a", "#ffa62b")
+        } else {
+          step_color("#16697a", "#16697a", "#16697a")
+        }
+      }
     }
   })
 
@@ -502,11 +582,19 @@ server <- function(input, output, session) {
           div(class = "text-success mb-2",
             strong(icon("circle-check"), " Concluído — "),
             format(res$nrows, big.mark = "."), " linhas processadas."),
-          div(class = "d-flex gap-2",
+          if (!isTRUE(res$n_years >= 2))
+            div(class = "mt-2 mb-1",
+              style = "font-size:0.75rem; color:#856404; background-color:#fff3cd; border:1px solid #ffc107; border-radius:6px; padding:6px 8px;",
+              icon("triangle-exclamation"), " O relatório requer dados de ",
+              strong("pelo menos dois anos"), ". Carregue também os ficheiros ",
+              "do ano anterior e processe de novo."),
+          div(class = "d-flex gap-2 mt-2",
             downloadButton("dl_parquet", "Parquet",
-                           class = "btn-outline-primary btn-sm"),
+                           class = "btn-sm",
+                           style = "background-color:#16697a; color:#ffffff; border-color:#16697a; display:inline-flex; align-items:center; gap:5px;"),
             downloadButton("dl_excel",   "Excel",
-                           class = "btn-outline-success btn-sm")
+                           class = "btn-sm",
+                           style = "background-color:#489fb5; color:#ffffff; border-color:#489fb5; display:inline-flex; align-items:center; gap:5px;")
           )
         )
     ))

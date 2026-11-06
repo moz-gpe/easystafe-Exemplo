@@ -103,28 +103,29 @@ body {
 /* navset_card_underline tabs inside a card */
 .bslib-card .nav-tabs .nav-link,
 .bslib-card .nav-underline .nav-link {
-  color: #495057 !important;
+  color: #16697a !important;
   font-weight: 400 !important;
   border: none;
   border-bottom: 2px solid transparent;
+  padding-bottom: 2px;
 }
 
 .bslib-card .nav-tabs .nav-link:hover,
 .bslib-card .nav-underline .nav-link:hover {
-  color: #495057 !important;
+  color: #16697a !important;
 }
 
 .bslib-card .nav-tabs .nav-link.active,
 .bslib-card .nav-underline .nav-link.active {
-  color: #495057 !important;
+  color: #16697a !important;
   font-weight: 700 !important;
   background-color: transparent;
-  border-bottom-color: #495057 !important;
+  border-bottom-color: #16697a !important;
 }
 
 /* Generic tab toggle color */
 a[data-bs-toggle="tab"] {
-  color: #495057 !important;
+  color: #16697a !important;
 }
 
 /* =========================================================================

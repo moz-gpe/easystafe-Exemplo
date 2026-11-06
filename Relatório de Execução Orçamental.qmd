@@ -105,6 +105,14 @@ years  <- sort(unique(df$ano))
 latest <- max(years)
 prev   <- years[length(years) - 1]
 
+if (length(years) < 2 || is.na(prev)) {
+  stop(
+    "Este relatório requer dados de pelo menos dois anos para produzir ",
+    "as comparações interanuais. Os dados carregados contêm apenas o ano ",
+    latest, ". Carregue também os ficheiros do ano anterior e processe de novo."
+  )
+}
+
 latest_mes_num <- match(latest_mes, mes_order)
 ultimo_dia     <- lubridate::days_in_month(
   as.Date(paste(latest, latest_mes_num, "01", sep = "-"))
