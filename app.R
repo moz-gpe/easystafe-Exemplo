@@ -349,7 +349,7 @@ server <- function(input, output, session) {
   observe({
     job <- proc_job()
     if (is.null(job) || proc_done()) return()
-    invalidateLater(800)
+    invalidateLater(200)
     drain_pipes(job, proc_log)
     if (!job$is_alive()) {
       drain_pipes(job, proc_log, final = TRUE)
@@ -495,7 +495,7 @@ server <- function(input, output, session) {
   observe({
     job <- rep_job()
     if (is.null(job) || rep_done()) return()
-    invalidateLater(800)
+    invalidateLater(200)
     drain_pipes(job, rep_log)
     if (!job$is_alive()) {
       drain_pipes(job, rep_log, final = TRUE)
