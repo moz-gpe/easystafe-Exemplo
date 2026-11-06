@@ -217,25 +217,23 @@ server <- function(input, output, session) {
 
     paths   <- input$months
     meta    <- META_LOOKUP
-    board_p <- BOARD_PATH
     outdir  <- "dataout/"
 
     job <- callr::r_bg(
-      func = function(paths, meta, board_p, outdir) {
+      func = function(paths, meta, outdir) {
         suppressPackageStartupMessages({
           library(tidyverse)
           library(readxl)
           library(writexl)
           library(janitor)
           library(arrow)
-          library(pins)
           library(easystafe)
         })
 
-        message("[1/5] A carregar lookups...")
+        message("[1/4] A carregar lookups...")
         lookups <- carregar_lookups_esistafe(meta)
 
-        message("[2/5] A processar ", length(paths), " período(s)...")
+        message("[2/4] A processar ", length(paths), " período(s)...")
         df <- map(paths, \(p) {
           message("  → ", basename(p))
           processar_extracto_esistafe(
@@ -249,35 +247,22 @@ server <- function(input, output, session) {
           )
         }) |>
           list_rbind() |>
-          adicionar_lookups_esistafe(lookups)
+          adicionar_lookups_esistafe(lookups) |>
+          escolaR::padronizar_geo_dim(col_provincia = "provincia", col_distrito = "distrito")
         message("  Total: ", nrow(df), " linhas")
 
-        message("[3/5] A verificar qualidade (sitrep)...")
+        message("[3/4] A verificar qualidade (sitrep)...")
         gaps <- sitrep_processamento_esistafe(df, lookups, lookup_path = meta)
 
-        message("[4/5] A gravar ficheiros...")
-        df_db <- config_para_duckdb(df)
-        gravar_esistafe(df, output_folder = outdir, quiet = TRUE)
-
-        message("[5/5] A escrever pinos...")
-        board <- board_folder(board_p, versioned = TRUE)
-        pin_write(
-          board, df,
-          name        = "demostrativo_consolidado_compilado",
-          type        = "parquet",
-          description = "Demonstrativo Consolidado compilado (easystafe)."
-        )
-        pin_write(
-          board, df_db,
-          name        = "esistafe_dm_duckdb",
-          type        = "parquet",
-          description = "Demonstrativo Consolidado — formato DuckDB (easystafe)."
-        )
+        message("[4/4] A gravar ficheiros...")
+        if (!dir.exists(outdir)) dir.create(outdir, recursive = TRUE)
+        arrow::write_parquet(df, file.path(outdir, "e-SISTAFE_processado.parquet"))
+        writexl::write_xlsx(df, file.path(outdir, "e-SISTAFE_processado.xlsx"))
 
         message("✓ Processamento concluído.")
         list(gaps = gaps, nrows = nrow(df))
       },
-      args   = list(paths = paths, meta = meta, board_p = board_p, outdir = outdir),
+      args   = list(paths = paths, meta = meta, outdir = outdir),
       stdout = "|",
       stderr = "|",
       wd     = getwd()

@@ -5378,11 +5378,9 @@ flextable(tbl24_data) |>
 ```{r nota-metadata}
 #| include: false
 
-pin_info       <- pin_meta(board, "poema")
 nota_n_obs     <- format(nrow(df), big.mark = ".", decimal.mark = ",")
 nota_anos      <- paste(range(years), collapse = " a ")
 nota_meses_cov <- length(unique(df$mes[df$ano == latest]))
-nota_pin_ver   <- pin_info$api_version
 ```
 
 Este relatório foi gerado de forma programática utilizando [Quarto](https://quarto.org/) e a linguagem de programação R.
