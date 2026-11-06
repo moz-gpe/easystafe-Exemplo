@@ -287,13 +287,19 @@ server <- function(input, output, session) {
           library(easystafe)
         }))
 
-        # Redirect the message connection to null for the duration of expr.
-        # Catches both base::message() and cli output (which bypasses
-        # suppressMessages by writing directly to the message sink).
+        # Redirect both stdout and stderr/message connections to null.
+        # cli can write to either depending on context, so we must sink both.
         quietly <- function(expr) {
-          con <- file(nullfile(), "w")
-          sink(con, type = "message")
-          on.exit({ sink(type = "message"); close(con) }, add = TRUE)
+          out_con <- file(nullfile(), "w")
+          msg_con <- file(nullfile(), "w")
+          sink(out_con, type = "output")
+          sink(msg_con, type = "message")
+          on.exit({
+            sink(type = "output")
+            sink(type = "message")
+            close(out_con)
+            close(msg_con)
+          }, add = TRUE)
           force(expr)
         }
 
