@@ -36,7 +36,6 @@ library(janitor)
 library(slider)
 library(scales)
 library(plotly)
-library(htmlwidgets)
 ```
 
 ```{r}
@@ -161,14 +160,4 @@ p <- daily_2025 %>%
 
 
 p
-```
-
-
-```{r}
-# Save plot
-htmlwidgets::saveWidget(
-  p,
-  file = "Graphics/saldo_mt_2025_interactive.html",
-  selfcontained = TRUE
-)
 ```
