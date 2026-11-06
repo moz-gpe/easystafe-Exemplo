@@ -118,9 +118,9 @@ ui <- page_sidebar(
     width = 270,
 
     fileInput(
-      "files", "Ficheiros e-SISTAFE (.xlsx)",
+      "files", "Ficheiros e-SISTAFE (.xls)",
       multiple    = TRUE,
-      accept      = ".xlsx",
+      accept      = ".xls",
       buttonLabel = "Seleccionar...",
       placeholder = "Nenhum ficheiro seleccionado"
     ),
