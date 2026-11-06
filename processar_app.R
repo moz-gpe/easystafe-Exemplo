@@ -25,6 +25,18 @@ MESES_PT <- c(
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
 )
 
+# Serve the finished report over the app's own http origin. browseURL() can't
+# be used: it runs on the R server and asks the IDE (Positron/RStudio) to
+# launch an external browser, which fails. Instead we expose a static dir and
+# hand the client an in-app URL it can open in a new tab. The report is a
+# single self-contained HTML, so one file is all we serve (ASCII name, since
+# the project-dir copy has accented characters that complicate URLs).
+REPORT_WWW  <- file.path(tempdir(), "relatorio_www")
+REPORT_FILE <- "relatorio.html"
+REPORT_URL  <- paste0("relatorio/", REPORT_FILE)   # client-visible path
+dir.create(REPORT_WWW, showWarnings = FALSE, recursive = TRUE)
+addResourcePath("relatorio", REPORT_WWW)
+
 # ── helpers ────────────────────────────────────────────────────────────────
 
 scan_months <- function() {
@@ -91,6 +103,12 @@ ui <- page_sidebar(
   theme   = bs_theme(bootswatch = "flatly"),
   fillable = FALSE,
   useShinyjs(),
+
+  # best-effort auto-open of the finished report in a new browser tab; the
+  # visible link in the status card is the reliable fallback if blocked
+  tags$head(tags$script(HTML(
+    "Shiny.addCustomMessageHandler('open_report', function(url){ window.open(url, '_blank'); });"
+  ))),
 
   sidebar = sidebar(
     width = 270,
@@ -320,11 +338,13 @@ server <- function(input, output, session) {
   rep_done <- reactiveVal(FALSE)
   rep_ok   <- reactiveVal(FALSE)
   rep_err  <- reactiveVal(NULL)
+  rep_url  <- reactiveVal(NULL)
 
   observeEvent(input$btn_report, {
     rep_done(FALSE)
     rep_ok(FALSE)
     rep_err(NULL)
+    rep_url(NULL)
     rep_log("")
     nav_select("tabs", "tab_rep")
 
@@ -399,14 +419,26 @@ server <- function(input, output, session) {
     }
   })
 
-  # fires once when rep_done flips to TRUE — open browser and notify
+  # fires once when rep_done flips to TRUE — publish the report and notify
   observeEvent(rep_done(), {
     req(rep_done())
     if (rep_ok()) {
-      html <- normalizePath(sub("\\.qmd$", ".html", REPORT_QMD), mustWork = FALSE)
-      if (file.exists(html))
-        browseURL(paste0("file:///", gsub("\\\\", "/", html)))
-      showNotification("Relatório gerado — browser aberto.", type = "message", duration = 10)
+      html   <- normalizePath(sub("\\.qmd$", ".html", REPORT_QMD), mustWork = FALSE)
+      served <- file.path(REPORT_WWW, REPORT_FILE)
+      if (file.exists(html) && file.copy(html, served, overwrite = TRUE)) {
+        rep_url(REPORT_URL)
+        # try to pop it open automatically; link in the card is the fallback
+        session$sendCustomMessage("open_report", REPORT_URL)
+        showNotification(
+          "Relatório gerado. Se não abrir automaticamente, use o link no painel.",
+          type = "message", duration = 10
+        )
+      } else {
+        showNotification(
+          "Relatório renderizado mas não foi possível publicá-lo para visualização.",
+          type = "warning", duration = 15
+        )
+      }
     } else {
       err_msg <- if (!is.null(rep_err())) rep_err() else "Erro desconhecido."
       showNotification(paste0("Erro: ", err_msg), type = "error", duration = 20)
@@ -431,7 +463,10 @@ server <- function(input, output, session) {
           span("A renderizar relatório..."))
       else if (ok)
         div(class = "alert alert-success mb-0",
-          strong(icon("circle-check"), " Relatório gerado — browser aberto automaticamente."))
+          strong(icon("circle-check"), " Relatório gerado. "),
+          if (!is.null(rep_url()))
+            tags$a(href = rep_url(), target = "_blank", class = "alert-link",
+                   "Abrir relatório numa nova janela."))
       else
         div(class = "alert alert-danger mb-0",
           tags$b("Erro: "),
