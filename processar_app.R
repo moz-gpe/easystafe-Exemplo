@@ -38,9 +38,18 @@ month_label <- function(yyyymm) {
   paste0(yr, "-", MESES_PT[mo])
 }
 
-read_log <- function(path) {
-  raw <- paste(readLines(path, warn = FALSE), collapse = "\n")
-  gsub("\033\\[[0-9;]*m", "", raw)   # strip ANSI colour codes
+strip_ansi <- function(x) gsub("\033\\[[0-9;]*m", "", x)
+
+# Drain stdout + stderr pipes into a reactiveVal, appending to existing text.
+drain_pipes <- function(job, log_rv, timeout = 0) {
+  out <- tryCatch(job$read_output_lines(n = -1, timeout = timeout), error = function(e) character(0))
+  err <- tryCatch(job$read_error_lines(n = -1, timeout = timeout), error = function(e) character(0))
+  lines <- strip_ansi(c(out, err))
+  lines <- lines[nchar(lines) > 0]
+  if (!length(lines)) return(invisible(NULL))
+  prev <- log_rv()
+  log_rv(if (nchar(prev) > 0) paste(prev, paste(lines, collapse = "\n"), sep = "\n")
+         else paste(lines, collapse = "\n"))
 }
 
 log_style <- paste(
@@ -150,7 +159,6 @@ server <- function(input, output, session) {
   # pipeline --------------------------------------------------------------
 
   proc_job  <- reactiveVal(NULL)
-  proc_logf <- reactiveVal(NULL)
   proc_log  <- reactiveVal("Aguardando...")
   proc_done <- reactiveVal(FALSE)
   proc_res  <- reactiveVal(NULL)
@@ -163,15 +171,10 @@ server <- function(input, output, session) {
     shinyjs::disable("btn_report")
     nav_select("tabs", "tab_proc")
 
-    lf <- tempfile(fileext = ".txt")
-    file.create(lf)
-    proc_logf(lf)
-
     paths   <- input$months
     meta    <- META_LOOKUP
     board_p <- BOARD_PATH
     outdir  <- "Dataout/"
-    wd      <- getwd()
 
     job <- callr::r_bg(
       func = function(paths, meta, board_p, outdir) {
@@ -231,9 +234,9 @@ server <- function(input, output, session) {
         list(gaps = gaps, nrows = nrow(df))
       },
       args   = list(paths = paths, meta = meta, board_p = board_p, outdir = outdir),
-      stdout = lf,
-      stderr = lf,
-      wd     = wd
+      stdout = "|",
+      stderr = "|",
+      wd     = getwd()
     )
 
     proc_job(job)
@@ -243,9 +246,9 @@ server <- function(input, output, session) {
     job <- proc_job()
     if (is.null(job) || proc_done()) return()
     invalidateLater(800)
-    tryCatch(proc_log(read_log(proc_logf())), error = function(e) NULL)
+    drain_pipes(job, proc_log)
     if (!job$is_alive()) {
-      tryCatch(proc_log(read_log(proc_logf())), error = function(e) NULL)
+      drain_pipes(job, proc_log, timeout = 0.5)
       res <- tryCatch(
         job$get_result(),
         error = function(e) list(error = conditionMessage(e))
@@ -287,7 +290,6 @@ server <- function(input, output, session) {
   # report ----------------------------------------------------------------
 
   rep_job  <- reactiveVal(NULL)
-  rep_logf <- reactiveVal(NULL)
   rep_log  <- reactiveVal("")
   rep_done <- reactiveVal(FALSE)
   rep_ok   <- reactiveVal(FALSE)
@@ -300,11 +302,6 @@ server <- function(input, output, session) {
     rep_log("")
     nav_select("tabs", "tab_rep")
 
-    lf <- tempfile(fileext = ".txt")
-    file.create(lf)
-    rep_logf(lf)
-
-    # absolute path avoids working-directory ambiguity in the subprocess
     qmd_abs <- normalizePath(REPORT_QMD, mustWork = FALSE)
 
     job <- callr::r_bg(
@@ -339,8 +336,8 @@ server <- function(input, output, session) {
         message("✓ Relatório gerado: ", basename(out_html))
       },
       args   = list(qmd = qmd_abs),
-      stdout = lf,
-      stderr = lf,
+      stdout = "|",
+      stderr = "|",
       wd     = getwd()
     )
 
@@ -351,16 +348,16 @@ server <- function(input, output, session) {
     job <- rep_job()
     if (is.null(job) || rep_done()) return()
     invalidateLater(800)
-    tryCatch(rep_log(read_log(rep_logf())), error = function(e) NULL)
+    drain_pipes(job, rep_log)
     if (!job$is_alive()) {
-      tryCatch(rep_log(read_log(rep_logf())), error = function(e) NULL)
+      drain_pipes(job, rep_log, timeout = 0.5)
       result <- tryCatch(
         { job$get_result(); list(ok = TRUE,  err = NULL) },
         error = function(e) list(ok = FALSE, err = conditionMessage(e))
       )
       rep_ok(result$ok)
       rep_err(result$err)
-      rep_done(TRUE)   # set last so observeEvent fires with rep_ok/rep_err already populated
+      rep_done(TRUE)
     }
   })
 
