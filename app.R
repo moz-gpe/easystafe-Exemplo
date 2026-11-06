@@ -278,20 +278,30 @@ server <- function(input, output, session) {
 
     job <- callr::r_bg(
       func = function(paths, meta, outdir) {
-        suppressPackageStartupMessages({
+        suppressWarnings(suppressPackageStartupMessages({
           library(tidyverse)
           library(readxl)
           library(writexl)
           library(janitor)
           library(arrow)
           library(easystafe)
-        })
+        }))
+
+        # Redirect the message connection to null for the duration of expr.
+        # Catches both base::message() and cli output (which bypasses
+        # suppressMessages by writing directly to the message sink).
+        quietly <- function(expr) {
+          con <- file(nullfile(), "w")
+          sink(con, type = "message")
+          on.exit({ sink(type = "message"); close(con) }, add = TRUE)
+          force(expr)
+        }
 
         message("[1/4] A carregar lookups...")
-        lookups <- carregar_lookups_esistafe(meta)
+        lookups <- quietly(carregar_lookups_esistafe(meta))
 
         message("[2/4] A processar ", length(paths), " período(s)...")
-        df <- map(paths, \(p) {
+        df_raw <- map(paths, \(p) {
           message("  → ", basename(p))
           processar_extracto_esistafe(
             source_path           = p,
@@ -302,28 +312,22 @@ server <- function(input, output, session) {
             correct_negatives     = TRUE,
             quiet                 = FALSE
           )
-        }) |>
-          list_rbind() |>
-          adicionar_lookups_esistafe(lookups) |>
-          escolaR::padronizar_geo_dim(col_provincia = "provincia", col_distrito = "distrito")
-        message("  Total: ", nrow(df), " linhas")
+        }) |> list_rbind()
+        message("  Total: ", nrow(df_raw), " linhas")
+
+        df <- quietly(
+          df_raw |>
+            adicionar_lookups_esistafe(lookups) |>
+            escolaR::padronizar_geo_dim(col_provincia = "provincia", col_distrito = "distrito")
+        )
 
         message("[3/4] A verificar qualidade (sitrep)...")
-        gaps <- local({
-          g <- NULL
-          invisible(utils::capture.output(
-            suppressMessages(
-              g <- sitrep_processamento_esistafe(df, lookups, lookup_path = meta)
-            ),
-            type = "message"
-          ))
-          g
-        })
+        gaps <- quietly(sitrep_processamento_esistafe(df, lookups, lookup_path = meta))
 
         message("[4/4] A gravar ficheiros...")
         if (!dir.exists(outdir)) dir.create(outdir, recursive = TRUE)
-        arrow::write_parquet(df, file.path(outdir, "e-SISTAFE_processado.parquet"))
-        writexl::write_xlsx(df, file.path(outdir, "e-SISTAFE_processado.xlsx"))
+        quietly(arrow::write_parquet(df, file.path(outdir, "e-SISTAFE_processado.parquet")))
+        quietly(writexl::write_xlsx(df, file.path(outdir, "e-SISTAFE_processado.xlsx")))
 
         message("✓ Processamento concluído.")
         list(gaps = gaps, nrows = nrow(df))
