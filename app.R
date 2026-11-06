@@ -12,6 +12,7 @@ library(shinyjs)
 # restarting the session mid-render. Disable it — this is a pipeline-runner
 # app, not something we hot-edit while it's running.
 options(shiny.autoreload = FALSE)
+options(shiny.maxRequestSize = 500 * 1024^2)  # 500 MB total upload per request
 
 # ── constants ──────────────────────────────────────────────────────────────
 
