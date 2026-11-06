@@ -457,10 +457,12 @@ server <- function(input, output, session) {
               p(class = "small text-success mb-0 mt-1", "Sem lacunas detectadas.")
             else
               tagList(
-                p(class = "small text-muted mt-1 mb-1", description),
-                div(class = "mb-1",
-                  tags$span(class = "badge text-bg-warning", impact)),
-                div(class = "small mb-0", followup)
+                p(class = "small mt-2 mb-1",
+                  tags$b("Descrição: "), description),
+                p(class = "small mb-1",
+                  tags$b("Impacto Actual: "), impact),
+                div(class = "small mb-0",
+                  tags$b("Acção Necessária: "), followup)
               )
           )
         )
