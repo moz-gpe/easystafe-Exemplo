@@ -28,38 +28,23 @@ library(patchwork)
 library(glue)
 library(arrow)
 library(ggrepel)
-library(pins)
 library(flextable)
-library(DBI)
-library(duckdb)
 
-board <- board_folder(
-  "C:/Users/Joe/moz-data-pins/poema",
-  versioned = TRUE
-)
-
-db_path <- pin_download(board, "poema")[1]
-con <- dbConnect(duckdb(), db_path, read_only = TRUE)
-df_raw <- dbReadTable(con, "esistafe")
-dbDisconnect(con, shutdown = TRUE)
+parquet_path <- "dataout/e-SISTAFE_processado.parquet"
+df_raw <- arrow::read_parquet(parquet_path)
 
 mes_pt <- c("Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
             "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro")
 
-# The `poema` pin's esistafe table already carries a canonical, name-only `ugb`
-# column (keyed to ugb_id), so no interim lookup join is needed.
 df <- df_raw |>
-  mutate(
-    periodo = as.Date(periodo),
-    ano     = as.integer(lubridate::year(periodo)),
-    mes     = mes_pt[lubridate::month(periodo)]
-  ) |>
-  filter(!mes == "Maio")
+  filter(data_tipo == "Valor", mes != "Maio")
 
-pin_mod <- {
-  dt <- as.POSIXct(pin_meta(board, "poema")$created)
-  paste0(format(dt, "%d de "), mes_pt[as.integer(format(dt, "%m"))], format(dt, ", %Y %H:%M"))
-}
+data_mod <- file.mtime(parquet_path)
+pin_mod <- paste0(
+  format(data_mod, "%d de "),
+  mes_pt[as.integer(format(data_mod, "%m"))],
+  format(data_mod, ", %Y %H:%M")
+)
 
 fmt_mil <- function(x, digits = 0)
   format(round(x, digits), big.mark = ".", decimal.mark = ",", nsmall = digits, scientific = FALSE)

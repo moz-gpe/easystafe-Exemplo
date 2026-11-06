@@ -15,7 +15,6 @@ library(writexl)
 library(janitor)
 library(glue)
 library(arrow)
-library(pins)
 library(easystafe)
 
 # GLOBAL VARS -------------------------------------------------
@@ -40,12 +39,6 @@ paths_esistafe <- c(
 )
 
 
-board <- board_folder(
-  "C:/Users/Joe/Documents/R/moz-data-pins/Data",
-  versioned = TRUE
-)
-
-
 # LOAD LOOKUPS ------------------------------------------------------------
 
 lookups <- carregar_lookups_esistafe(metadata_lookup)
@@ -65,7 +58,8 @@ df_esistafe <- paths_esistafe |>
     )
   }) |>
   list_rbind() |>
-  adicionar_lookups_esistafe(lookups)
+  adicionar_lookups_esistafe(lookups) |>
+  escolaR::padronizar_geo_dim(col_provincia = "provincia", col_distrito = "distrito")
 
 gaps <- sitrep_processamento_esistafe(
   df_esistafe,
@@ -73,30 +67,10 @@ gaps <- sitrep_processamento_esistafe(
   lookup_path = metadata_lookup
 )
 
-# CONFIGURAR PARA DUCKDB -----------------------------------------------
-
-df_esistafe_db <- df_esistafe |>
-  config_para_duckdb()
-
 # GRAVAR DADOS PROCESSADOS -----------------------------------------------
 
-gravar_esistafe(df_esistafe, output_folder = "dataout/", quiet = TRUE)
-
-pin_write(
-  board = board,
-  x = df_esistafe,
-  name = "demostrativo_consolidado_compilado",
-  type = "parquet",
-  description = "Compilação do Demonstrativo Consolidado gerado pelo pipeline easystafe."
-)
-
-pin_write(
-  board = board,
-  x = df_esistafe_db,
-  name = "esistafe_dm_duckdb",
-  type = "parquet",
-  description = "Compilação do Demonstrativo Consolidado gerado pelo pipeline easystafe."
-)
+arrow::write_parquet(df_esistafe, "dataout/e-SISTAFE_processado.parquet")
+writexl::write_xlsx(df_esistafe, "dataout/e-SISTAFE_processado.xlsx")
 
 # GERAR RELATORIO --------------------------------------------------------
 
