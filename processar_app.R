@@ -124,8 +124,6 @@ ui <- page_sidebar(
 
 server <- function(input, output, session) {
 
-  shinyjs::disable("btn_report")
-
   # months ----------------------------------------------------------------
 
   months_rv <- reactiveVal(scan_months())
@@ -245,14 +243,15 @@ server <- function(input, output, session) {
     job <- proc_job()
     if (is.null(job) || proc_done()) return()
     invalidateLater(800)
-    proc_log(read_log(proc_logf()))
+    tryCatch(proc_log(read_log(proc_logf())), error = function(e) NULL)
     if (!job$is_alive()) {
-      proc_done(TRUE)
+      tryCatch(proc_log(read_log(proc_logf())), error = function(e) NULL)
       res <- tryCatch(
         job$get_result(),
         error = function(e) list(error = conditionMessage(e))
       )
       proc_res(res)
+      proc_done(TRUE)
       if (is.null(res$error)) shinyjs::enable("btn_report")
     }
   })
@@ -310,9 +309,34 @@ server <- function(input, output, session) {
 
     job <- callr::r_bg(
       func = function(qmd) {
-        message("A renderizar: ", qmd)
-        quarto::quarto_render(input = qmd)
-        message("✓ Relatório gerado.")
+        # Quarto on Windows rejects non-ASCII/special characters in filenames.
+        # Copy to a plain ASCII name, render, copy HTML output back.
+        dir      <- dirname(qmd)
+        tmp_qmd  <- file.path(dir, "relatorio_tmp.qmd")
+        tmp_html <- file.path(dir, "relatorio_tmp.html")
+        out_html <- sub("\\.qmd$", ".html", qmd)
+
+        if (!file.exists(qmd))
+          stop("QMD não encontrado: ", qmd)
+
+        file.copy(qmd, tmp_qmd, overwrite = TRUE)
+        on.exit({
+          if (file.exists(tmp_qmd)) unlink(tmp_qmd)
+          if (file.exists(tmp_html)) unlink(tmp_html)
+        }, add = TRUE)
+
+        message("A renderizar relatório...")
+        quarto::quarto_render(input = tmp_qmd)
+        message("Render concluído. A verificar output...")
+
+        if (!file.exists(tmp_html)) {
+          html_files <- list.files(dir, pattern = "\\.html$")
+          stop("HTML não encontrado após renderização. Ficheiros HTML encontrados: ",
+               if (length(html_files)) paste(html_files, collapse = ", ") else "(nenhum)")
+        }
+
+        file.copy(tmp_html, out_html, overwrite = TRUE)
+        message("✓ Relatório gerado: ", basename(out_html))
       },
       args   = list(qmd = qmd_abs),
       stdout = lf,
@@ -327,15 +351,30 @@ server <- function(input, output, session) {
     job <- rep_job()
     if (is.null(job) || rep_done()) return()
     invalidateLater(800)
-    rep_log(read_log(rep_logf()))
+    tryCatch(rep_log(read_log(rep_logf())), error = function(e) NULL)
     if (!job$is_alive()) {
-      rep_done(TRUE)
+      tryCatch(rep_log(read_log(rep_logf())), error = function(e) NULL)
       result <- tryCatch(
         { job$get_result(); list(ok = TRUE,  err = NULL) },
         error = function(e) list(ok = FALSE, err = conditionMessage(e))
       )
       rep_ok(result$ok)
       rep_err(result$err)
+      rep_done(TRUE)   # set last so observeEvent fires with rep_ok/rep_err already populated
+    }
+  })
+
+  # fires once when rep_done flips to TRUE — open browser and notify
+  observeEvent(rep_done(), {
+    req(rep_done())
+    if (rep_ok()) {
+      html <- normalizePath(sub("\\.qmd$", ".html", REPORT_QMD), mustWork = FALSE)
+      if (file.exists(html))
+        browseURL(paste0("file:///", gsub("\\\\", "/", html)))
+      showNotification("Relatório gerado — browser aberto.", type = "message", duration = 10)
+    } else {
+      err_msg <- if (!is.null(rep_err())) rep_err() else "Erro desconhecido."
+      showNotification(paste0("Erro: ", err_msg), type = "error", duration = 20)
     }
   })
 
@@ -355,13 +394,10 @@ server <- function(input, output, session) {
         div(class = "d-flex align-items-center gap-2",
           div(class = "spinner-border spinner-border-sm text-success"),
           span("A renderizar relatório..."))
-      else if (ok) {
-        html <- normalizePath(sub("\\.qmd$", ".html", REPORT_QMD), mustWork = FALSE)
-        url  <- paste0("file:///", gsub("\\\\", "/", html))
+      else if (ok)
         div(class = "alert alert-success mb-0",
-          strong(icon("circle-check"), " Relatório gerado! "),
-          tags$a(href = url, target = "_blank", "Abrir no browser"))
-      } else
+          strong(icon("circle-check"), " Relatório gerado — browser aberto automaticamente."))
+      else
         div(class = "alert alert-danger mb-0",
           tags$b("Erro: "),
           if (!is.null(err)) err else "Erro desconhecido. Ver log abaixo.")
