@@ -309,7 +309,16 @@ server <- function(input, output, session) {
         message("  Total: ", nrow(df), " linhas")
 
         message("[3/4] A verificar qualidade (sitrep)...")
-        gaps <- sitrep_processamento_esistafe(df, lookups, lookup_path = meta)
+        gaps <- local({
+          g <- NULL
+          invisible(utils::capture.output(
+            suppressMessages(
+              g <- sitrep_processamento_esistafe(df, lookups, lookup_path = meta)
+            ),
+            type = "message"
+          ))
+          g
+        })
 
         message("[4/4] A gravar ficheiros...")
         if (!dir.exists(outdir)) dir.create(outdir, recursive = TRUE)
