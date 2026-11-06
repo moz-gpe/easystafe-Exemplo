@@ -112,22 +112,45 @@ ui <- page_sidebar(
   useShinyjs(),
 
   tags$head(tags$script(HTML(
-    "Shiny.addCustomMessageHandler('open_report', function(url){ window.open(url, '_blank'); });
-     $(document).ready(function() {
-       var inp = document.querySelector('#files input[type=\"file\"]');
-       inp.setAttribute('webkitdirectory', '');
-       inp.setAttribute('mozdirectory', '');
-     });"
+    "Shiny.addCustomMessageHandler('open_report', function(url){ window.open(url, '_blank'); });"
   ))),
 
   sidebar = sidebar(
     width = 270,
 
-    fileInput(
-      "files", "Pasta com ficheiros e-SISTAFE",
-      multiple    = TRUE,
-      buttonLabel = "Seleccionar pasta...",
-      placeholder = "Nenhuma pasta seleccionada"
+    # Custom folder picker — replicates Shiny's fileInput HTML exactly but with
+    # webkitdirectory baked into the <input> at render time (browsers block
+    # setting it dynamically via JS after the element is created).
+    tags$div(
+      class = "form-group shiny-input-container",
+      tags$label(class = "control-label", `for` = "files",
+                 "Pasta com ficheiros e-SISTAFE"),
+      tags$div(
+        class = "input-group",
+        tags$label(
+          class = "input-group-btn input-group-prepend",
+          tags$span(
+            class = "btn btn-default btn-file",
+            "Seleccionar pasta...",
+            tags$input(
+              id              = "files",
+              class           = "shiny-input-file",
+              name            = "files",
+              type            = "file",
+              style           = "position:absolute!important;top:-99999px!important;left:-99999px!important;",
+              multiple        = "multiple",
+              webkitdirectory = NA,
+              mozdirectory    = NA
+            )
+          )
+        ),
+        tags$input(type = "text", class = "form-control",
+                   placeholder = "Nenhuma pasta seleccionada",
+                   readonly = "readonly")
+      ),
+      tags$div(id = "files_progress",
+               class = "progress active shiny-file-input-progress",
+               tags$div(class = "progress-bar"))
     ),
 
     uiOutput("periods_ui"),
