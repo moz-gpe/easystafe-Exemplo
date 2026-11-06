@@ -41,9 +41,28 @@ month_label <- function(yyyymm) {
 strip_ansi <- function(x) gsub("\033\\[[0-9;]*m", "", x)
 
 # Drain stdout + stderr pipes into a reactiveVal, appending to existing text.
-drain_pipes <- function(job, log_rv, timeout = 0) {
-  out <- tryCatch(job$read_output_lines(n = -1, timeout = timeout), error = function(e) character(0))
-  err <- tryCatch(job$read_error_lines(n = -1, timeout = timeout), error = function(e) character(0))
+#
+# processx note (verified on Windows): reading a pipe with `timeout = 0`
+# returns NOTHING even when data is waiting — that silent-empty read was the
+# root cause of the blank log. The reliable non-blocking pattern is:
+#   * while the job is alive: poll_io(0) first (moves pipe data into the
+#     connection buffer and reports which streams are "ready"), then read
+#     ONLY the ready streams with the default timeout — proven to return in
+#     a few ms, so it never freezes the Shiny reactive loop.
+#   * once the job has exited (final = TRUE): read unconditionally with the
+#     default timeout. EOF is guaranteed, so the read returns immediately and
+#     captures the last line (which the poll-gated path races past at exit).
+drain_pipes <- function(job, log_rv, final = FALSE) {
+  if (final) {
+    out <- tryCatch(job$read_output_lines(), error = function(e) character(0))
+    err <- tryCatch(job$read_error_lines(), error = function(e) character(0))
+  } else {
+    st  <- tryCatch(job$poll_io(0), error = function(e) c(output = "", error = ""))
+    out <- if (identical(st[["output"]], "ready"))
+             tryCatch(job$read_output_lines(), error = function(e) character(0)) else character(0)
+    err <- if (identical(st[["error"]], "ready"))
+             tryCatch(job$read_error_lines(), error = function(e) character(0)) else character(0)
+  }
   lines <- strip_ansi(c(out, err))
   lines <- lines[nchar(lines) > 0]
   if (!length(lines)) return(invisible(NULL))
@@ -248,7 +267,7 @@ server <- function(input, output, session) {
     invalidateLater(800)
     drain_pipes(job, proc_log)
     if (!job$is_alive()) {
-      drain_pipes(job, proc_log, timeout = 0.5)
+      drain_pipes(job, proc_log, final = TRUE)
       res <- tryCatch(
         job$get_result(),
         error = function(e) list(error = conditionMessage(e))
@@ -350,7 +369,7 @@ server <- function(input, output, session) {
     invalidateLater(800)
     drain_pipes(job, rep_log)
     if (!job$is_alive()) {
-      drain_pipes(job, rep_log, timeout = 0.5)
+      drain_pipes(job, rep_log, final = TRUE)
       result <- tryCatch(
         { job$get_result(); list(ok = TRUE,  err = NULL) },
         error = function(e) list(ok = FALSE, err = conditionMessage(e))
