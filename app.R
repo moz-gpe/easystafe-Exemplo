@@ -101,7 +101,7 @@ drain_pipes <- function(job, log_rv, final = FALSE) {
 log_style <- paste(
   "font-family: monospace; font-size: 0.78rem; white-space: pre-wrap;",
   "max-height: 380px; overflow-y: auto;",
-  "background: #ede7e3; padding: 10px; border-radius: 4px; min-height: 60px;"
+  "background: #ede7e3; padding: 0; border-radius: 4px; min-height: 0;"
 )
 
 mec_uri <- base64enc::dataURI(
@@ -292,41 +292,27 @@ ui <- page_fluid(
         tags$hr(style = "margin-top: 8px; margin-bottom: 4px;")
       ),
 
-      navset_card_underline(
-        id = "tabs",
-
-        nav_panel("Processamento", value = "tab_proc",
-          card(
-            tags$div(
-              class = "card-header d-flex align-items-center justify-content-between",
-              style = "cursor:pointer; user-select:none; background-color:#ede7e3;",
-              `data-bs-toggle` = "collapse",
-              `data-bs-target` = "#log_collapse",
-              "Log de Processamento",
-              tags$i(id = "log_chevron", class = "fa fa-chevron-down",
-                     style = "font-size:0.7rem; color:#6c757d; transition:transform 0.2s;")
-            ),
-            tags$div(
-              id = "log_collapse",
-              class = "collapse",
-              div(style = log_style, textOutput("proc_log"))
-            )
+      card(
+        class = "mb-3",
+        card_body(
+          style = "font-size: 0.88rem; color: #495057;",
+          tags$p(
+            style = "font-size: 1.1rem; font-weight: 600; color: #16697a; margin-bottom: 0.5rem;",
+            "Bem-vindo ao easystafe!"
           ),
-          uiOutput("proc_status_card"),
-          card(
-            card_header("Verificação de Qualidade (sitrep)"),
-            uiOutput("sitrep_out")
-          )
-        ),
-
-        nav_panel("Relatório", value = "tab_rep",
-          uiOutput("rep_status_card"),
-          card(
-            card_header("Log de Renderização"),
-            div(style = log_style, textOutput("rep_log"))
+          tags$p(
+            HTML("O <em>easystafe::</em> facilita o trabalho com dados extraídos do e-SISTAFE, o sistema de gestão das finanças públicas de Moçambique. A partir dos ficheiros \"Demonstrativo Consolidado\", filtra as linhas do MEC, remove duplicados pela hierarquia da CED, acrescenta metadados para análise e automatiza o Relatório de Execução Orçamental.")
+          ),
+          tags$p(
+            class = "mb-0",
+            HTML("Para começar, seleccione as pastas com os ficheiros e-SISTAFE no painel lateral, clique em <strong>Processar Dados</strong> e aguarde a conclusão da verificação de qualidade. São necessários dados de <strong>pelo menos dois anos</strong> para gerar o relatório comparativo. Se existirem lacunas nos metadados, o <em>sitrep</em> indicará as correcções necessárias.")
           )
         )
-      )
+      ),
+
+      uiOutput("proc_status_card"),
+      uiOutput("sitrep_card"),
+      uiOutput("rep_status_card")
     )
   )
 )
@@ -447,7 +433,6 @@ server <- function(input, output, session) {
     proc_res(NULL)
     proc_log("")
     shinyjs::disable("btn_report")
-    nav_select("tabs", "tab_proc")
 
     staged <- stage_files(input$files, stage_base)
     req(length(staged) > 0)
@@ -573,30 +558,37 @@ server <- function(input, output, session) {
     card(card_body(
       if (!done)
         div(class = "d-flex align-items-center gap-2",
-          div(class = "spinner-border spinner-border-sm text-primary"),
-          span("A processar dados..."))
+          div(class = "spinner-border spinner-border-sm", style = "color: #ffa62b;"),
+          span("A processar dados...", style = "color: #16697a;"))
       else if (!is.null(res$error))
         div(class = "text-danger", strong("Erro: "), res$error)
       else
         div(
-          div(class = "text-success mb-2",
-            strong(icon("circle-check"), " Concluído — "),
-            format(res$nrows, big.mark = "."), " linhas processadas."),
+          div(style = "color: #16697a; margin-bottom: 0.5rem;",
+            strong(icon("circle-check"), " Processamento concluído — "),
+            format(res$nrows, big.mark = "."), " linhas processadas!"),
           if (!isTRUE(res$n_years >= 2))
             div(class = "mt-2 mb-1",
               style = "font-size:0.75rem; color:#856404; background-color:#fff3cd; border:1px solid #ffc107; border-radius:6px; padding:6px 8px;",
               icon("triangle-exclamation"), " O relatório requer dados de ",
               strong("pelo menos dois anos"), ". Carregue também os ficheiros ",
               "do ano anterior e processe de novo."),
-          div(class = "d-flex gap-2 mt-2",
-            downloadButton("dl_parquet", "Parquet",
-                           class = "btn-sm",
-                           style = "background-color:#16697a; color:#ffffff; border-color:#16697a; display:inline-flex; align-items:center; gap:5px;"),
+          p(class = "small mt-2 mb-2", style = "color: #495057;",
+            "Os dados processados estão disponíveis em dois formatos: ",
+            tags$b("Excel"), " — ideal para análise directa, visualização e partilha com outros utilizadores; ",
+            tags$b("Parquet"), " — formato hipercomprimido optimizado para análise programática em R, Python e outras ferramentas analíticas."
+          ),
+          div(class = "d-flex gap-2 mb-2",
             downloadButton("dl_excel",   "Excel",
                            class = "btn-sm",
-                           style = "background-color:#489fb5; color:#ffffff; border-color:#489fb5; display:inline-flex; align-items:center; gap:5px;")
-          )
-        )
+                           style = "background-color:#489fb5; color:#ffffff; border-color:#489fb5; display:inline-flex; align-items:center; justify-content:center; gap:5px; width:100px;"),
+            downloadButton("dl_parquet", "Parquet",
+                           class = "btn-sm",
+                           style = "background-color:#16697a; color:#ffffff; border-color:#16697a; display:inline-flex; align-items:center; justify-content:center; gap:5px; width:100px;")
+          ),
+        ),
+      if (!done) div(style = paste(log_style, "margin-top: 0.75rem;"),
+                     tags$div(style = "margin: 0; line-height: 1.4;", textOutput("proc_log")))
     ))
   })
 
@@ -614,7 +606,7 @@ server <- function(input, output, session) {
     }
   )
 
-  output$sitrep_out <- renderUI({
+  output$sitrep_card <- renderUI({
     req(proc_done())
     res <- proc_res()
     if (is.null(res) || !is.null(res$error)) return(NULL)
@@ -729,19 +721,42 @@ server <- function(input, output, session) {
       last = TRUE
     )
 
-    tagList(
-      if (total == 0)
-        div(class = "d-flex gap-2 align-items-center text-success mb-3",
-          tags$i(class = "fa fa-circle-check"),
-          tags$b("Sem lacunas detectadas — todos os lookups estão completos."))
-      else
-        p(class = "text-muted small mb-3",
-          paste0(total, " lacuna(s) detectada(s) — ver detalhes abaixo.")),
-      sec_A, sec_B, sec_C, sec_D,
-      if (total > 0 && !is.null(res$sitrep_excel) && file.exists(res$sitrep_excel))
-        div(class = "mt-3",
-          downloadButton("dl_sitrep", "Descarregar Excel de lacunas",
-                         class = "btn-outline-warning btn-sm"))
+    card(
+      tags$div(
+        class = "card-header d-flex align-items-center justify-content-between",
+        style = "cursor:pointer; user-select:none; color:#16697a; font-weight:600; background-color:#ffffff; border-bottom:none; padding-left:0;",
+        `data-bs-toggle` = "collapse",
+        `data-bs-target` = "#sitrep_collapse",
+        tags$span(
+          tagList(icon("circle-check"), " Verificação concluída",
+          tags$span(style = "font-weight:400;", paste0(" — ", total, " lacuna(s) detectada(s)!")),
+          tags$span(style = "font-size:0.75rem; font-weight:400; color:#6c757d; margin-left:0.5rem;",
+                    "(clique para ver resultados)"))
+        ),
+        tags$i(class = "fa fa-chevron-down",
+               style = "font-size:0.7rem; color:#6c757d; transition:transform 0.2s;")
+      ),
+      tags$div(
+        id = "sitrep_collapse",
+        class = "collapse",
+        div(class = "card-body",
+          if (total > 0 && !is.null(res$sitrep_excel) && file.exists(res$sitrep_excel))
+            div(class = "mb-3",
+              p(class = "small text-muted mb-2",
+                "Inventário completo de todas as lacunas detectadas, organizado por categoria numa folha Excel."),
+              downloadButton("dl_sitrep", "Descarregar Resumo",
+                             class = "btn-sm",
+                             style = "background-color:#489fb5; color:#ffffff; border-color:#489fb5; display:inline-flex; align-items:center; justify-content:center; gap:5px;")),
+          if (total == 0)
+            div(class = "d-flex gap-2 align-items-center text-success mb-3",
+              tags$i(class = "fa fa-circle-check"),
+              tags$b("Sem lacunas detectadas — todos os lookups estão completos."))
+          else
+            p(class = "text-muted small mb-3",
+              paste0(total, " lacuna(s) detectada(s) — ver detalhes abaixo.")),
+          sec_A, sec_B, sec_C, sec_D
+        )
+      )
     )
   })
 
@@ -768,7 +783,6 @@ server <- function(input, output, session) {
     rep_err(NULL)
     rep_url(NULL)
     rep_log("")
-    nav_select("tabs", "tab_rep")
 
     qmd_abs     <- normalizePath(REPORT_QMD, mustWork = FALSE)
     abs_parquet <- normalizePath(
@@ -854,10 +868,6 @@ server <- function(input, output, session) {
     if (rep_ok()) {
       rep_url(rep_url_path)
       session$sendCustomMessage("open_report", rep_url_path)
-      showNotification(
-        "Relatório gerado. Se não abrir automaticamente, use o link no painel.",
-        type = "message", duration = 10
-      )
     } else {
       err_msg <- if (!is.null(rep_err())) rep_err() else "Erro desconhecido."
       showNotification(paste0("Erro: ", err_msg), type = "error", duration = 20)
@@ -868,10 +878,7 @@ server <- function(input, output, session) {
 
   output$rep_status_card <- renderUI({
     job <- rep_job()
-    if (is.null(job))
-      return(card(card_body(
-        p(class = "text-muted",
-          "Clique em 'Gerar Relatório' para iniciar a renderização."))))
+    if (is.null(job)) return(NULL)
     done <- rep_done()
     ok   <- rep_ok()
     err  <- rep_err()
@@ -879,22 +886,45 @@ server <- function(input, output, session) {
     card(card_body(
       if (!done)
         div(class = "d-flex align-items-center gap-2",
-          div(class = "spinner-border spinner-border-sm text-success"),
-          span("A renderizar relatório..."))
+          div(class = "spinner-border spinner-border-sm", style = "color: #ffa62b;"),
+          span("A renderizar relatório...", style = "color: #16697a;"),
+          tags$a(`data-bs-toggle` = "collapse", `data-bs-target` = "#rep_log_collapse",
+                 href = "#", style = "font-size:0.75rem; color:#6c757d;",
+                 "(ver log de renderização)"))
       else if (ok)
-        div(class = "alert alert-success mb-0",
-          strong(icon("circle-check"), " Relatório gerado. "),
+        div(
+          div(style = "color: #16697a; margin-bottom: 0.5rem;",
+            strong(icon("circle-check"), " Relatório gerado!")),
+          p(class = "small mb-2", style = "color: #495057;",
+            "O relatório de execução orçamental está pronto para descarga. Pode também ",
+            if (!is.null(url))
+              tags$a(href = url, target = "_blank", style = "color:#16697a;",
+                     "abrir numa nova janela"),
+            "."),
+          div(class = "d-flex align-items-center gap-2 mb-2",
+            downloadButton("dl_report", "Relatório",
+                           class = "btn-sm",
+                           style = "background-color:#489fb5; color:#ffffff; border-color:#489fb5; display:inline-flex; align-items:center; justify-content:center; gap:5px;")
+          ),
           if (!is.null(url))
-            tags$a(href = url, target = "_blank", class = "alert-link",
-                   "Abrir numa nova janela."),
-          " ",
-          downloadButton("dl_report", "Descarregar HTML",
-                         class = "btn-outline-secondary btn-sm ms-2")
+            div(style = "width:300px; height:375px; overflow:hidden; border:1px solid #dee2e6; border-radius:4px; margin-top:1rem;",
+              tags$iframe(
+                src   = url,
+                style = "width:1200px; height:1500px; transform:scale(0.25); transform-origin:top left; pointer-events:none; border:none;"
+              )
+            )
         )
       else
         div(class = "alert alert-danger mb-0",
           tags$b("Erro: "),
-          if (!is.null(err)) err else "Erro desconhecido. Ver log abaixo.")
+          if (!is.null(err)) err else "Erro desconhecido. Ver log abaixo."),
+      if (!done)
+        tags$div(
+          id = "rep_log_collapse",
+          class = "collapse",
+          div(style = paste(log_style, "margin-top: 0.25rem;"),
+              tags$div(style = "margin: 0; line-height: 1.4;", textOutput("rep_log")))
+        )
     ))
   })
 
