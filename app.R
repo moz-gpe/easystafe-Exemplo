@@ -91,18 +91,13 @@ drain_pipes <- function(job, log_rv, final = FALSE) {
              tryCatch(job$read_error_lines(),  error = function(e) character(0)) else character(0)
   }
   lines <- strip_ansi(c(out, err))
-  lines <- lines[nchar(lines) > 0]
+  lines <- gsub("\r", "", lines)          # Windows CRs render as blank lines in <pre>
+  lines <- lines[nzchar(trimws(lines))]   # drop empty AND whitespace-only lines
   if (!length(lines)) return(invisible(NULL))
   prev <- log_rv()
   log_rv(if (nchar(prev) > 0) paste(prev, paste(lines, collapse = "\n"), sep = "\n")
          else paste(lines, collapse = "\n"))
 }
-
-log_style <- paste(
-  "font-family: monospace; font-size: 0.78rem; white-space: pre-wrap;",
-  "max-height: 380px; overflow-y: auto;",
-  "background: #ede7e3; padding: 0; border-radius: 4px; min-height: 0;"
-)
 
 mec_uri <- base64enc::dataURI(
   file = "images/1200px-Emblem_of_Mozambique.svg-716778474.png",
@@ -387,6 +382,7 @@ server <- function(input, output, session) {
   observeEvent(input$btn_clear_files, { files_cleared(TRUE) }, ignoreInit = TRUE)
   observeEvent(input$files, {
     files_cleared(FALSE)
+    shinyjs::enable("btn_process")
     step_color("#16697a", "#ffa62b", "#16697a")
   }, ignoreInit = TRUE)
 
@@ -538,6 +534,7 @@ server <- function(input, output, session) {
       proc_res(res)
       proc_done(TRUE)
       if (is.null(res$error)) {
+        shinyjs::disable("btn_process")
         if (isTRUE(res$n_years >= 2)) {
           shinyjs::enable("btn_report")
           step_color("#16697a", "#16697a", "#ffa62b")
@@ -548,7 +545,10 @@ server <- function(input, output, session) {
     }
   })
 
-  output$proc_log <- renderText(proc_log())
+  output$proc_log <- renderUI(tags$pre(
+    style = "margin:0; padding:24px 24px; font-family:monospace; font-size:0.78rem; white-space:pre-wrap; line-height:1.4; background:#ede7e3; color:#495057; border:none; border-radius:4px; max-height:380px; overflow-y:auto;",
+    proc_log()
+  ))
 
   output$proc_status_card <- renderUI({
     job <- proc_job()
@@ -586,9 +586,12 @@ server <- function(input, output, session) {
                            class = "btn-sm",
                            style = "background-color:#16697a; color:#ffffff; border-color:#16697a; display:inline-flex; align-items:center; justify-content:center; gap:5px; width:100px;")
           ),
+          p(class = "small mb-0", style = "color:#495057;",
+            "Para gerar o relatório de execução orçamental, clique em ",
+            tags$b("Gerar Relatório"), " no painel lateral."
+          ),
         ),
-      if (!done) div(style = paste(log_style, "margin-top: 0.75rem;"),
-                     tags$div(style = "margin: 0; line-height: 1.4;", textOutput("proc_log")))
+      if (!done) div(style = "margin-top:0.75rem;", uiOutput("proc_log"))
     ))
   })
 
@@ -874,7 +877,10 @@ server <- function(input, output, session) {
     }
   })
 
-  output$rep_log <- renderText(rep_log())
+  output$rep_log <- renderUI(tags$pre(
+    style = "margin:0; padding:24px 24px; font-family:monospace; font-size:0.78rem; white-space:pre-wrap; line-height:1.4; background:#ede7e3; color:#495057; border:none; border-radius:4px; max-height:380px; overflow-y:auto;",
+    rep_log()
+  ))
 
   output$rep_status_card <- renderUI({
     job <- rep_job()
@@ -922,8 +928,7 @@ server <- function(input, output, session) {
         tags$div(
           id = "rep_log_collapse",
           class = "collapse",
-          div(style = paste(log_style, "margin-top: 0.25rem;"),
-              tags$div(style = "margin: 0; line-height: 1.4;", textOutput("rep_log")))
+          div(style = "margin-top:0.25rem;", uiOutput("rep_log"))
         )
     ))
   })
